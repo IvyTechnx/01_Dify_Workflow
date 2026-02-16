@@ -1,0 +1,54 @@
+[
+  {
+    "transaction_id": "TXN-20240315-001234",
+    "amount": 52000000,
+    "currency": "JPY",
+    "sender_account": "JP-1234-5678-9012",
+    "receiver_account": "KY-9876-5432-1098",
+    "timestamp": "2024-03-15T14:32:00+09:00",
+    "location": "Cayman Islands (destination)",
+    "channel": "SWIFT",
+    "sender_name": "株式会社テスト商事",
+    "receiver_name": "Offshore Holdings Ltd.",
+    "purpose": "Investment transfer"
+  },
+  {
+    "transaction_id": "TXN-20240320-005678",
+    "amount": 35000,
+    "currency": "JPY",
+    "sender_account": "JP-2345-6789-0123",
+    "receiver_account": "JP-3456-7890-1234",
+    "timestamp": "2024-03-20T09:15:00+09:00",
+    "location": "Tokyo, Japan",
+    "channel": "ATM",
+    "sender_name": "田中太郎",
+    "receiver_name": "田中花子",
+    "purpose": "Family remittance"
+  },
+  {
+    "transaction_id": "TXN-20240401-009999",
+    "amount": 15000000,
+    "currency": "JPY",
+    "sender_account": "JP-4567-8901-2345",
+    "receiver_account": "JP-5678-9012-3456",
+    "timestamp": "2024-04-01T11:00:00+09:00",
+    "location": "Osaka, Japan",
+    "channel": "Internet Banking",
+    "sender_name": "鈴木一郎",
+    "receiver_name": "山田建設株式会社",
+    "purpose": "Construction payment"
+  },
+  {
+    "transaction_id": "TXN/2024+03&15#001",
+    "amount": 500000,
+    "currency": "JPY",
+    "sender_account": "JP-6789-0123-4567",
+    "receiver_account": "JP-7890-1234-5678",
+    "timestamp": "2024-03-15T16:45:00+09:00",
+    "location": "Nagoya, Japan",
+    "channel": "Branch Counter",
+    "sender_name": "佐藤次郎",
+    "receiver_name": "高橋商店",
+    "purpose": "Product purchase"
+  }
+]

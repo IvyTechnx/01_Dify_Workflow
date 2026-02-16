@@ -1,0 +1,38 @@
+{
+  "USD/JPY": {
+    "pair": "USD/JPY",
+    "bid": 149.85,
+    "ask": 149.88,
+    "change_24h_percent": 0.32,
+    "high_24h": 150.15,
+    "low_24h": 149.22,
+    "timestamp": "2024-03-15T15:00:00+09:00"
+  },
+  "EUR/JPY": {
+    "pair": "EUR/JPY",
+    "bid": 162.45,
+    "ask": 162.50,
+    "change_24h_percent": -0.18,
+    "high_24h": 163.10,
+    "low_24h": 162.05,
+    "timestamp": "2024-03-15T15:00:00+09:00"
+  },
+  "GBP/JPY": {
+    "pair": "GBP/JPY",
+    "bid": 189.32,
+    "ask": 189.40,
+    "change_24h_percent": 0.45,
+    "high_24h": 189.85,
+    "low_24h": 188.50,
+    "timestamp": "2024-03-15T15:00:00+09:00"
+  },
+  "AUD/JPY": {
+    "pair": "AUD/JPY",
+    "bid": 97.65,
+    "ask": 97.70,
+    "change_24h_percent": -0.22,
+    "high_24h": 98.10,
+    "low_24h": 97.30,
+    "timestamp": "2024-03-15T15:00:00+09:00"
+  }
+}

@@ -1,0 +1,222 @@
+[
+  {
+    "branch_code": "BR-001",
+    "branch_name": "東京中央支店",
+    "region": "関東",
+    "deposits_billion": 125.3,
+    "loans_billion": 89.7,
+    "profit_million": 342,
+    "new_accounts": 1250,
+    "employees": 85,
+    "established": "1952-04-01"
+  },
+  {
+    "branch_code": "BR-002",
+    "branch_name": "大阪梅田支店",
+    "region": "関西",
+    "deposits_billion": 98.5,
+    "loans_billion": 72.3,
+    "profit_million": 278,
+    "new_accounts": 980,
+    "employees": 72,
+    "established": "1955-06-15"
+  },
+  {
+    "branch_code": "BR-003",
+    "branch_name": "名古屋駅前支店",
+    "region": "中部",
+    "deposits_billion": 76.2,
+    "loans_billion": 58.1,
+    "profit_million": 198,
+    "new_accounts": 720,
+    "employees": 58,
+    "established": "1958-03-01"
+  },
+  {
+    "branch_code": "BR-004",
+    "branch_name": "横浜みなとみらい支店",
+    "region": "関東",
+    "deposits_billion": 82.1,
+    "loans_billion": 61.5,
+    "profit_million": 215,
+    "new_accounts": 830,
+    "employees": 63,
+    "established": "1960-09-01"
+  },
+  {
+    "branch_code": "BR-005",
+    "branch_name": "札幌大通支店",
+    "region": "北海道",
+    "deposits_billion": 45.8,
+    "loans_billion": 32.4,
+    "profit_million": 112,
+    "new_accounts": 420,
+    "employees": 38,
+    "established": "1963-04-01"
+  },
+  {
+    "branch_code": "BR-006",
+    "branch_name": "福岡天神支店",
+    "region": "九州",
+    "deposits_billion": 62.3,
+    "loans_billion": 48.9,
+    "profit_million": 167,
+    "new_accounts": 650,
+    "employees": 52,
+    "established": "1957-07-01"
+  },
+  {
+    "branch_code": "BR-007",
+    "branch_name": "仙台青葉支店",
+    "region": "東北",
+    "deposits_billion": 38.7,
+    "loans_billion": 27.2,
+    "profit_million": 95,
+    "new_accounts": 350,
+    "employees": 34,
+    "established": "1965-01-15"
+  },
+  {
+    "branch_code": "BR-008",
+    "branch_name": "広島平和通支店",
+    "region": "中国",
+    "deposits_billion": 42.1,
+    "loans_billion": 31.8,
+    "profit_million": 108,
+    "new_accounts": 390,
+    "employees": 36,
+    "established": "1962-10-01"
+  },
+  {
+    "branch_code": "BR-009",
+    "branch_name": "神戸三宮支店",
+    "region": "関西",
+    "deposits_billion": 55.6,
+    "loans_billion": 41.2,
+    "profit_million": 145,
+    "new_accounts": 520,
+    "employees": 45,
+    "established": "1959-05-01"
+  },
+  {
+    "branch_code": "BR-010",
+    "branch_name": "京都四条支店",
+    "region": "関西",
+    "deposits_billion": 51.2,
+    "loans_billion": 38.5,
+    "profit_million": 132,
+    "new_accounts": 480,
+    "employees": 42,
+    "established": "1956-11-01"
+  },
+  {
+    "branch_code": "BR-011",
+    "branch_name": "さいたま新都心支店",
+    "region": "関東",
+    "deposits_billion": 58.9,
+    "loans_billion": 43.7,
+    "profit_million": 155,
+    "new_accounts": 580,
+    "employees": 48,
+    "established": "2001-05-01"
+  },
+  {
+    "branch_code": "BR-012",
+    "branch_name": "千葉中央支店",
+    "region": "関東",
+    "deposits_billion": 47.3,
+    "loans_billion": 35.1,
+    "profit_million": 121,
+    "new_accounts": 440,
+    "employees": 40,
+    "established": "1968-04-01"
+  },
+  {
+    "branch_code": "BR-013",
+    "branch_name": "新潟万代支店",
+    "region": "中部",
+    "deposits_billion": 33.5,
+    "loans_billion": 24.8,
+    "profit_million": 82,
+    "new_accounts": 300,
+    "employees": 30,
+    "established": "1970-06-01"
+  },
+  {
+    "branch_code": "BR-014",
+    "branch_name": "金沢香林坊支店",
+    "region": "中部",
+    "deposits_billion": 28.9,
+    "loans_billion": 21.3,
+    "profit_million": 71,
+    "new_accounts": 260,
+    "employees": 27,
+    "established": "1972-03-01"
+  },
+  {
+    "branch_code": "BR-015",
+    "branch_name": "静岡葵支店",
+    "region": "中部",
+    "deposits_billion": 36.4,
+    "loans_billion": 26.9,
+    "profit_million": 92,
+    "new_accounts": 340,
+    "employees": 32,
+    "established": "1966-08-01"
+  },
+  {
+    "branch_code": "BR-016",
+    "branch_name": "岡山駅前支店",
+    "region": "中国",
+    "deposits_billion": 31.2,
+    "loans_billion": 23.1,
+    "profit_million": 78,
+    "new_accounts": 280,
+    "employees": 28,
+    "established": "1971-02-01"
+  },
+  {
+    "branch_code": "BR-017",
+    "branch_name": "熊本城東支店",
+    "region": "九州",
+    "deposits_billion": 25.8,
+    "loans_billion": 19.2,
+    "profit_million": 63,
+    "new_accounts": 230,
+    "employees": 25,
+    "established": "1974-09-01"
+  },
+  {
+    "branch_code": "BR-018",
+    "branch_name": "那覇国際通り支店",
+    "region": "沖縄",
+    "deposits_billion": 18.5,
+    "loans_billion": 13.7,
+    "profit_million": 45,
+    "new_accounts": 180,
+    "employees": 22,
+    "established": "1978-05-15"
+  },
+  {
+    "branch_code": "BR-019",
+    "branch_name": "高松丸亀町支店",
+    "region": "四国",
+    "deposits_billion": 22.1,
+    "loans_billion": 16.4,
+    "profit_million": 54,
+    "new_accounts": 200,
+    "employees": 23,
+    "established": "1975-11-01"
+  },
+  {
+    "branch_code": "BR-020",
+    "branch_name": "鹿児島天文館支店",
+    "region": "九州",
+    "deposits_billion": 21.3,
+    "loans_billion": 15.8,
+    "profit_million": 52,
+    "new_accounts": 190,
+    "employees": 22,
+    "established": "1976-04-01"
+  }
+]
