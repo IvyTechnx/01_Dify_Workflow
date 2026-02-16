@@ -263,7 +263,8 @@ workflow:
                   txn_id = data.get('transaction_id', 'N/A')
                   raw_amount = data.get('amount', 0)
                   try:
-                      amount = float(raw_amount)
+                      cleaned = str(raw_amount).replace(',', '')
+                      amount = float(cleaned)
                   except (TypeError, ValueError):
                       amount = 0
                   currency = data.get('currency', 'JPY')
@@ -444,11 +445,11 @@ workflow:
         code: |
           import json
 
-          def main(transaction_id: str, alert_type: str, analysis: str) -> dict:
+          def main(transaction_id: str, alert_type: str, risk_level: str, analysis: str) -> dict:
               payload = json.dumps({
                   "transaction_id": transaction_id,
                   "alert_type": alert_type,
-                  "risk_level": "HIGH",
+                  "risk_level": risk_level,
                   "analysis": analysis,
                   "action": "immediate_review"
               }, ensure_ascii=False)
@@ -462,6 +463,10 @@ workflow:
           - '30400000000001'
           - alert_type
           variable: alert_type
+        - value_selector:
+          - '30400000000012'
+          - risk_level
+          variable: risk_level
         - value_selector:
           - '30400000000005'
           - text
