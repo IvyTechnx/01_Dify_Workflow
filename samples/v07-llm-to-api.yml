@@ -1,0 +1,244 @@
+app:
+  description: 'V07: LLM生成→外部API連携 — 障害報告の自動Slack通知'
+  icon: "\U0001F6A8"
+  icon_background: '#FFD5D2'
+  mode: workflow
+  name: "V07 障害Slack自動通知"
+  use_icon_as_answer_icon: false
+workflow:
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  environment_variables: []
+  conversation_variables: []
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: llm
+      id: '70000000000001-70000000000002'
+      source: '70000000000001'
+      sourceHandle: source
+      target: '70000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+      id: '70000000000002-70000000000003'
+      source: '70000000000002'
+      sourceHandle: source
+      target: '70000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: '70000000000003-70000000000004'
+      source: '70000000000003'
+      sourceHandle: source
+      target: '70000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: end
+      id: '70000000000004-70000000000005'
+      source: '70000000000004'
+      sourceHandle: source
+      target: '70000000000005'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '監視アラートの原文を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: alert_text
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: alert_text
+      height: 89
+      id: '70000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'アラートテキストを分析し要約する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: "あなたは運用監視の専門家です。アラートテキストを分析し、以下のフォーマットで要約してください：\n影響: （影響範囲を1行で）\n原因: （推定原因を1行で）\n推奨: （推奨アクションを1行で）"
+        - role: user
+          text: '{{#70000000000001.alert_text#}}'
+        selected: false
+        title: アラート要約
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '70000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        code: |
+          import json
+
+          def main(summary_text: str) -> dict:
+              payload = json.dumps({"text": "\U0001F6A8 障害速報\n" + summary_text}, ensure_ascii=False)
+              return {"payload": payload}
+        code_language: python3
+        desc: 'Slack Webhook用のJSONペイロードを構築する'
+        outputs:
+          payload:
+            type: string
+            children: null
+        selected: false
+        title: Payload生成
+        type: code
+        variables:
+        - value_selector:
+          - '70000000000002'
+          - text
+          variable: summary_text
+      height: 89
+      id: '70000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{{#70000000000003.payload#}}'
+          type: raw-text
+        desc: 'Slack WebhookにPOSTリクエストを送信する'
+        headers: 'Content-Type: application/json'
+        method: post
+        params: ''
+        selected: false
+        timeout:
+          connect: 5000
+          max_connect_timeout: 300
+          max_read_timeout: 600
+          max_write_timeout: 600
+          read: 10000
+          write: 10000
+        title: Slack通知
+        type: http-request
+        url: 'https://hooks.slack.com/services/PLACEHOLDER/WEBHOOK'
+      height: 89
+      id: '70000000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'HTTPレスポンスを出力する'
+        outputs:
+        - value_selector:
+          - '70000000000004'
+          - status_code
+          variable: status_code
+        - value_selector:
+          - '70000000000004'
+          - body
+          variable: response_body
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '70000000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,372 @@
+app:
+  description: キャンペーン名・ターゲット層・予算・期間・目標・チャネルの6入力をCodeで構造化し、LLMが本格的なキャンペーン企画書を生成。Template Transformで最終フォーマットを整えるワークフロー。
+  icon: "\U0001F3AF"
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'RTL-09: キャンペーン企画書ドラフト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-50900000000001-50900000000002
+      source: '50900000000001'
+      sourceHandle: source
+      target: '50900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-50900000000002-50900000000003
+      source: '50900000000002'
+      sourceHandle: source
+      target: '50900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+      id: e-50900000000003-50900000000004
+      source: '50900000000003'
+      sourceHandle: source
+      target: '50900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-50900000000004-50900000000005
+      source: '50900000000004'
+      sourceHandle: source
+      target: '50900000000005'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'キャンペーン企画に必要な情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: campaign_name
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: campaign_name
+        - label: target_segment
+          max_length: 48
+          options:
+          - '全顧客'
+          - '新規顧客'
+          - 'リピーター'
+          - 'VIP会員'
+          - '休眠顧客'
+          required: true
+          type: select
+          variable: target_segment
+        - label: budget
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: budget
+        - label: duration
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: duration
+        - label: objectives
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: objectives
+        - label: channels
+          max_length: 48
+          options:
+          - 'ECサイト'
+          - 'SNS（Instagram/X）'
+          - 'メールマガジン'
+          - 'LINE公式'
+          - '店頭POP'
+          - '複合チャネル'
+          required: true
+          type: select
+          variable: channels
+      height: 193
+      id: '50900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力情報をバリデーションし構造化する'
+        selected: false
+        title: 入力整形
+        type: code
+        code_language: python3
+        code: |
+          def main(campaign_name: str, target_segment: str, budget: str,
+                   duration: str, objectives: str, channels: str) -> dict:
+              sections = []
+              sections.append(f"■ キャンペーン名: {campaign_name}")
+              sections.append(f"■ ターゲット: {target_segment}")
+              sections.append(f"■ 予算: {budget}")
+              sections.append(f"■ 実施期間: {duration}")
+              sections.append(f"■ 配信チャネル: {channels}")
+              sections.append(f"■ 目標・KPI:\n{objectives}")
+              structured = '\n'.join(sections)
+              return {'structured_brief': structured}
+        variables:
+        - value_selector:
+          - '50900000000001'
+          - campaign_name
+          variable: campaign_name
+        - value_selector:
+          - '50900000000001'
+          - target_segment
+          variable: target_segment
+        - value_selector:
+          - '50900000000001'
+          - budget
+          variable: budget
+        - value_selector:
+          - '50900000000001'
+          - duration
+          variable: duration
+        - value_selector:
+          - '50900000000001'
+          - objectives
+          variable: objectives
+        - value_selector:
+          - '50900000000001'
+          - channels
+          variable: channels
+        outputs:
+          structured_brief:
+            type: string
+      height: 97
+      id: '50900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'キャンペーン企画書を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは小売・EC企業のマーケティングマネージャーです。以下のブリーフに基づき、実行可能なキャンペーン企画書を作成してください。
+
+            ## 企画書フォーマット
+            ### 1. エグゼクティブサマリー
+            （3〜5行で企画全体を要約）
+
+            ### 2. 背景と目的
+            - 市場背景・課題認識
+            - キャンペーン目的
+            - 期待効果
+
+            ### 3. ターゲット戦略
+            - ペルソナ設定（具体的な顧客像）
+            - セグメント別アプローチ
+
+            ### 4. 施策内容
+            - メインオファー（割引、特典、限定商品等）
+            - サブ施策（SNSキャンペーン、ポイント還元等）
+            - クリエイティブ方針
+
+            ### 5. 実施スケジュール
+            - フェーズ分け（告知期・実施期・追客期）
+            - 主要マイルストーン
+
+            ### 6. 予算配分
+            - チャネル別予算配分案
+            - ROI試算
+
+            ### 7. KPI・効果測定
+            - 主要KPI（CVR、客単価、新規獲得数等）
+            - 測定方法
+
+            ### 8. リスクと対策
+            - 想定リスク（在庫不足、システム負荷等）
+            - 対策案
+
+            ## ルール
+            - 数値目標は具体的に記載する
+            - 実現可能性を重視する
+            - 法令（景品表示法、特商法等）への配慮を明記する
+        - role: user
+          text: |
+            {{#50900000000002.structured_brief#}}
+        selected: false
+        title: 企画書生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '企画書をフォーマットする'
+        selected: false
+        title: 企画書フォーマット
+        type: template-transform
+        template: |
+          # キャンペーン企画書: {{ campaign_name }}
+
+          | 項目 | 内容 |
+          |------|------|
+          | ターゲット | {{ target_segment }} |
+          | 予算 | {{ budget }} |
+          | 期間 | {{ duration }} |
+          | チャネル | {{ channels }} |
+
+          ---
+
+          {{ plan_content }}
+
+          ---
+          ※ 本企画書はAIが生成したドラフトです。関係部署と協議の上、最終化してください。
+          ※ 法務チェック（景品表示法・特商法）は別途必要です。
+        variables:
+        - value_selector:
+          - '50900000000001'
+          - campaign_name
+          variable: campaign_name
+        - value_selector:
+          - '50900000000001'
+          - target_segment
+          variable: target_segment
+        - value_selector:
+          - '50900000000001'
+          - budget
+          variable: budget
+        - value_selector:
+          - '50900000000001'
+          - duration
+          variable: duration
+        - value_selector:
+          - '50900000000001'
+          - channels
+          variable: channels
+        - value_selector:
+          - '50900000000003'
+          - text
+          variable: plan_content
+      height: 97
+      id: '50900000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'キャンペーン企画書を出力する'
+        outputs:
+        - value_selector:
+          - '50900000000004'
+          - output
+          variable: campaign_plan
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50900000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

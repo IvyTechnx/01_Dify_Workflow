@@ -1,0 +1,389 @@
+app:
+  description: カンマ区切りの店舗リストをCodeで配列化・URLエンコードし、Iterationで各店舗の売上データをAPIから取得。Codeで集約後、LLMが全店舗横断の売上日報を生成するワークフロー。
+  icon: "\U0001F3EA"
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'RTL-10: 多店舗売上日報一括生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-51000000000001-51000000000002
+      source: '51000000000001'
+      sourceHandle: source
+      target: '51000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-51000000000002-51000000000003
+      source: '51000000000002'
+      sourceHandle: source
+      target: '51000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-51000000000003-51000000000005
+      source: '51000000000003'
+      sourceHandle: source
+      target: '51000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-51000000000005-51000000000006
+      source: '51000000000005'
+      sourceHandle: source
+      target: '51000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-51000000000006-51000000000007
+      source: '51000000000006'
+      sourceHandle: source
+      target: '51000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '店舗リストとレポート日を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: store_list
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: store_list
+        - label: report_date
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: report_date
+      height: 115
+      id: '51000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '店舗名を配列化しURLエンコードする'
+        selected: false
+        title: 店舗配列化
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(store_list: str, report_date: str) -> dict:
+              raw = [s.strip() for s in store_list.split(',') if s.strip()]
+              items = [urllib.parse.quote(s, safe='') for s in raw]
+              date_enc = urllib.parse.quote(report_date, safe='')
+              return {'items': items, 'date_enc': date_enc}
+        variables:
+        - value_selector:
+          - '51000000000001'
+          - store_list
+          variable: store_list
+        - value_selector:
+          - '51000000000001'
+          - report_date
+          variable: report_date
+        outputs:
+          items:
+            type: array[string]
+          date_enc:
+            type: string
+      height: 97
+      id: '51000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        type: iteration
+        title: 店舗イテレーション
+        desc: '各店舗の売上データをAPIから取得する'
+        iterator_selector:
+        - '51000000000002'
+        - items
+        output_selector:
+        - '51000000000004'
+        - body
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '51000000000004'
+      id: '51000000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        desc: '店舗の売上データを取得する'
+        selected: false
+        title: 売上API
+        type: http-request
+        method: get
+        url: 'https://api.example.com/sales?store={{#51000000000003.item#}}&date={{#51000000000002.date_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+        mask_authorization_header: false
+      id: '51000000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '51000000000003'
+    - data:
+        desc: '各店舗の売上データを集約し分析用テキストを生成する'
+        selected: false
+        title: 売上データ集約
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_results: list) -> dict:
+              lines = []
+              total_revenue = 0
+              total_customers = 0
+              for i, result in enumerate(api_results):
+                  try:
+                      data = json.loads(result) if isinstance(result, str) else result
+                      store = data.get('store_name', f'店舗{i+1}')
+                      revenue = data.get('revenue', 0)
+                      customers = data.get('customer_count', 0)
+                      avg_spend = data.get('avg_spend', 0)
+                      top_product = data.get('top_product', 'N/A')
+                      target_pct = data.get('target_achievement_pct', 'N/A')
+
+                      try:
+                          rev = float(revenue)
+                          cust = int(customers)
+                      except (TypeError, ValueError):
+                          rev = 0
+                          cust = 0
+
+                      total_revenue += rev
+                      total_customers += cust
+
+                      lines.append(
+                          f"店舗: {store}, "
+                          f"売上: {rev:,.0f}円, "
+                          f"客数: {cust}人, "
+                          f"客単価: {avg_spend}円, "
+                          f"売上1位: {top_product}, "
+                          f"目標達成率: {target_pct}%"
+                      )
+                  except Exception:
+                      lines.append(f"店舗{i+1}: データ取得エラー")
+
+              summary = '\n'.join(lines)
+              totals = f"全店合計売上: {total_revenue:,.0f}円, 全店合計客数: {total_customers}人"
+              return {'summary': summary, 'totals': totals}
+        variables:
+        - value_selector:
+          - '51000000000003'
+          - output
+          variable: api_results
+        outputs:
+          summary:
+            type: string
+          totals:
+            type: string
+      height: 97
+      id: '51000000000005'
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '全店舗横断の売上日報を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは小売チェーンのエリアマネージャーです。各店舗の売上データを横断分析し、日次売上レポートを作成してください。
+
+            ## レポートフォーマット
+            ### 全店サマリ
+            （全店合計の売上・客数・客単価）
+
+            ### 店舗別実績
+            （各店舗の売上・目標達成率を表形式で整理）
+
+            ### 好調店舗・要注意店舗
+            - トップパフォーマー（要因分析付き）
+            - 要改善店舗（具体的な改善提案付き）
+
+            ### 売れ筋商品トレンド
+            - 各店舗の売上1位商品の傾向分析
+
+            ### 明日へのアクション
+            - 翌日の重点施策（3項目以内）
+            - 在庫補充・人員配置の推奨
+
+            ## ルール
+            - 数値に基づく客観的な分析を行う
+            - 好調・不調の要因を推察する
+            - アクション提案は具体的かつ実行可能にする
+        - role: user
+          text: |
+            レポート日: {{#51000000000001.report_date#}}
+
+            {{#51000000000005.totals#}}
+
+            店舗別データ:
+            {{#51000000000005.summary#}}
+        selected: false
+        title: 日報生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51000000000006'
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '売上日報を出力する'
+        outputs:
+        - value_selector:
+          - '51000000000006'
+          - text
+          variable: daily_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '51000000000007'
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,523 @@
+app:
+  description: 候補者の職務経歴書テキストをParameter Extractorで構造化し、Codeでポジション要件との合致度をスコアリング。60点以上はLLMで評価コメント、60点未満はTemplate Transformでフィードバックを生成するワークフロー。
+  icon: "\U0001F464"
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'CMN-08: 採用候補者スクリーニング'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: e-40800000000001-40800000000002
+      source: '40800000000001'
+      sourceHandle: source
+      target: '40800000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: code
+      id: e-40800000000002-40800000000003
+      source: '40800000000002'
+      sourceHandle: source
+      target: '40800000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-40800000000003-40800000000004
+      source: '40800000000003'
+      sourceHandle: source
+      target: '40800000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-40800000000004-40800000000005
+      source: '40800000000004'
+      sourceHandle: 'true'
+      target: '40800000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-40800000000004-40800000000006
+      source: '40800000000004'
+      sourceHandle: 'false'
+      target: '40800000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40800000000005-40800000000007
+      source: '40800000000005'
+      sourceHandle: source
+      target: '40800000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-40800000000006-40800000000007
+      source: '40800000000006'
+      sourceHandle: source
+      target: '40800000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-40800000000007-40800000000008
+      source: '40800000000007'
+      sourceHandle: source
+      target: '40800000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '職務経歴書テキストと募集ポジション情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: resume_text
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: resume_text
+        - label: position
+          max_length: 48
+          options:
+          - 'エンジニア'
+          - '営業'
+          - 'マーケティング'
+          - '経理・財務'
+          - '人事・総務'
+          - 'その他'
+          required: true
+          type: select
+          variable: position
+        - label: required_experience_years
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: required_experience_years
+      height: 141
+      id: '40800000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '職務経歴書テキストから候補者情報を抽出する'
+        selected: false
+        title: 候補者情報抽出
+        type: parameter-extractor
+        query_variable_selector:
+        - '40800000000001'
+        - resume_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: candidate_name
+          type: string
+          description: "候補者氏名"
+          required: true
+        - name: experience_years
+          type: number
+          description: "総経験年数"
+          required: true
+        - name: skills
+          type: string
+          description: "主要スキル（カンマ区切り）"
+          required: true
+        - name: education
+          type: string
+          description: "最終学歴"
+          required: true
+        - name: current_role
+          type: string
+          description: "直近の職種・役職"
+          required: true
+        - name: certifications
+          type: string
+          description: "保有資格（カンマ区切り、なければ「なし」）"
+          required: false
+        instruction: "職務経歴書テキストから上記のパラメータを正確に抽出してください。情報が見つからない場合は「不明」と記載してください。"
+        reasoning_mode: prompt
+      height: 97
+      id: '40800000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'ポジション要件との合致度をスコアリングする'
+        selected: false
+        title: スコアリング
+        type: code
+        code_language: python3
+        code: |
+          def main(experience_years: int, skills: str, education: str,
+                   position: str, required_experience_years: str) -> dict:
+              score = 0
+
+              # 経験年数スコア (最大40点)
+              try:
+                  exp = float(experience_years)
+                  req = float(required_experience_years)
+              except (TypeError, ValueError):
+                  exp = 0
+                  req = 0
+              if req > 0:
+                  ratio = min(exp / req, 2.0)
+                  score += int(ratio * 20)
+              else:
+                  score += 20
+
+              # スキル合致度スコア (最大40点) — 完全一致で判定
+              skill_list = [s.strip().lower() for s in skills.split(',') if s.strip()]
+              position_skills = {
+                  'エンジニア': ['python', 'java', 'aws', 'docker', 'kubernetes', 'react', 'sql', 'git'],
+                  '営業': ['営業', '提案', '顧客管理', 'crm', 'salesforce', '交渉', 'プレゼン'],
+                  'マーケティング': ['マーケティング', 'seo', 'sns', '広告', 'analytics', 'データ分析'],
+                  '経理・財務': ['簿記', '会計', '財務', '税務', 'erp', 'excel', '決算'],
+                  '人事・総務': ['採用', '労務', '給与', '社会保険', '研修', '人事制度'],
+              }
+              required_skills = position_skills.get(position, [])
+              if required_skills:
+                  matches = sum(1 for rs in required_skills if rs in skill_list)
+                  skill_score = min(int((matches / len(required_skills)) * 40), 40)
+                  score += skill_score
+              else:
+                  score += 20
+
+              # 学歴スコア (最大20点)
+              edu_lower = education.lower()
+              if '大学院' in edu_lower or '修士' in edu_lower or '博士' in edu_lower:
+                  score += 20
+              elif '大学' in edu_lower or '学士' in edu_lower:
+                  score += 15
+              elif '専門' in edu_lower or '短大' in edu_lower:
+                  score += 10
+              else:
+                  score += 5
+
+              score = min(score, 100)
+              result = "PASS" if score >= 60 else "FAIL"
+              return {'score': score, 'result': result}
+        variables:
+        - value_selector:
+          - '40800000000002'
+          - experience_years
+          variable: experience_years
+        - value_selector:
+          - '40800000000002'
+          - skills
+          variable: skills
+        - value_selector:
+          - '40800000000002'
+          - education
+          variable: education
+        - value_selector:
+          - '40800000000001'
+          - position
+          variable: position
+        - value_selector:
+          - '40800000000001'
+          - required_experience_years
+          variable: required_experience_years
+        outputs:
+          score:
+            type: number
+          result:
+            type: string
+      height: 97
+      id: '40800000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        conditions:
+        - id: condition_pass
+          variable_selector:
+          - '40800000000003'
+          - result
+          comparison_operator: is
+          value: "PASS"
+        desc: 'スコアリング結果で分岐する'
+        logical_operator: and
+        selected: false
+        title: スコア判定
+        type: if-else
+      height: 125
+      id: '40800000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '合格候補者の詳細評価コメントを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは採用チームの書類選考担当です。一次スクリーニングを通過した候補者の評価コメントを作成してください。
+
+            ## 出力フォーマット
+            ■ 候補者名: （氏名）
+            ■ スコア: （スコア）/100
+            ■ 判定: 一次通過
+
+            ### 強み
+            - （候補者の強みを3点以内で記載）
+
+            ### 懸念点
+            - （選考上の懸念点を記載、なければ「特になし」）
+
+            ### 面接時確認ポイント
+            - （面接で確認すべき事項を2-3点記載）
+
+            ## ルール
+            - 職務経歴書の記載事項のみに基づいて評価する
+            - 年齢、性別、出身地等の個人属性に基づく評価は行わない
+            - 本評価は参考情報であり、最終判断は面接官が行う旨を付記する
+        - role: user
+          text: |
+            募集ポジション: {{#40800000000001.position#}}
+            必要経験年数: {{#40800000000001.required_experience_years#}}年
+
+            候補者名: {{#40800000000002.candidate_name#}}
+            経験年数: {{#40800000000002.experience_years#}}年
+            スキル: {{#40800000000002.skills#}}
+            学歴: {{#40800000000002.education#}}
+            直近職種: {{#40800000000002.current_role#}}
+            資格: {{#40800000000002.certifications#}}
+
+            スコア: {{#40800000000003.score#}}/100
+        selected: false
+        title: 評価コメント生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40800000000005'
+      position:
+        x: 1280
+        y: 132
+      positionAbsolute:
+        x: 1280
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '不合格候補者のフィードバックを出力する'
+        selected: false
+        title: 不合格フィードバック
+        type: template-transform
+        template: |
+          ## 採用スクリーニング結果
+
+          候補者名: {{ candidate_name }}
+          募集ポジション: {{ position }}
+          スコア: {{ score }}/100
+          判定: **一次不通過**
+
+          ### 不通過理由
+          募集要件（{{ position }}、経験{{ required_years }}年以上）に対し、
+          スコアが基準（60点）に達しませんでした。
+
+          ### 候補者情報
+          - 経験年数: {{ experience_years }}年
+          - スキル: {{ skills }}
+          - 学歴: {{ education }}
+
+          ※ 本スクリーニングはAIによる一次評価です。
+            例外的な評価が必要な場合は採用チームリーダーにご相談ください。
+        variables:
+        - value_selector:
+          - '40800000000002'
+          - candidate_name
+          variable: candidate_name
+        - value_selector:
+          - '40800000000001'
+          - position
+          variable: position
+        - value_selector:
+          - '40800000000003'
+          - score
+          variable: score
+        - value_selector:
+          - '40800000000001'
+          - required_experience_years
+          variable: required_years
+        - value_selector:
+          - '40800000000002'
+          - experience_years
+          variable: experience_years
+        - value_selector:
+          - '40800000000002'
+          - skills
+          variable: skills
+        - value_selector:
+          - '40800000000002'
+          - education
+          variable: education
+      height: 97
+      id: '40800000000006'
+      position:
+        x: 1280
+        y: 432
+      positionAbsolute:
+        x: 1280
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '合格・不合格の出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '40800000000005'
+          - text
+        - - '40800000000006'
+          - output
+      height: 89
+      id: '40800000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'スクリーニング結果を出力する'
+        outputs:
+        - value_selector:
+          - '40800000000007'
+          - output
+          variable: screening_result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40800000000008'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

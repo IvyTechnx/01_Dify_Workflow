@@ -1,0 +1,327 @@
+app:
+  description: 商品名・カテゴリ・特徴・ターゲット層等の入力をCodeで整形し、LLMがEC向け商品説明文を生成。Template Transformで最終フォーマットを整えて出力するワークフロー。
+  icon: "\U0001F6CD"
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'RTL-01: 商品説明文自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-50100000000001-50100000000002
+      source: '50100000000001'
+      sourceHandle: source
+      target: '50100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-50100000000002-50100000000003
+      source: '50100000000002'
+      sourceHandle: source
+      target: '50100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+      id: e-50100000000003-50100000000004
+      source: '50100000000003'
+      sourceHandle: source
+      target: '50100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-50100000000004-50100000000005
+      source: '50100000000004'
+      sourceHandle: source
+      target: '50100000000005'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '商品情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_name
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: product_name
+        - label: category
+          max_length: 48
+          options:
+          - '食品・飲料'
+          - 'アパレル・ファッション'
+          - '家電・電子機器'
+          - 'コスメ・美容'
+          - '日用品・雑貨'
+          - 'スポーツ・アウトドア'
+          - 'その他'
+          required: true
+          type: select
+          variable: category
+        - label: features
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: features
+        - label: target_audience
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: target_audience
+        - label: price_range
+          max_length: 48
+          options: []
+          required: false
+          type: text-input
+          variable: price_range
+      height: 167
+      id: '50100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力情報を整形しLLMに渡す構造化テキストを生成する'
+        selected: false
+        title: 入力整形
+        type: code
+        code_language: python3
+        code: |
+          def main(product_name: str, category: str, features: str,
+                   target_audience: str, price_range: str) -> dict:
+              lines = []
+              lines.append(f"商品名: {product_name}")
+              lines.append(f"カテゴリ: {category}")
+              lines.append(f"ターゲット層: {target_audience}")
+              if price_range and price_range.strip():
+                  lines.append(f"価格帯: {price_range}")
+              lines.append(f"特徴・スペック:\n{features}")
+              structured = '\n'.join(lines)
+
+              char_count = len(features)
+              detail_level = 'detailed' if char_count > 500 else 'standard'
+              return {'structured_input': structured, 'detail_level': detail_level}
+        variables:
+        - value_selector:
+          - '50100000000001'
+          - product_name
+          variable: product_name
+        - value_selector:
+          - '50100000000001'
+          - category
+          variable: category
+        - value_selector:
+          - '50100000000001'
+          - features
+          variable: features
+        - value_selector:
+          - '50100000000001'
+          - target_audience
+          variable: target_audience
+        - value_selector:
+          - '50100000000001'
+          - price_range
+          variable: price_range
+        outputs:
+          structured_input:
+            type: string
+          detail_level:
+            type: string
+      height: 97
+      id: '50100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'EC向け商品説明文を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.7
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの商品説明文ライターです。以下のルールに従い、購買意欲を高める商品説明文を作成してください。
+
+            ## 出力構成
+            1. キャッチコピー（1行、30文字以内）
+            2. 商品概要（2〜3文）
+            3. 特徴・おすすめポイント（箇条書き3〜5点）
+            4. こんな方におすすめ（箇条書き2〜3点）
+            5. 注意事項（該当する場合のみ）
+
+            ## ルール
+            - ターゲット層に合わせた語調を使う
+            - 具体的な数値やスペックを盛り込む
+            - 誇大表現や景品表示法に抵触する表現は避ける
+            - SEOを意識し、商品名・カテゴリのキーワードを自然に含める
+            - 詳細レベルが「detailed」の場合は、より詳しい説明を付加する
+        - role: user
+          text: |
+            {{#50100000000002.structured_input#}}
+
+            詳細レベル: {{#50100000000002.detail_level#}}
+        selected: false
+        title: 説明文生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '最終出力をフォーマットする'
+        selected: false
+        title: 出力フォーマット
+        type: template-transform
+        template: |
+          ## 商品説明文 — {{ product_name }}
+
+          カテゴリ: {{ category }}
+          ターゲット: {{ target_audience }}
+
+          ---
+
+          {{ description }}
+
+          ---
+          ※ 本文はAIが生成した下書きです。公開前に内容を確認・修正してください。
+        variables:
+        - value_selector:
+          - '50100000000001'
+          - product_name
+          variable: product_name
+        - value_selector:
+          - '50100000000001'
+          - category
+          variable: category
+        - value_selector:
+          - '50100000000001'
+          - target_audience
+          variable: target_audience
+        - value_selector:
+          - '50100000000003'
+          - text
+          variable: description
+      height: 97
+      id: '50100000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '商品説明文を出力する'
+        outputs:
+        - value_selector:
+          - '50100000000004'
+          - output
+          variable: product_description
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50100000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

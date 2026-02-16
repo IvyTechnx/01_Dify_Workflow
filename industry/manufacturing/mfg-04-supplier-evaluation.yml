@@ -1,0 +1,332 @@
+app:
+  description: 複数サプライヤーの品質データを一括取得し、不良率・納期遵守率・認証情報を集約して品質評価レポートを生成するワークフロー。
+  icon: "\U0001F3ED"
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'MFG-04: サプライヤー品質評価 — 調達・品質部門向け'
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-20400000000001-20400000000002
+      source: '20400000000001'
+      sourceHandle: source
+      target: '20400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-20400000000002-20400000000003
+      source: '20400000000002'
+      sourceHandle: source
+      target: '20400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-20400000000003-20400000000005
+      source: '20400000000003'
+      sourceHandle: source
+      target: '20400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-20400000000005-20400000000006
+      source: '20400000000005'
+      sourceHandle: source
+      target: '20400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-20400000000006-20400000000007
+      source: '20400000000006'
+      sourceHandle: source
+      target: '20400000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: 開始
+        desc: ''
+        variables:
+        - variable: product_code
+          label: product_code
+          type: text-input
+          required: true
+          max_length: 100
+        - variable: supplier_list
+          label: supplier_list
+          type: paragraph
+          required: true
+          max_length: 5000
+      id: '20400000000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: code
+        title: サプライヤー配列化
+        desc: カンマ区切りのサプライヤーコードを配列に変換
+        code_language: python3
+        code: "import urllib.parse\n\ndef main(supplier_list: str, product_code: str)\
+          \ -> dict:\n    items = [s.strip() for s in supplier_list.split(',') if s.strip()]\n\
+          \    product_code_enc = urllib.parse.quote(product_code, safe='')\n    return\
+          \ {'items': items, 'product_code_enc': product_code_enc}\n"
+        variables:
+        - variable: supplier_list
+          value_selector:
+          - '20400000000001'
+          - supplier_list
+        - variable: product_code
+          value_selector:
+          - '20400000000001'
+          - product_code
+        outputs:
+          items:
+            type: array[string]
+          product_code_enc:
+            type: string
+      id: '20400000000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: iteration
+        title: サプライヤーイテレーション
+        desc: 各サプライヤーの品質データを取得
+        iterator_selector:
+        - '20400000000002'
+        - items
+        output_selector:
+        - '20400000000004'
+        - body
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '20400000000004'
+      id: '20400000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: http-request
+        title: 品質データAPI
+        desc: サプライヤーの品質データを取得
+        method: get
+        url: 'https://api.example.com/supplier-quality?supplier={{#20400000000003.item#}}&product={{#20400000000002.product_code_enc#}}'
+        authorization:
+          type: no-auth
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+      id: '20400000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '20400000000003'
+    - data:
+        type: code
+        title: 結果集約
+        desc: APIレスポンスを集約して分析用テキストを生成
+        code_language: python3
+        code: "import json\n\ndef main(api_results: list) -> dict:\n    summary_lines\
+          \ = []\n    for i, result in enumerate(api_results):\n        try:\n    \
+          \        data = json.loads(result) if isinstance(result, str) else result\n\
+          \            supplier = data.get('supplier_code', f'Supplier {i+1}')\n  \
+          \          defect_ppm = data.get('defect_ppm', 'N/A')\n            delivery_rate\
+          \ = data.get('on_time_delivery_rate', 'N/A')\n            cert = data.get('certification',\
+          \ 'N/A')\n            summary_lines.append(\n                f\"\u30B5\u30D7\
+          \u30E9\u30A4\u30E4\u30FC: {supplier}, \"\n                f\"\u4E0D\u826F\
+          \u7387(PPM): {defect_ppm}, \"\n                f\"\u7D0D\u671F\u9075\u5B88\
+          \u7387: {delivery_rate}, \"\n                f\"\u8A8D\u8A3C: {cert}\"\n\
+          \            )\n        except Exception:\n            summary_lines.append(f\"\
+          \u30B5\u30D7\u30E9\u30A4\u30E4\u30FC {i+1}: \u30C7\u30FC\u30BF\u53D6\u5F97\
+          \u30A8\u30E9\u30FC\")\n    summary = '\\n'.join(summary_lines)\n    return\
+          \ {'summary': summary}\n"
+        variables:
+        - variable: api_results
+          value_selector:
+          - '20400000000003'
+          - output
+        outputs:
+          summary:
+            type: string
+      id: '20400000000005'
+      type: custom
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: 品質評価分析
+        desc: 集約データを分析しサプライヤー品質評価レポートを生成
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - id: prompt_eval_sys
+          role: system
+          text: 'あなたは製造業の調達・品質管理の専門家です。以下のサプライヤー品質データを分析し、総合的な品質評価レポートを作成してください。
+
+
+            以下の観点で各サプライヤーを評価してください：
+
+            1. 品質（不良率PPMの低さ）
+
+            2. 納期遵守率（高いほど良い）
+
+            3. 品質認証の有無と種類（ISO 9001、IATF 16949等）
+
+
+            最終的に推奨サプライヤーの優先順位とその理由を明確に述べてください。
+
+            製造業の品質基準に基づいた専門的な分析をお願いします。'
+        - id: prompt_eval_user
+          role: user
+          text: '製品コード: {{#20400000000001.product_code#}}
+
+
+            サプライヤー品質データ:
+
+            {{#20400000000005.summary#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '20400000000006'
+      type: custom
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: end
+        title: 終了
+        desc: ''
+        outputs:
+        - variable: evaluation_report
+          value_selector:
+          - '20400000000006'
+          - text
+      id: '20400000000007'
+      type: custom
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

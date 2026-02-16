@@ -1,0 +1,470 @@
+app:
+  description: 在庫管理APIから商品の在庫データを取得し、Codeで閾値判定。在庫不足ならLLMで発注提案を生成し、正常ならTemplate Transformでステータスレポートを出力するワークフロー。
+  icon: "\U0001F4E6"
+  icon_background: '#FFEBEE'
+  mode: workflow
+  name: 'RTL-04: 在庫アラート＆発注提案'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: http-request
+      id: e-50400000000001-50400000000002
+      source: '50400000000001'
+      sourceHandle: source
+      target: '50400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: e-50400000000002-50400000000003
+      source: '50400000000002'
+      sourceHandle: source
+      target: '50400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-50400000000003-50400000000004
+      source: '50400000000003'
+      sourceHandle: source
+      target: '50400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50400000000004-50400000000005
+      source: '50400000000004'
+      sourceHandle: 'true'
+      target: '50400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-50400000000004-50400000000006
+      source: '50400000000004'
+      sourceHandle: 'false'
+      target: '50400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50400000000005-50400000000007
+      source: '50400000000005'
+      sourceHandle: source
+      target: '50400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-50400000000006-50400000000007
+      source: '50400000000006'
+      sourceHandle: source
+      target: '50400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-50400000000007-50400000000008
+      source: '50400000000007'
+      sourceHandle: source
+      target: '50400000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '商品IDと倉庫IDを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_id
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: product_id
+        - label: warehouse_id
+          max_length: 48
+          options:
+          - '東京倉庫'
+          - '大阪倉庫'
+          - '福岡倉庫'
+          - '札幌倉庫'
+          required: true
+          type: select
+          variable: warehouse_id
+      height: 115
+      id: '50400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '在庫管理APIから在庫データを取得する'
+        selected: false
+        title: 在庫API取得
+        type: http-request
+        method: get
+        url: 'https://api.example.com/inventory?product_id={{#50400000000001.product_id#}}&warehouse={{#50400000000001.warehouse_id#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+        mask_authorization_header: false
+      height: 97
+      id: '50400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '在庫数を閾値と比較しアラート要否を判定する'
+        selected: false
+        title: 在庫閾値判定
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_body: str) -> dict:
+              try:
+                  data = json.loads(api_body) if isinstance(api_body, str) else api_body
+              except (json.JSONDecodeError, TypeError):
+                  return {
+                      'alert': 'ERROR',
+                      'detail': 'APIレスポンスを解析できませんでした。',
+                      'current_stock': 0,
+                      'threshold': 0
+                  }
+
+              try:
+                  current_stock = int(data.get('current_stock', 0))
+              except (TypeError, ValueError):
+                  return {
+                      'alert': 'ERROR',
+                      'detail': '在庫数を正しく取得できませんでした。',
+                      'current_stock': 0,
+                      'threshold': 0
+                  }
+
+              product_name = data.get('product_name', '不明')
+              try:
+                  reorder_point = int(data.get('reorder_point', 50))
+                  avg_daily_sales = float(data.get('avg_daily_sales', 5))
+                  lead_time_days = int(data.get('lead_time_days', 7))
+              except (TypeError, ValueError):
+                  return {
+                      'alert': 'ERROR',
+                      'detail': '在庫パラメータ（発注点/平均日販/リードタイム）の数値変換に失敗しました。APIレスポンスを確認してください。',
+                      'current_stock': current_stock,
+                      'threshold': 0
+                  }
+
+              safety_stock = int(avg_daily_sales * lead_time_days * 1.5)
+
+              if current_stock <= reorder_point:
+                  alert = 'ALERT'
+                  recommended_qty = int(avg_daily_sales * lead_time_days * 2) - current_stock
+                  recommended_qty = max(recommended_qty, 1)
+                  days_until_stockout = int(current_stock / avg_daily_sales) if avg_daily_sales > 0 else 999
+                  detail = (
+                      f"商品: {product_name}, "
+                      f"現在庫: {current_stock}, "
+                      f"発注点: {reorder_point}, "
+                      f"安全在庫: {safety_stock}, "
+                      f"平均日販: {avg_daily_sales}, "
+                      f"リードタイム: {lead_time_days}日, "
+                      f"推奨発注数: {recommended_qty}, "
+                      f"在庫切れまで約{days_until_stockout}日"
+                  )
+              else:
+                  alert = 'OK'
+                  detail = (
+                      f"商品: {product_name}, "
+                      f"現在庫: {current_stock}, "
+                      f"発注点: {reorder_point}, "
+                      f"安全在庫: {safety_stock}"
+                  )
+
+              return {
+                  'alert': alert,
+                  'detail': detail,
+                  'current_stock': current_stock,
+                  'threshold': reorder_point
+              }
+        variables:
+        - value_selector:
+          - '50400000000002'
+          - body
+          variable: api_body
+        outputs:
+          alert:
+            type: string
+          detail:
+            type: string
+          current_stock:
+            type: number
+          threshold:
+            type: number
+      height: 97
+      id: '50400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        conditions:
+        - id: condition_alert
+          variable_selector:
+          - '50400000000003'
+          - alert
+          comparison_operator: is
+          value: "ALERT"
+        desc: '在庫アラートの要否で分岐する'
+        logical_operator: and
+        selected: false
+        title: アラート判定
+        type: if-else
+      height: 125
+      id: '50400000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '在庫不足時の発注提案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは在庫管理の専門家です。在庫不足のアラート情報に基づき、発注提案書を作成してください。
+
+            ## 出力フォーマット
+            ■ アラートレベル: 在庫不足
+            ■ 商品・在庫情報サマリ
+            ■ 発注提案（推奨数量・緊急度・発注先候補）
+            ■ リスク評価（在庫切れの影響）
+            ■ 追加アクション（販促調整、代替品手配等）
+
+            ## ルール
+            - データに基づく具体的な提案をする
+            - 緊急度を「高・中・低」で示す
+            - 発注コストと販売機会損失のバランスを考慮する
+        - role: user
+          text: |
+            倉庫: {{#50400000000001.warehouse_id#}}
+            商品ID: {{#50400000000001.product_id#}}
+
+            在庫分析結果:
+            {{#50400000000003.detail#}}
+        selected: false
+        title: 発注提案生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50400000000005'
+      position:
+        x: 1280
+        y: 132
+      positionAbsolute:
+        x: 1280
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '在庫正常時のステータスレポートを出力する'
+        selected: false
+        title: 在庫正常レポート
+        type: template-transform
+        template: |
+          ## 在庫ステータスレポート
+
+          **判定**: ✅ 在庫正常
+
+          倉庫: {{ warehouse_id }}
+          商品ID: {{ product_id }}
+
+          ### 在庫状況
+          {{ detail }}
+
+          ### アクション
+          現時点で発注の必要はありません。次回チェック時に再評価します。
+
+          ※ 本レポートはAPIデータに基づく自動生成です。
+        variables:
+        - value_selector:
+          - '50400000000001'
+          - warehouse_id
+          variable: warehouse_id
+        - value_selector:
+          - '50400000000001'
+          - product_id
+          variable: product_id
+        - value_selector:
+          - '50400000000003'
+          - detail
+          variable: detail
+      height: 97
+      id: '50400000000006'
+      position:
+        x: 1280
+        y: 432
+      positionAbsolute:
+        x: 1280
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: 'アラート・正常の出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '50400000000005'
+          - text
+        - - '50400000000006'
+          - output
+      height: 89
+      id: '50400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '在庫レポートを出力する'
+        outputs:
+        - value_selector:
+          - '50400000000007'
+          - output
+          variable: inventory_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50400000000008'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

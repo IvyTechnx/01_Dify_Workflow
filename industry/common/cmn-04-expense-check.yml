@@ -1,0 +1,468 @@
+app:
+  description: 経費申請テキストをParameter Extractorで構造化し、Codeで社内規程ルール（上限額、事前申請要否等）をチェック。適合ならLLMで承認コメント、不適合ならTemplate Transformで修正指示を出力するワークフロー。
+  icon: "\U0001F4B0"
+  icon_background: '#FFF8E1'
+  mode: workflow
+  name: 'CMN-04: 経費申請チェック'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: e-40400000000001-40400000000002
+      source: '40400000000001'
+      sourceHandle: source
+      target: '40400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: code
+      id: e-40400000000002-40400000000003
+      source: '40400000000002'
+      sourceHandle: source
+      target: '40400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-40400000000003-40400000000004
+      source: '40400000000003'
+      sourceHandle: source
+      target: '40400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-40400000000004-40400000000005
+      source: '40400000000004'
+      sourceHandle: 'true'
+      target: '40400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-40400000000004-40400000000006
+      source: '40400000000004'
+      sourceHandle: 'false'
+      target: '40400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40400000000005-40400000000007
+      source: '40400000000005'
+      sourceHandle: source
+      target: '40400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-40400000000006-40400000000007
+      source: '40400000000006'
+      sourceHandle: source
+      target: '40400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-40400000000007-40400000000008
+      source: '40400000000007'
+      sourceHandle: source
+      target: '40400000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '経費申請テキストと申請者職級を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: expense_text
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: expense_text
+        - label: applicant_grade
+          max_length: 48
+          options:
+          - '一般'
+          - '主任'
+          - '課長'
+          - '部長'
+          required: true
+          type: select
+          variable: applicant_grade
+      height: 115
+      id: '40400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '経費申請テキストから構造化情報を抽出する'
+        selected: false
+        title: 経費情報抽出
+        type: parameter-extractor
+        query_variable_selector:
+        - '40400000000001'
+        - expense_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: item_name
+          type: string
+          description: "品目・用途（例: 取引先接待、出張交通費、書籍購入）"
+          required: true
+        - name: amount
+          type: number
+          description: "金額（円）"
+          required: true
+        - name: expense_date
+          type: string
+          description: "支出日（例: 2025年3月10日）"
+          required: true
+        - name: category
+          type: string
+          description: "経費カテゴリ（交通費/接待費/消耗品費/書籍費/その他）"
+          required: true
+        - name: payee
+          type: string
+          description: "支払先"
+          required: true
+        instruction: "経費申請テキストから上記のパラメータを正確に抽出してください。金額は円単位（数値のみ）で抽出してください。"
+        reasoning_mode: prompt
+      height: 97
+      id: '40400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '職級別上限額と経費カテゴリ別ルールで規程チェックする'
+        selected: false
+        title: 規程チェック
+        type: code
+        code_language: python3
+        code: |
+          def main(amount: int, category: str, applicant_grade: str) -> dict:
+              issues = []
+
+              # 金額の型変換（失敗時は即 FAIL）
+              try:
+                  amt = float(amount)
+              except (TypeError, ValueError):
+                  return {
+                      'result': 'FAIL',
+                      'detail': '金額を正しく抽出できませんでした。申請テキストに金額が含まれているか確認してください。'
+                  }
+
+              # 職級別1件あたり上限額
+              grade_limits = {
+                  '一般': 30000,
+                  '主任': 50000,
+                  '課長': 100000,
+                  '部長': 300000
+              }
+
+              limit = grade_limits.get(applicant_grade, 30000)
+              if amt > limit:
+                  issues.append(
+                      f"1件あたり上限額超過（{int(amt):,}円 > 上限{limit:,}円 / {applicant_grade}職級）"
+                  )
+
+              # 接待費は50,000円以上で事前申請が必要
+              if category == '接待費' and amt >= 50000:
+                  issues.append(
+                      f"接待費50,000円以上は事前申請が必要（経費規程 第12条第3項）"
+                  )
+
+              # 交通費は1件30,000円以上で領収書必須
+              if category == '交通費' and amt >= 30000:
+                  issues.append(
+                      f"交通費30,000円以上は領収書添付が必須（経費規程 第8条第2項）"
+                  )
+
+              result = "PASS" if len(issues) == 0 else "FAIL"
+              detail = "全規程チェック適合" if result == "PASS" else "\n".join(issues)
+              return {'result': result, 'detail': detail}
+        variables:
+        - value_selector:
+          - '40400000000002'
+          - amount
+          variable: amount
+        - value_selector:
+          - '40400000000002'
+          - category
+          variable: category
+        - value_selector:
+          - '40400000000001'
+          - applicant_grade
+          variable: applicant_grade
+        outputs:
+          result:
+            type: string
+          detail:
+            type: string
+      height: 97
+      id: '40400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        conditions:
+        - id: condition_pass
+          variable_selector:
+          - '40400000000003'
+          - result
+          comparison_operator: is
+          value: "PASS"
+        desc: '規程チェック結果で分岐する'
+        logical_operator: and
+        selected: false
+        title: 適合判定
+        type: if-else
+      height: 125
+      id: '40400000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '規程適合案件の承認コメントを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは経理部の経費チェック担当です。規程に適合した経費申請について、承認推奨コメントを作成してください。
+
+            ## 出力フォーマット
+            ■ 判定: 適合
+            ■ 品目: （品目名）
+            ■ 金額: （金額）
+            ■ チェック結果サマリ
+            ■ 承認推奨コメント
+
+            ## ルール
+            - 申請内容の妥当性を簡潔にコメントする
+            - 最終承認は上長の判断である旨を付記する
+        - role: user
+          text: |
+            品目: {{#40400000000002.item_name#}}
+            金額: {{#40400000000002.amount#}}円
+            日付: {{#40400000000002.expense_date#}}
+            カテゴリ: {{#40400000000002.category#}}
+            支払先: {{#40400000000002.payee#}}
+            職級: {{#40400000000001.applicant_grade#}}
+            チェック結果: {{#40400000000003.detail#}}
+        selected: false
+        title: 承認コメント生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40400000000005'
+      position:
+        x: 1280
+        y: 132
+      positionAbsolute:
+        x: 1280
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '不適合の理由と修正指示を出力する'
+        selected: false
+        title: 不適合通知
+        type: template-transform
+        template: |
+          ## 経費申請チェック結果
+
+          判定: **不適合**
+
+          品目: {{ item_name }}
+          金額: {{ amount }}円
+          カテゴリ: {{ category }}
+
+          ### 不適合項目
+          {{ detail }}
+
+          ### 対応方法
+          上記の不適合項目を確認し、修正の上で再申請してください。
+          ご不明な点は経理部（内線: 3001）までお問い合わせください。
+        variables:
+        - value_selector:
+          - '40400000000002'
+          - item_name
+          variable: item_name
+        - value_selector:
+          - '40400000000002'
+          - amount
+          variable: amount
+        - value_selector:
+          - '40400000000002'
+          - category
+          variable: category
+        - value_selector:
+          - '40400000000003'
+          - detail
+          variable: detail
+      height: 97
+      id: '40400000000006'
+      position:
+        x: 1280
+        y: 432
+      positionAbsolute:
+        x: 1280
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '適合・不適合の出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '40400000000005'
+          - text
+        - - '40400000000006'
+          - output
+      height: 89
+      id: '40400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'チェック結果を出力する'
+        outputs:
+        - value_selector:
+          - '40400000000007'
+          - output
+          variable: check_result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40400000000008'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

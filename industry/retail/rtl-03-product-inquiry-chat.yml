@@ -1,0 +1,482 @@
+app:
+  description: 顧客の問い合わせをQuestion Classifierで3分類（商品情報・注文配送・返品交換）し、各カテゴリのナレッジベースを検索してLLMが会話履歴付きで回答するチャットボット。
+  icon: "\U0001F4AC"
+  icon_background: '#E3F2FD'
+  mode: advanced-chat
+  name: 'RTL-03: 商品問い合わせチャットボット'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: 'いらっしゃいませ！商品に関するご質問、ご注文の確認、返品・交換のご相談など、お気軽にお問い合わせください。'
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+    - 'この商品のサイズ展開を教えてください'
+    - '注文した商品の配送状況を確認したいです'
+    - '届いた商品を返品したいのですが'
+    suggested_questions_after_answer:
+      enabled: true
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: question-classifier
+      id: e-50300000000001-50300000000002
+      source: '50300000000001'
+      sourceHandle: source
+      target: '50300000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: knowledge-retrieval
+      id: e-50300000000002-50300000000003
+      source: '50300000000002'
+      sourceHandle: class_product
+      target: '50300000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: knowledge-retrieval
+      id: e-50300000000002-50300000000006
+      source: '50300000000002'
+      sourceHandle: class_order
+      target: '50300000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50300000000002-50300000000009
+      source: '50300000000002'
+      sourceHandle: class_return
+      target: '50300000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: e-50300000000003-50300000000004
+      source: '50300000000003'
+      sourceHandle: source
+      target: '50300000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+      id: e-50300000000004-50300000000005
+      source: '50300000000004'
+      sourceHandle: source
+      target: '50300000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: e-50300000000006-50300000000007
+      source: '50300000000006'
+      sourceHandle: source
+      target: '50300000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+      id: e-50300000000007-50300000000008
+      source: '50300000000007'
+      sourceHandle: source
+      target: '50300000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+      id: e-50300000000009-50300000000010
+      source: '50300000000009'
+      sourceHandle: source
+      target: '50300000000010'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'チャット入力を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables: []
+      height: 89
+      id: '50300000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '問い合わせ内容を3カテゴリに分類する'
+        selected: false
+        title: 問い合わせ分類
+        type: question-classifier
+        query_variable_selector:
+        - sys
+        - query
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          completion_params:
+            temperature: 0.1
+            max_tokens: 256
+        classes:
+        - id: class_product
+          name: "商品情報（スペック、在庫、価格、サイズ、素材、使い方等）"
+        - id: class_order
+          name: "注文・配送（注文状況、配送日時、送料、支払い方法等）"
+        - id: class_return
+          name: "返品・交換（返品手続き、交換条件、返金、不良品等）"
+        instruction: |
+          顧客の問い合わせを以下の3カテゴリに分類してください。
+          - 商品情報: 商品のスペック、在庫有無、価格、サイズ、素材、使い方に関する質問
+          - 注文・配送: 注文状況確認、配送日時、送料、支払い方法に関する質問
+          - 返品・交換: 返品手続き、交換条件、返金、不良品対応に関する質問
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+      height: 160
+      id: '50300000000002'
+      position:
+        x: 380
+        y: 232
+      positionAbsolute:
+        x: 380
+        y: 232
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '商品カタログ・スペック情報を検索する'
+        selected: false
+        title: 商品情報検索
+        type: knowledge-retrieval
+        query_variable_selector:
+        - sys
+        - query
+        dataset_ids:
+        - "placeholder-product-catalog-kb-id"
+        retrieval_mode: multiple
+        multiple_retrieval_config:
+          top_k: 5
+          score_threshold: 0.5
+          score_threshold_enabled: true
+      height: 97
+      id: '50300000000003'
+      position:
+        x: 680
+        y: 82
+      positionAbsolute:
+        x: 680
+        y: 82
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '50300000000003'
+          - result
+        desc: '商品情報に基づいて回答する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの商品担当カスタマーサポートです。商品カタログの情報に基づいて、正確で親切な回答をしてください。
+
+            ## ルール
+            - カタログに記載のない情報は「確認いたします」と伝える
+            - 価格は税込表記を基本とする
+            - 在庫状況は「カタログ情報に基づく参考情報」であることを付記する
+            - 競合他社の商品との比較は行わない
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 商品回答
+        type: llm
+        variables: []
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+          role_prefix:
+            user: ""
+            assistant: ""
+        vision:
+          enabled: false
+      height: 97
+      id: '50300000000004'
+      position:
+        x: 980
+        y: 82
+      positionAbsolute:
+        x: 980
+        y: 82
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '商品情報の回答を出力する'
+        selected: false
+        title: 商品回答出力
+        type: answer
+        answer: '{{#50300000000004.text#}}'
+      height: 89
+      id: '50300000000005'
+      position:
+        x: 1280
+        y: 82
+      positionAbsolute:
+        x: 1280
+        y: 82
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '注文・配送ポリシー情報を検索する'
+        selected: false
+        title: 注文配送情報検索
+        type: knowledge-retrieval
+        query_variable_selector:
+        - sys
+        - query
+        dataset_ids:
+        - "placeholder-order-policy-kb-id"
+        retrieval_mode: multiple
+        multiple_retrieval_config:
+          top_k: 5
+          score_threshold: 0.5
+          score_threshold_enabled: true
+      height: 97
+      id: '50300000000006'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '50300000000006'
+          - result
+        desc: '注文・配送に関して回答する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの注文・配送担当カスタマーサポートです。注文・配送ポリシーに基づいて回答してください。
+
+            ## ルール
+            - 注文番号が提示された場合は「システムで確認いたします」と伝える
+            - 配送日時の目安は地域差がある旨を付記する
+            - 支払い方法の変更は注文確定前のみ可能であることを案内する
+            - 個人情報（住所、電話番号等）の入力は求めない
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 注文配送回答
+        type: llm
+        variables: []
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+          role_prefix:
+            user: ""
+            assistant: ""
+        vision:
+          enabled: false
+      height: 97
+      id: '50300000000007'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '注文配送の回答を出力する'
+        selected: false
+        title: 注文配送回答出力
+        type: answer
+        answer: '{{#50300000000007.text#}}'
+      height: 89
+      id: '50300000000008'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '返品・交換の案内を行う'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの返品・交換担当カスタマーサポートです。以下のポリシーに基づいて丁寧に案内してください。
+
+            ## 返品・交換ポリシー
+            - 商品到着後7日以内に連絡が必要
+            - 未使用・未開封の商品のみ返品可能
+            - 不良品の場合は送料当社負担で交換対応
+            - お客様都合の返品は送料お客様負担
+            - セール品・名入れ商品・食品は返品不可
+            - 返金は原則として元の支払い方法に返金（処理に5〜10営業日）
+
+            ## ルール
+            - お客様の気持ちに寄り添った丁寧な対応をする
+            - 返品不可の場合も代替案（交換、ポイント補填等）を提示する
+            - 不良品の場合は速やかにお詫びと対応方法を案内する
+            - 具体的な手続きはカスタマーサポート窓口への連絡を案内する
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 返品交換回答
+        type: llm
+        variables: []
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+          role_prefix:
+            user: ""
+            assistant: ""
+        vision:
+          enabled: false
+      height: 97
+      id: '50300000000009'
+      position:
+        x: 680
+        y: 482
+      positionAbsolute:
+        x: 680
+        y: 482
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '返品交換の回答を出力する'
+        selected: false
+        title: 返品交換回答出力
+        type: answer
+        answer: '{{#50300000000009.text#}}'
+      height: 89
+      id: '50300000000010'
+      position:
+        x: 980
+        y: 482
+      positionAbsolute:
+        x: 980
+        y: 482
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

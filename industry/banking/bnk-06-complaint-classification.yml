@@ -1,0 +1,596 @@
+app:
+  description: 顧客からの苦情・クレームテキストを5カテゴリに自動分類し、カテゴリ別の対応案を生成。重大苦情にはエスカレーション案内を付加するワークフロー。
+  icon: "\U0001F4E2"
+  icon_background: '#FFEBEE'
+  mode: workflow
+  name: 'BNK-06: 苦情・クレーム自動分類・対応案生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: question-classifier
+      id: e-30600000000001-30600000000002
+      source: '30600000000001'
+      sourceHandle: source
+      target: '30600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-30600000000002-30600000000003
+      source: '30600000000002'
+      sourceHandle: class_service
+      target: '30600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-30600000000002-30600000000004
+      source: '30600000000002'
+      sourceHandle: class_fee
+      target: '30600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-30600000000002-30600000000005
+      source: '30600000000002'
+      sourceHandle: class_system
+      target: '30600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-30600000000002-30600000000006
+      source: '30600000000002'
+      sourceHandle: class_staff
+      target: '30600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-30600000000002-30600000000007
+      source: '30600000000002'
+      sourceHandle: class_other
+      target: '30600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-30600000000003-30600000000008
+      source: '30600000000003'
+      sourceHandle: source
+      target: '30600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-30600000000004-30600000000008
+      source: '30600000000004'
+      sourceHandle: source
+      target: '30600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-30600000000005-30600000000008
+      source: '30600000000005'
+      sourceHandle: source
+      target: '30600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-30600000000006-30600000000008
+      source: '30600000000006'
+      sourceHandle: source
+      target: '30600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-30600000000007-30600000000008
+      source: '30600000000007'
+      sourceHandle: source
+      target: '30600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-30600000000008-30600000000009
+      source: '30600000000008'
+      sourceHandle: source
+      target: '30600000000009'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '苦情テキストと顧客セグメントを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: complaint_text
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: complaint_text
+        - label: customer_segment
+          max_length: 48
+          options:
+          - '個人'
+          - '法人'
+          - 'プライベートバンキング'
+          required: true
+          type: select
+          variable: customer_segment
+      height: 115
+      id: '30600000000001'
+      position:
+        x: 80
+        y: 400
+      positionAbsolute:
+        x: 80
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '苦情テキストを5カテゴリに分類する'
+        selected: false
+        title: 苦情分類
+        type: question-classifier
+        query_variable_selector:
+        - '30600000000001'
+        - complaint_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+            max_tokens: 256
+        classes:
+        - id: class_service
+          name: "サービス品質に関する苦情"
+        - id: class_fee
+          name: "手数料・費用に関する苦情"
+        - id: class_system
+          name: "システム障害・ATM障害に関する苦情"
+        - id: class_staff
+          name: "従業員の対応に関する苦情"
+        - id: class_other
+          name: "その他の苦情"
+        instruction: |
+          顧客の苦情内容を以下のカテゴリに分類してください：
+          - 口座手続きの遅延やサービスレベルの低下 → サービス品質に関する苦情
+          - 振込手数料や金利に関する不満 → 手数料・費用に関する苦情
+          - ATM故障やオンラインバンキング障害 → システム障害・ATM障害に関する苦情
+          - 窓口対応や態度に関する不満 → 従業員の対応に関する苦情
+          - いずれにも該当しない苦情 → その他の苦情
+      height: 160
+      id: '30600000000002'
+      position:
+        x: 380
+        y: 400
+      positionAbsolute:
+        x: 380
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'サービス品質カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の顧客対応スペシャリストです。サービス品質に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - SLA基準への言及を行い、基準との乖離を明確にする
+            - 具体的な改善策を提示する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: サービス品質
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#30600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#30600000000001.complaint_text#}}
+        selected: false
+        title: サービス品質対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30600000000003'
+      position:
+        x: 680
+        y: 100
+      positionAbsolute:
+        x: 680
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '手数料・費用カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の顧客対応スペシャリストです。手数料・費用に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 手数料規程の確認を案内する
+            - 手数料見直しの可能性を検討し、該当する場合は案内する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: 手数料・費用
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#30600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#30600000000001.complaint_text#}}
+        selected: false
+        title: 手数料対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30600000000004'
+      position:
+        x: 680
+        y: 250
+      positionAbsolute:
+        x: 680
+        y: 250
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'システム障害カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の顧客対応スペシャリストです。システム障害・ATM障害に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 障害対応状況の確認手順を案内する
+            - 代替手段（他のATM、窓口、オンラインバンキング等）を案内する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: システム障害
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#30600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#30600000000001.complaint_text#}}
+        selected: false
+        title: システム障害対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30600000000005'
+      position:
+        x: 680
+        y: 400
+      positionAbsolute:
+        x: 680
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '従業員対応カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の顧客対応スペシャリストです。従業員の対応に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 事実確認プロセス（ヒアリング、記録確認等）を提示する
+            - 研修・指導の検討を含めた再発防止策を提案する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: 従業員対応
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#30600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#30600000000001.complaint_text#}}
+        selected: false
+        title: 従業員対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30600000000006'
+      position:
+        x: 680
+        y: 550
+      positionAbsolute:
+        x: 680
+        y: 550
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'その他カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の顧客対応スペシャリストです。その他の苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 適切な担当部署への転送を案内する
+            - 苦情内容に応じた専門窓口を紹介する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: その他
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#30600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#30600000000001.complaint_text#}}
+        selected: false
+        title: その他対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30600000000007'
+      position:
+        x: 680
+        y: 700
+      positionAbsolute:
+        x: 680
+        y: 700
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '5つのLLM出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '30600000000003'
+          - text
+        - - '30600000000004'
+          - text
+        - - '30600000000005'
+          - text
+        - - '30600000000006'
+          - text
+        - - '30600000000007'
+          - text
+      height: 89
+      id: '30600000000008'
+      position:
+        x: 980
+        y: 400
+      positionAbsolute:
+        x: 980
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '対応案を出力する'
+        outputs:
+        - value_selector:
+          - '30600000000008'
+          - output
+          variable: response
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '30600000000009'
+      position:
+        x: 1280
+        y: 400
+      positionAbsolute:
+        x: 1280
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

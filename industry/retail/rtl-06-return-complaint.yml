@@ -1,0 +1,487 @@
+app:
+  description: 返品・クレーム内容をParameter Extractorで構造化し、Codeで重要度を判定。通常レベルはLLMで対応ドラフト、重大レベルはTemplate Transformでエスカレーション通知を生成するワークフロー。
+  icon: "\U0001F4E9"
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'RTL-06: 返品・クレーム対応ドラフト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: e-50600000000001-50600000000002
+      source: '50600000000001'
+      sourceHandle: source
+      target: '50600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: code
+      id: e-50600000000002-50600000000003
+      source: '50600000000002'
+      sourceHandle: source
+      target: '50600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-50600000000003-50600000000004
+      source: '50600000000003'
+      sourceHandle: source
+      target: '50600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50600000000004-50600000000005
+      source: '50600000000004'
+      sourceHandle: 'true'
+      target: '50600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-50600000000004-50600000000006
+      source: '50600000000004'
+      sourceHandle: 'false'
+      target: '50600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50600000000005-50600000000007
+      source: '50600000000005'
+      sourceHandle: source
+      target: '50600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-50600000000006-50600000000007
+      source: '50600000000006'
+      sourceHandle: source
+      target: '50600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-50600000000007-50600000000008
+      source: '50600000000007'
+      sourceHandle: source
+      target: '50600000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'クレーム・返品内容と注文番号を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: complaint_text
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: complaint_text
+        - label: order_number
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: order_number
+      height: 115
+      id: '50600000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'クレーム内容から構造化情報を抽出する'
+        selected: false
+        title: クレーム情報抽出
+        type: parameter-extractor
+        query_variable_selector:
+        - '50600000000001'
+        - complaint_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: issue_type
+          type: string
+          description: "問題種別（不良品/サイズ違い/色違い/配送遅延/配送破損/注文間違い/その他）"
+          required: true
+        - name: product_name
+          type: string
+          description: "対象商品名"
+          required: true
+        - name: customer_emotion
+          type: string
+          description: "顧客の感情レベル（冷静/不満/怒り/強い怒り）"
+          required: true
+        - name: requested_action
+          type: string
+          description: "顧客の希望対応（返品/交換/返金/謝罪/その他）"
+          required: true
+        - name: purchase_date
+          type: string
+          description: "購入日（不明の場合は「不明」）"
+          required: false
+        instruction: "クレーム・返品依頼テキストから上記パラメータを正確に抽出してください。顧客の感情は文面のトーンから推定してください。"
+        reasoning_mode: prompt
+      height: 97
+      id: '50600000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '重要度を判定しエスカレーション要否を決定する'
+        selected: false
+        title: 重要度判定
+        type: code
+        code_language: python3
+        code: |
+          def main(issue_type: str, customer_emotion: str,
+                   requested_action: str) -> dict:
+              score = 0
+
+              # 問題種別スコア
+              type_scores = {
+                  '不良品': 3,
+                  '配送破損': 3,
+                  'サイズ違い': 2,
+                  '色違い': 2,
+                  '注文間違い': 2,
+                  '配送遅延': 1,
+                  'その他': 1
+              }
+              score += type_scores.get(issue_type, 1)
+
+              # 感情レベルスコア
+              emotion_scores = {
+                  '冷静': 0,
+                  '不満': 1,
+                  '怒り': 2,
+                  '強い怒り': 3
+              }
+              score += emotion_scores.get(customer_emotion, 1)
+
+              # 希望対応スコア
+              if requested_action == '返金':
+                  score += 2
+              elif requested_action in ('返品', '交換'):
+                  score += 1
+
+              # 判定 (5点以上でエスカレーション)
+              if score >= 5:
+                  level = 'ESCALATE'
+                  summary = f"重要度: 高 (スコア{score}/8) — 上席対応推奨"
+              else:
+                  level = 'NORMAL'
+                  summary = f"重要度: 通常 (スコア{score}/8) — 担当者対応可"
+
+              return {'level': level, 'severity_score': score, 'summary': summary}
+        variables:
+        - value_selector:
+          - '50600000000002'
+          - issue_type
+          variable: issue_type
+        - value_selector:
+          - '50600000000002'
+          - customer_emotion
+          variable: customer_emotion
+        - value_selector:
+          - '50600000000002'
+          - requested_action
+          variable: requested_action
+        outputs:
+          level:
+            type: string
+          severity_score:
+            type: number
+          summary:
+            type: string
+      height: 97
+      id: '50600000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        conditions:
+        - id: condition_normal
+          variable_selector:
+          - '50600000000003'
+          - level
+          comparison_operator: is
+          value: "NORMAL"
+        desc: '重要度レベルで分岐する'
+        logical_operator: and
+        selected: false
+        title: エスカレ判定
+        type: if-else
+      height: 125
+      id: '50600000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '通常レベルの対応ドラフトを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトのカスタマーサポート担当です。返品・クレームへの対応メールドラフトを作成してください。
+
+            ## 出力フォーマット
+            ■ 件名: （メール件名）
+            ■ 本文:
+            （お詫び → 状況確認 → 対応案提示 → 今後の改善 → 締め）
+
+            ## ルール
+            - お客様の気持ちに寄り添った丁寧な文面にする
+            - 具体的な対応手順（返品方法、交換手続き等）を案内する
+            - 対応期限の目安を明記する
+            - 個人情報は含めない
+        - role: user
+          text: |
+            注文番号: {{#50600000000001.order_number#}}
+            問題種別: {{#50600000000002.issue_type#}}
+            商品名: {{#50600000000002.product_name#}}
+            顧客感情: {{#50600000000002.customer_emotion#}}
+            希望対応: {{#50600000000002.requested_action#}}
+            購入日: {{#50600000000002.purchase_date#}}
+
+            重要度: {{#50600000000003.summary#}}
+
+            原文:
+            {{#50600000000001.complaint_text#}}
+        selected: false
+        title: 対応ドラフト生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50600000000005'
+      position:
+        x: 1280
+        y: 132
+      positionAbsolute:
+        x: 1280
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '重大クレームのエスカレーション通知を生成する'
+        selected: false
+        title: エスカレーション通知
+        type: template-transform
+        template: |
+          ## ⚠ エスカレーション通知 — クレーム対応
+
+          **重要度**: 高（スコア {{ severity_score }}/8）
+          **注文番号**: {{ order_number }}
+
+          ### クレーム概要
+          - 問題種別: {{ issue_type }}
+          - 商品名: {{ product_name }}
+          - 顧客感情: {{ customer_emotion }}
+          - 希望対応: {{ requested_action }}
+
+          ### 原文（抜粋）
+          {{ complaint_text }}
+
+          ### アクション要求
+          本件は重要度が高いため、**上席またはクレーム対応チーム**への引き継ぎを推奨します。
+          24時間以内の初回回答を目標としてください。
+
+          ---
+          ※ 本通知はAIによる自動判定です。重要度スコアは参考値であり、最終判断は担当者が行ってください。
+        variables:
+        - value_selector:
+          - '50600000000003'
+          - severity_score
+          variable: severity_score
+        - value_selector:
+          - '50600000000001'
+          - order_number
+          variable: order_number
+        - value_selector:
+          - '50600000000002'
+          - issue_type
+          variable: issue_type
+        - value_selector:
+          - '50600000000002'
+          - product_name
+          variable: product_name
+        - value_selector:
+          - '50600000000002'
+          - customer_emotion
+          variable: customer_emotion
+        - value_selector:
+          - '50600000000002'
+          - requested_action
+          variable: requested_action
+        - value_selector:
+          - '50600000000001'
+          - complaint_text
+          variable: complaint_text
+      height: 97
+      id: '50600000000006'
+      position:
+        x: 1280
+        y: 432
+      positionAbsolute:
+        x: 1280
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '通常対応・エスカレーションの出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '50600000000005'
+          - text
+        - - '50600000000006'
+          - output
+      height: 89
+      id: '50600000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '対応結果を出力する'
+        outputs:
+        - value_selector:
+          - '50600000000007'
+          - output
+          variable: complaint_response
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50600000000008'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

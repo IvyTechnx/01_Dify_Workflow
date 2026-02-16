@@ -1,0 +1,401 @@
+app:
+  description: 疑わしい取引の詳細情報からパラメータを抽出し、検証の上、疑わしい取引の届出書（SAR）のドラフトを自動生成するワークフロー。犯罪収益移転防止法に基づくフォーマットに整形する。
+  icon: "\U0001F6A8"
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'BNK-09: 疑わしい取引の届出書ドラフト作成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: e-30900000000001-30900000000002
+      source: '30900000000001'
+      sourceHandle: source
+      target: '30900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: code
+      id: e-30900000000002-30900000000003
+      source: '30900000000002'
+      sourceHandle: source
+      target: '30900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-30900000000003-30900000000004
+      source: '30900000000003'
+      sourceHandle: source
+      target: '30900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+      id: e-30900000000004-30900000000005
+      source: '30900000000004'
+      sourceHandle: source
+      target: '30900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-30900000000005-30900000000006
+      source: '30900000000005'
+      sourceHandle: source
+      target: '30900000000006'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '疑わしい取引の詳細テキストを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: transaction_details
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: transaction_details
+      height: 89
+      id: '30900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '疑わしい取引テキストから届出に必要なパラメータを抽出する'
+        selected: false
+        title: パラメータ抽出
+        type: parameter-extractor
+        query_variable_selector:
+        - '30900000000001'
+        - transaction_details
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 2048
+        parameters:
+        - name: customer_name
+          type: string
+          description: "顧客名（個人名または法人名）"
+          required: true
+        - name: customer_type
+          type: string
+          description: "顧客種別（個人/法人）"
+          required: true
+        - name: account_number
+          type: string
+          description: "口座番号"
+          required: false
+        - name: transaction_amount
+          type: string
+          description: "取引金額（通貨単位付き）"
+          required: true
+        - name: transaction_date
+          type: string
+          description: "取引日"
+          required: true
+        - name: transaction_type
+          type: string
+          description: "取引種別（振込/現金入出金/外国送金等）"
+          required: true
+        - name: suspicious_reason
+          type: string
+          description: "疑わしいと判断した理由の要約"
+          required: true
+        instruction: "疑わしい取引の報告テキストから上記情報を抽出してください。複数取引がある場合は主要な取引の情報を抽出してください。"
+        reasoning_mode: prompt
+      height: 97
+      id: '30900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '抽出パラメータの検証と整形を行う'
+        selected: false
+        title: 検証・整形
+        type: code
+        code_language: python3
+        code: |
+          def main(customer_name: str, customer_type: str, account_number: str, transaction_amount: str, transaction_date: str, transaction_type: str, suspicious_reason: str) -> dict:
+              warnings = []
+              if not customer_name or customer_name == 'N/A':
+                  warnings.append("顧客名が特定できません")
+              if not transaction_amount or transaction_amount == 'N/A':
+                  warnings.append("取引金額が特定できません")
+              if not suspicious_reason or suspicious_reason == 'N/A':
+                  warnings.append("疑わしい理由が不明確です")
+
+              formatted = (
+                  f"顧客名: {customer_name}\n"
+                  f"顧客種別: {customer_type}\n"
+                  f"口座番号: {account_number or '不明'}\n"
+                  f"取引金額: {transaction_amount}\n"
+                  f"取引日: {transaction_date}\n"
+                  f"取引種別: {transaction_type}\n"
+                  f"疑わしい理由: {suspicious_reason}"
+              )
+
+              warning_text = "\\n".join(warnings) if warnings else "なし"
+              return {'formatted_params': formatted, 'warnings': warning_text}
+        variables:
+        - value_selector:
+          - '30900000000002'
+          - customer_name
+          variable: customer_name
+        - value_selector:
+          - '30900000000002'
+          - customer_type
+          variable: customer_type
+        - value_selector:
+          - '30900000000002'
+          - account_number
+          variable: account_number
+        - value_selector:
+          - '30900000000002'
+          - transaction_amount
+          variable: transaction_amount
+        - value_selector:
+          - '30900000000002'
+          - transaction_date
+          variable: transaction_date
+        - value_selector:
+          - '30900000000002'
+          - transaction_type
+          variable: transaction_type
+        - value_selector:
+          - '30900000000002'
+          - suspicious_reason
+          variable: suspicious_reason
+        outputs:
+          formatted_params:
+            type: string
+          warnings:
+            type: string
+      height: 97
+      id: '30900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '取引情報を分析し届出書ドラフトの内容セクションを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行のAML（マネーロンダリング対策）専門家です。提供された取引情報に基づいて、疑わしい取引の分析と届出書ドラフトの「疑わしい取引の内容」セクションを作成してください。
+
+            ## 分析フォーマット
+            ■ 取引の概要
+            （取引の事実関係を客観的に記述）
+
+            ■ 疑わしいと認められる理由
+            （犯罪収益移転防止法の観点から、以下のいずれかに該当する理由を具体的に記述）
+            - 通常の取引パターンとの乖離
+            - 合理的な経済目的の欠如
+            - マネーロンダリングの類型との合致
+            - その他の不自然な点
+
+            ■ 関連する犯罪収益移転防止法の類型
+            （該当する疑わしい取引の参考事例番号がわかれば記載）
+
+            ■ 推奨される追加調査事項
+            （届出前に確認すべき事項があれば列挙）
+
+            ## 注意事項
+            - 事実と推測を明確に区別する
+            - 個人の犯罪性を断定する表現は使わない
+            - 提供された情報のみに基づいて分析する
+            - このドラフトは参考資料であり、最終届出書はAML担当者が責任を持って作成する
+        - role: user
+          text: |
+            以下の情報に基づいて疑わしい取引の分析とドラフトを作成してください。
+
+            【パラメータ整形結果】
+            {{#30900000000003.formatted_params#}}
+
+            【検証警告事項】
+            {{#30900000000003.warnings#}}
+
+            【元の取引詳細テキスト】
+            {{#30900000000001.transaction_details#}}
+        selected: false
+        title: 疑義分析・ドラフト
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30900000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '疑わしい取引の届出書フォーマットに整形する'
+        selected: false
+        title: 届出書フォーマット
+        type: template-transform
+        template: |
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          疑わしい取引の届出書（ドラフト）
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          ■ 届出日: ＿＿年＿＿月＿＿日
+          ■ 届出者: ＿＿＿＿＿＿＿＿＿
+
+          【取引関係者情報】
+          {{ formatted_params }}
+
+          【検証警告】
+          {{ warnings }}
+
+          【疑わしい取引の内容（AI分析ドラフト）】
+          {{ analysis }}
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ※ 本ドラフトはAI支援により作成された参考資料です。
+          ※ 最終届出書はAML担当者の確認・修正の上、提出してください。
+          ※ 届出日・届出者は手動で記入してください。
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        variables:
+        - value_selector:
+          - '30900000000003'
+          - formatted_params
+          variable: formatted_params
+        - value_selector:
+          - '30900000000003'
+          - warnings
+          variable: warnings
+        - value_selector:
+          - '30900000000004'
+          - text
+          variable: analysis
+      height: 97
+      id: '30900000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '届出書ドラフトを出力する'
+        outputs:
+        - value_selector:
+          - '30900000000005'
+          - output
+          variable: sar_draft
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '30900000000006'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

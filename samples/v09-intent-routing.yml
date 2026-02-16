@@ -1,0 +1,400 @@
+app:
+  description: 'V09: インテント分類ルーティング — EC統合カスタマーサポート'
+  icon: "\U0001F6D2"
+  icon_background: '#E4E7ED'
+  mode: workflow
+  name: "V09 ECカスタマーサポート"
+  use_icon_as_answer_icon: false
+workflow:
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  environment_variables: []
+  conversation_variables: []
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: question-classifier
+      id: '90000000000001-90000000000002'
+      source: '90000000000001'
+      sourceHandle: source
+      target: '90000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: knowledge-retrieval
+      id: '90000000000002-90000000000003'
+      source: '90000000000002'
+      sourceHandle: class_product
+      target: '90000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: '90000000000003-90000000000004'
+      source: '90000000000003'
+      sourceHandle: source
+      target: '90000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: '90000000000004-90000000000010'
+      source: '90000000000004'
+      sourceHandle: source
+      target: '90000000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: '90000000000002-90000000000005'
+      source: '90000000000002'
+      sourceHandle: class_general
+      target: '90000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: '90000000000005-90000000000010'
+      source: '90000000000005'
+      sourceHandle: source
+      target: '90000000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: http-request
+      id: '90000000000002-90000000000006'
+      source: '90000000000002'
+      sourceHandle: class_order
+      target: '90000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: template-transform
+      id: '90000000000006-90000000000007'
+      source: '90000000000006'
+      sourceHandle: source
+      target: '90000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: '90000000000007-90000000000010'
+      source: '90000000000007'
+      sourceHandle: source
+      target: '90000000000010'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '顧客の問い合わせを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: query
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: query
+      height: 89
+      id: '90000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        classes:
+        - id: class_product
+          name: '商品に関する質問'
+        - id: class_order
+          name: '注文・配送の確認'
+        - id: class_general
+          name: '一般的な質問'
+        desc: '顧客の質問意図を分類する'
+        instructions: '顧客の質問を商品情報、注文確認、一般質問のいずれかに分類してください。'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        query_variable_selector:
+        - '90000000000001'
+        - query
+        selected: false
+        title: インテント分類
+        type: question-classifier
+      height: 160
+      id: '90000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        dataset_ids:
+        - product-kb-placeholder
+        desc: '商品ナレッジベースから関連情報を検索する'
+        multiple_retrieval_config:
+          reranking_model:
+            model: ''
+            provider: ''
+          top_k: 3
+        retrieval_mode: multiple
+        selected: false
+        single_retrieval_config:
+          model:
+            completion_params:
+              frequency_penalty: 0
+              max_tokens: 4096
+              presence_penalty: 0
+              temperature: 0.7
+              top_p: 1
+            mode: chat
+            name: gpt-4o-mini
+            provider: openai
+        title: 商品KB検索
+        type: knowledge-retrieval
+      height: 89
+      id: '90000000000003'
+      position:
+        x: 680
+        y: 132
+      positionAbsolute:
+        x: 680
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '90000000000003'
+          - result
+        desc: 'ナレッジベースを基に商品質問に回答する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.7
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: "あなたはECサイトの商品情報に詳しいカスタマーサポートです。ナレッジベースの検索結果を参考にして、正確に回答してください。検索結果に該当する情報がない場合は、その旨を正直にお伝えください。"
+        - role: user
+          text: '{{#90000000000001.query#}}'
+        selected: false
+        title: 商品回答
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '90000000000004'
+      position:
+        x: 980
+        y: 132
+      positionAbsolute:
+        x: 980
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '一般的な質問に回答する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.7
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: "ECサイトの一般的な質問に回答するアシスタントです。"
+        - role: user
+          text: '{{#90000000000001.query#}}'
+        selected: false
+        title: 一般回答
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '90000000000005'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: '注文情報を外部APIから取得する'
+        headers: ''
+        method: get
+        params: 'q={{#90000000000001.query#}}'
+        selected: false
+        timeout:
+          connect: 5000
+          max_connect_timeout: 300
+          max_read_timeout: 600
+          max_write_timeout: 600
+          read: 10000
+          write: 10000
+        title: 注文API
+        type: http-request
+        url: 'https://api.example.com/orders'
+      height: 89
+      id: '90000000000006'
+      position:
+        x: 680
+        y: 432
+      positionAbsolute:
+        x: 680
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '注文APIレスポンスを整形する'
+        selected: false
+        template: "【注文情報】\nステータス: {{ body }}"
+        title: 注文情報整形
+        type: template-transform
+        variables:
+        - value_selector:
+          - '90000000000006'
+          - body
+          variable: body
+      height: 89
+      id: '90000000000007'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '回答を出力する'
+        outputs:
+        - value_selector:
+          - '90000000000004'
+          - text
+          variable: product_answer
+        - value_selector:
+          - '90000000000005'
+          - text
+          variable: general_answer
+        - value_selector:
+          - '90000000000007'
+          - output
+          variable: order_info
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '90000000000010'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

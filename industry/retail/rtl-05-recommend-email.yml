@@ -1,0 +1,464 @@
+app:
+  description: 顧客セグメント・購買履歴・キャンペーン種別をCodeで分析し、Question Classifierで3セグメント（VIP・リピーター・新規）に振り分け。セグメント別LLMで最適化されたレコメンドメールを生成するワークフロー。
+  icon: "\U00002709"
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'RTL-05: 商品レコメンドメール生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-50500000000001-50500000000002
+      source: '50500000000001'
+      sourceHandle: source
+      target: '50500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: question-classifier
+      id: e-50500000000002-50500000000003
+      source: '50500000000002'
+      sourceHandle: source
+      target: '50500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50500000000003-50500000000004
+      source: '50500000000003'
+      sourceHandle: class_vip
+      target: '50500000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50500000000003-50500000000005
+      source: '50500000000003'
+      sourceHandle: class_repeat
+      target: '50500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50500000000003-50500000000006
+      source: '50500000000003'
+      sourceHandle: class_new
+      target: '50500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50500000000004-50500000000007
+      source: '50500000000004'
+      sourceHandle: source
+      target: '50500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50500000000005-50500000000007
+      source: '50500000000005'
+      sourceHandle: source
+      target: '50500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50500000000006-50500000000007
+      source: '50500000000006'
+      sourceHandle: source
+      target: '50500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-50500000000007-50500000000008
+      source: '50500000000007'
+      sourceHandle: source
+      target: '50500000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '顧客情報とキャンペーン種別を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: customer_segment
+          max_length: 48
+          options:
+          - 'VIP会員'
+          - 'リピーター'
+          - '新規顧客'
+          required: true
+          type: select
+          variable: customer_segment
+        - label: purchase_history
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: purchase_history
+        - label: campaign_type
+          max_length: 48
+          options:
+          - '季節セール'
+          - '新商品案内'
+          - 'ポイント還元'
+          - 'タイムセール'
+          required: true
+          type: select
+          variable: campaign_type
+      height: 141
+      id: '50500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '購買履歴を分析しセグメント判定用テキストを生成する'
+        selected: false
+        title: 履歴分析
+        type: code
+        code_language: python3
+        code: |
+          def main(customer_segment: str, purchase_history: str,
+                   campaign_type: str) -> dict:
+              lines = purchase_history.strip().split('\n')
+              purchase_count = len([l for l in lines if l.strip()])
+
+              profile = (
+                  f"セグメント: {customer_segment}\n"
+                  f"キャンペーン種別: {campaign_type}\n"
+                  f"購買回数: {purchase_count}回\n"
+                  f"購買履歴:\n{purchase_history}"
+              )
+              return {'profile': profile}
+        variables:
+        - value_selector:
+          - '50500000000001'
+          - customer_segment
+          variable: customer_segment
+        - value_selector:
+          - '50500000000001'
+          - purchase_history
+          variable: purchase_history
+        - value_selector:
+          - '50500000000001'
+          - campaign_type
+          variable: campaign_type
+        outputs:
+          profile:
+            type: string
+      height: 97
+      id: '50500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '顧客セグメントに応じたメール生成パスに振り分ける'
+        selected: false
+        title: セグメント振分
+        type: question-classifier
+        query_variable_selector:
+        - '50500000000002'
+        - profile
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          completion_params:
+            temperature: 0.1
+            max_tokens: 256
+        classes:
+        - id: class_vip
+          name: "VIP会員（高単価・高頻度の優良顧客）"
+        - id: class_repeat
+          name: "リピーター（定期的に購入する中頻度顧客）"
+        - id: class_new
+          name: "新規顧客（初回購入または購入回数が少ない顧客）"
+        instruction: |
+          顧客プロファイルのセグメント情報に基づいて分類してください。
+          - VIP会員: 「VIP会員」と記載がある場合
+          - リピーター: 「リピーター」と記載がある場合
+          - 新規顧客: 「新規顧客」と記載がある場合、またはそれ以外
+      height: 160
+      id: '50500000000003'
+      position:
+        x: 680
+        y: 232
+      positionAbsolute:
+        x: 680
+        y: 232
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'VIP会員向けの特別感のあるメールを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトのCRMマーケターです。VIP会員向けのレコメンドメールを作成してください。
+
+            ## VIP会員向けメールの特徴
+            - 特別感・限定感を演出する（先行アクセス、限定クーポン等）
+            - 購買履歴に基づくパーソナライズドな商品提案
+            - 丁寧で品格のある文体
+            - 件名 + 本文の構成で出力
+
+            ## ルール
+            - 特定商取引法に基づく表記に関する注記を末尾に含める
+            - 配信停止リンクの案内を含める
+        - role: user
+          text: |
+            {{#50500000000002.profile#}}
+        selected: false
+        title: VIPメール生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50500000000004'
+      position:
+        x: 980
+        y: 82
+      positionAbsolute:
+        x: 980
+        y: 82
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'リピーター向けの親しみやすいメールを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトのCRMマーケターです。リピーター向けのレコメンドメールを作成してください。
+
+            ## リピーター向けメールの特徴
+            - 継続利用への感謝を伝える
+            - 前回購入商品に関連するおすすめを提案
+            - ポイント残高やランクアップ情報を活用
+            - 親しみやすくカジュアルな文体
+
+            ## ルール
+            - 特定商取引法に基づく表記に関する注記を末尾に含める
+            - 配信停止リンクの案内を含める
+        - role: user
+          text: |
+            {{#50500000000002.profile#}}
+        selected: false
+        title: リピーターメール生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50500000000005'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '新規顧客向けのウェルカムメールを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトのCRMマーケターです。新規顧客向けのレコメンドメールを作成してください。
+
+            ## 新規顧客向けメールの特徴
+            - 初回購入への感謝とウェルカムメッセージ
+            - 人気商品・売れ筋ランキングの紹介
+            - 初回限定クーポンや会員特典の案内
+            - わかりやすく安心感のある文体
+
+            ## ルール
+            - 特定商取引法に基づく表記に関する注記を末尾に含める
+            - 配信停止リンクの案内を含める
+        - role: user
+          text: |
+            {{#50500000000002.profile#}}
+        selected: false
+        title: 新規メール生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50500000000006'
+      position:
+        x: 980
+        y: 482
+      positionAbsolute:
+        x: 980
+        y: 482
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '各セグメントのメール出力を集約する'
+        output_type: string
+        selected: false
+        title: メール集約
+        type: variable-aggregator
+        variables:
+        - - '50500000000004'
+          - text
+        - - '50500000000005'
+          - text
+        - - '50500000000006'
+          - text
+      height: 89
+      id: '50500000000007'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'レコメンドメールを出力する'
+        outputs:
+        - value_selector:
+          - '50500000000007'
+          - output
+          variable: recommend_email
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50500000000008'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,278 @@
+app:
+  description: ローン相談AIの入力防御ワークフロー。ユーザー入力をバリデーションし、安全な入力のみLLMに渡します。
+  icon: 🛡
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'V10: 入力バリデーション — ローン相談AIの入力防御'
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-10000000000001-10000000000002
+      source: '10000000000001'
+      sourceHandle: source
+      target: '10000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-10000000000002-10000000000003
+      source: '10000000000002'
+      sourceHandle: source
+      target: '10000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-10000000000003-10000000000004
+      source: '10000000000003'
+      sourceHandle: 'true'
+      target: '10000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-10000000000003-10000000000005
+      source: '10000000000003'
+      sourceHandle: 'false'
+      target: '10000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-10000000000004-10000000000006
+      source: '10000000000004'
+      sourceHandle: source
+      target: '10000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-10000000000005-10000000000006
+      source: '10000000000005'
+      sourceHandle: source
+      target: '10000000000006'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: 開始
+        desc: ''
+        variables:
+        - variable: query
+          label: query
+          type: paragraph
+          required: true
+          max_length: 5000
+      id: '10000000000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: code
+        title: 入力検証
+        desc: 入力の長さとインジェクションパターンをチェック
+        code_language: python3
+        code: "import re\n\ndef main(query: str) -> dict:\n    if not query or len(query.strip())\
+          \ == 0:\n        return {'is_valid': 'false', 'clean_input': ''}\n    if\
+          \ len(query) > 5000:\n        return {'is_valid': 'false', 'clean_input':\
+          \ ''}\n    injection_patterns = [\n        r'(?i)ignore\\s+.*instructions',\n\
+          \        r'(?i)system\\s+prompt',\n        r'(?i)forget\\s+.*previous',\n\
+          \        r'(?i)disregard\\s+.*above',\n        r'(?i)override\\s+.*rules',\n\
+          \        r'(?i)act\\s+as\\s+.*admin',\n    ]\n    for pattern in injection_patterns:\n\
+          \        if re.search(pattern, query):\n            return {'is_valid':\
+          \ 'false', 'clean_input': ''}\n    return {'is_valid': 'true', 'clean_input':\
+          \ query.strip()}\n"
+        variables:
+        - variable: query
+          value_selector:
+          - '10000000000001'
+          - query
+        outputs:
+          is_valid:
+            type: string
+          clean_input:
+            type: string
+      id: '10000000000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: if-else
+        title: 条件分岐
+        desc: 入力が有効かどうかを判定
+        conditions:
+        - id: condition_1
+          variable_selector:
+          - '10000000000002'
+          - is_valid
+          comparison_operator: is
+          value: 'true'
+        logical_operator: and
+      id: '10000000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: ローン相談AI
+        desc: 住宅ローンに関する質問に日本語で回答
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.7
+        prompt_template:
+        - id: prompt_1
+          role: system
+          text: 'あなたは住宅ローンの専門アドバイザーです。以下のルールに従ってください：
+
+            1. 住宅ローンに関する質問に日本語で丁寧に回答してください。
+
+            2. 金利タイプ（固定・変動）、返済方法、審査基準などについてわかりやすく説明してください。
+
+            3. 具体的な金融商品の推奨は避け、一般的なアドバイスに留めてください。
+
+            4. 不明な点は正直に「専門家にご相談ください」と案内してください。'
+        - id: prompt_2
+          role: user
+          text: '{{#10000000000002.clean_input#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '10000000000004'
+      type: custom
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: template-transform
+        title: エラーメッセージ
+        desc: 無効な入力に対するエラーメッセージを返す
+        template: 申し訳ございませんが、入力内容を処理できませんでした。ローンに関するご質問をお願いいたします。
+        variables: []
+      id: '10000000000005'
+      type: custom
+      position:
+        x: 980
+        y: 382
+      positionAbsolute:
+        x: 980
+        y: 382
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: end
+        title: 終了
+        desc: ''
+        outputs:
+        - variable: result
+          value_selector:
+          - '10000000000004'
+          - text
+        - variable: error_message
+          value_selector:
+          - '10000000000005'
+          - output
+      id: '10000000000006'
+      type: custom
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false

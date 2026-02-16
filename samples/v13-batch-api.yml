@@ -1,0 +1,317 @@
+app:
+  description: サプライヤーリストに対してバッチAPIリクエストを実行し、価格データを集約・分析して最適なサプライヤーを推奨するワークフロー。
+  icon: 📦
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'V13: バッチAPI + 集約 — サプライヤー価格比較'
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-13000000000001-13000000000002
+      source: '13000000000001'
+      sourceHandle: source
+      target: '13000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-13000000000002-13000000000003
+      source: '13000000000002'
+      sourceHandle: source
+      target: '13000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-13000000000003-13000000000005
+      source: '13000000000003'
+      sourceHandle: source
+      target: '13000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-13000000000005-13000000000006
+      source: '13000000000005'
+      sourceHandle: source
+      target: '13000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-13000000000006-13000000000007
+      source: '13000000000006'
+      sourceHandle: source
+      target: '13000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: 開始
+        desc: ''
+        variables:
+        - variable: part_number
+          label: part_number
+          type: text-input
+          required: true
+          max_length: 100
+        - variable: suppliers
+          label: suppliers
+          type: text-input
+          required: true
+          max_length: 1000
+      id: '13000000000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: code
+        title: サプライヤー配列化
+        desc: カンマ区切りのサプライヤーリストを配列に変換
+        code_language: python3
+        code: "def main(suppliers: str) -> dict:\n    items = [s.strip() for s in\
+          \ suppliers.split(',') if s.strip()]\n    return {'items': items}\n"
+        variables:
+        - variable: suppliers
+          value_selector:
+          - '13000000000001'
+          - suppliers
+        outputs:
+          items:
+            type: array[string]
+      id: '13000000000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: iteration
+        title: サプライヤーイテレーション
+        desc: 各サプライヤーに対してAPIリクエストを実行
+        iterator_selector:
+        - '13000000000002'
+        - items
+        output_selector:
+        - '13000000000004'
+        - body
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '13000000000004'
+      id: '13000000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: http-request
+        title: 価格見積API
+        desc: サプライヤーの価格見積もりを取得
+        method: get
+        url: https://api.example.com/quote?part={{#13000000000001.part_number#}}&supplier={{#13000000000003.items#}}
+        authorization:
+          type: no-auth
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+          retry_interval: 1000
+      id: '13000000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '13000000000003'
+    - data:
+        type: code
+        title: 結果集約
+        desc: APIレスポンスを集約して分析用テキストを生成
+        code_language: python3
+        code: "import json\n\ndef main(api_results: list) -> dict:\n    summary_lines\
+          \ = []\n    for i, result in enumerate(api_results):\n        try:\n   \
+          \         data = json.loads(result) if isinstance(result, str) else result\n\
+          \            supplier = data.get('supplier', f'Supplier {i+1}')\n      \
+          \      price = data.get('price', 'N/A')\n            lead_time = data.get('lead_time_days',\
+          \ 'N/A')\n            availability = data.get('availability', 'N/A')\n \
+          \           summary_lines.append(\n                f\"サプライヤー: {supplier},\
+          \ \"\n                f\"価格: {price}, \"\n                f\"リードタイム: {lead_time}日,\
+          \ \"\n                f\"在庫状況: {availability}\"\n            )\n       \
+          \ except Exception:\n            summary_lines.append(f\"サプライヤー {i+1}: データ取得エラー\"\
+          )\n    summary = '\\n'.join(summary_lines)\n    return {'summary': summary}\n"
+        variables:
+        - variable: api_results
+          value_selector:
+          - '13000000000003'
+          - output
+        outputs:
+          summary:
+            type: string
+      id: '13000000000005'
+      type: custom
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: 最適サプライヤー分析
+        desc: 集約データを分析し最適なサプライヤーを推奨
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - id: prompt_supplier_sys
+          role: system
+          text: 'あなたは調達・購買の専門家です。以下のサプライヤー見積データを分析し、最適なサプライヤーを推奨してください。
+
+
+            以下の観点で評価してください：
+
+            1. コスト（価格の競争力）
+
+            2. リードタイム（納期の短さ）
+
+            3. 在庫状況（即納可能か）
+
+
+            最終的に推奨サプライヤーとその理由を明確に述べてください。'
+        - id: prompt_supplier_user
+          role: user
+          text: '{{#13000000000005.summary#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '13000000000006'
+      type: custom
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: end
+        title: 終了
+        desc: ''
+        outputs:
+        - variable: recommendation
+          value_selector:
+          - '13000000000006'
+          - text
+      id: '13000000000007'
+      type: custom
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false

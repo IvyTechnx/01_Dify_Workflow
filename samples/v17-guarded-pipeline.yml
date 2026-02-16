@@ -1,0 +1,518 @@
+app:
+  description: "ガード付きパイプライン - 患者向け症状説明AI（3層ガード）"
+  icon: "\U0001F3E5"
+  icon_background: '#FFEBEE'
+  mode: workflow
+  name: "V17 患者向け症状説明AI"
+  use_icon_as_answer_icon: false
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: code
+      id: e17-start-to-sanitize
+      source: '17000000000001'
+      sourceHandle: source
+      target: '17000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: if-else
+      id: e17-sanitize-to-ie1
+      source: '17000000000002'
+      sourceHandle: source
+      target: '17000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: if-else
+        targetType: knowledge-retrieval
+      id: e17-ie1-true-to-kr
+      source: '17000000000003'
+      sourceHandle: 'true'
+      target: '17000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: if-else
+        targetType: template-transform
+      id: e17-ie1-false-to-reject-input
+      source: '17000000000003'
+      sourceHandle: 'false'
+      target: '17000000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: template-transform
+        targetType: end
+      id: e17-reject-input-to-end1
+      source: '17000000000010'
+      sourceHandle: source
+      target: '17000000000011'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: e17-kr-to-llm
+      source: '17000000000004'
+      sourceHandle: source
+      target: '17000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: code
+      id: e17-llm-to-validate
+      source: '17000000000005'
+      sourceHandle: source
+      target: '17000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: if-else
+      id: e17-validate-to-ie2
+      source: '17000000000006'
+      sourceHandle: source
+      target: '17000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: if-else
+        targetType: end
+      id: e17-ie2-true-to-end
+      source: '17000000000007'
+      sourceHandle: 'true'
+      target: '17000000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: if-else
+        targetType: template-transform
+      id: e17-ie2-false-to-reject-output
+      source: '17000000000007'
+      sourceHandle: 'false'
+      target: '17000000000012'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: template-transform
+        targetType: end
+      id: e17-reject-output-to-end2
+      source: '17000000000012'
+      sourceHandle: source
+      target: '17000000000013'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: "開始"
+        desc: ''
+        variables:
+        - label: "質問"
+          variable: query
+          type: paragraph
+          required: true
+          max_length: 1000
+      height: 90
+      id: '17000000000001'
+      position:
+        x: 0
+        y: 300
+      positionAbsolute:
+        x: 0
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: code
+        title: "入力サニタイズ"
+        desc: "入力から禁止パターン（個人健康ID、保険番号、インジェクション）を検出・除去"
+        variables:
+        - variable: raw_query
+          value_selector:
+          - '17000000000001'
+          - query
+        code_language: python3
+        code: |
+          import re
+
+          def main(raw_query: str) -> dict:
+              prohibited_patterns = [
+                  r'\b\d{4}-\d{6}-\d{1}\b',
+                  r'\b[A-Z]{2}\d{8}\b',
+                  r'保険証番号[\s:：]*[\d\-]+',
+                  r'マイナンバー[\s:：]*[\d\-]+',
+                  r'<script[^>]*>',
+                  r'(?i)select\s+.*\s+from\s+',
+                  r'(?i)drop\s+table',
+                  r'\{\{.*\}\}',
+              ]
+              is_safe = True
+              sanitized = raw_query
+              for pattern in prohibited_patterns:
+                  if re.search(pattern, raw_query):
+                      is_safe = False
+                      sanitized = re.sub(pattern, '[REDACTED]', sanitized)
+              sanitized = sanitized.strip()
+              if len(sanitized) < 5:
+                  is_safe = False
+              return {
+                  'is_safe': 'true' if is_safe else 'false',
+                  'sanitized': sanitized if is_safe else ''
+              }
+        outputs:
+          is_safe:
+            type: string
+          sanitized:
+            type: string
+      height: 54
+      id: '17000000000002'
+      position:
+        x: 300
+        y: 300
+      positionAbsolute:
+        x: 300
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: if-else
+        title: "入力安全判定"
+        desc: "サニタイズ結果が安全かどうか判定"
+        conditions:
+        - id: cond-input-safe
+          logical_operator: and
+          conditions:
+          - variable_selector:
+            - '17000000000002'
+            - is_safe
+            comparison_operator: is
+            value: 'true'
+      height: 126
+      id: '17000000000003'
+      position:
+        x: 600
+        y: 250
+      positionAbsolute:
+        x: 600
+        y: 250
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: knowledge-retrieval
+        title: "医療ナレッジ検索"
+        desc: "医療知識ベースから関連情報を検索"
+        query_variable_selector:
+        - '17000000000002'
+        - sanitized
+        dataset_ids:
+        - "medical-kb-placeholder"
+        retrieval_mode: multiple
+        multiple_retrieval_config:
+          top_k: 3
+          score_threshold: 0.5
+          reranking_model:
+            provider: ''
+            model: ''
+      height: 54
+      id: '17000000000004'
+      position:
+        x: 900
+        y: 200
+      positionAbsolute:
+        x: 900
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: llm
+        title: "症状説明AI"
+        desc: "医療安全ルールに基づいて症状を説明"
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+            max_tokens: 2048
+        prompt_template:
+        - role: system
+          text: "あなたは患者向けの医療情報提供AIアシスタントです。\n\n厳守ルール:\n1. 絶対に診断を行わないこと（「〜の可能性があります」等の断定的表現を避ける）\n2. 薬の処方や具体的な用量を指示しないこと\n3. 未承認薬や民間療法を推奨しないこと\n4. 必ず「医師への相談をお勧めします」を含めること\n5. 緊急性がある場合は救急受診を案内すること\n6. ナレッジベースの情報のみを使用し、推測しないこと\n\n回答形式:\n- 一般的な説明（ナレッジベースに基づく）\n- 考えられる関連要因\n- 受診の目安\n- ※本情報は医学的助言ではありません。必ず医師にご相談ください。"
+        - role: user
+          text: '{{#17000000000002.sanitized#}}'
+        context:
+          enabled: true
+          variable_selector:
+          - '17000000000004'
+          - result
+        memory:
+          enabled: false
+        vision:
+          enabled: false
+        variables: []
+      height: 98
+      id: '17000000000005'
+      position:
+        x: 1200
+        y: 200
+      positionAbsolute:
+        x: 1200
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: code
+        title: "出力検証"
+        desc: "LLM出力に禁止された医療表現が含まれないか検証"
+        variables:
+        - variable: llm_output
+          value_selector:
+          - '17000000000005'
+          - text
+        code_language: python3
+        code: |
+          import re
+
+          def main(llm_output: str) -> dict:
+              prohibited_terms = [
+                  '断定的診断',
+                  'と診断します',
+                  '未承認薬',
+                  '個人輸入',
+                  '処方します',
+                  'mg服用',
+                  '錠飲んで',
+                  '確実に治',
+              ]
+              output_safe = True
+              for term in prohibited_terms:
+                  if term in llm_output:
+                      output_safe = False
+                      break
+              diagnostic_patterns = [
+                  r'あなたは.{1,10}です[。\.]',
+                  r'病名は.+です',
+                  r'\d+mg.{0,5}(服用|投与|摂取)',
+              ]
+              for pattern in diagnostic_patterns:
+                  if re.search(pattern, llm_output):
+                      output_safe = False
+                      break
+              return {
+                  'output_safe': 'true' if output_safe else 'false',
+                  'response': llm_output if output_safe else ''
+              }
+        outputs:
+          output_safe:
+            type: string
+          response:
+            type: string
+      height: 54
+      id: '17000000000006'
+      position:
+        x: 1500
+        y: 200
+      positionAbsolute:
+        x: 1500
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: if-else
+        title: "出力安全判定"
+        desc: "出力検証結果が安全かどうか判定"
+        conditions:
+        - id: cond-output-safe
+          logical_operator: and
+          conditions:
+          - variable_selector:
+            - '17000000000006'
+            - output_safe
+            comparison_operator: is
+            value: 'true'
+      height: 126
+      id: '17000000000007'
+      position:
+        x: 1800
+        y: 150
+      positionAbsolute:
+        x: 1800
+        y: 150
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: end
+        title: "正常終了"
+        desc: "検証済み応答を出力"
+        outputs:
+        - variable: result
+          value_selector:
+          - '17000000000006'
+          - response
+      height: 90
+      id: '17000000000008'
+      position:
+        x: 2100
+        y: 100
+      positionAbsolute:
+        x: 2100
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: template-transform
+        title: "入力拒否応答"
+        desc: "不正な入力に対する拒否メッセージを生成"
+        template: "申し訳ございませんが、入力内容に不適切な情報が含まれているため処理できません。\n\n個人を特定する情報（保険証番号、マイナンバー等）は入力しないでください。\n症状に関する一般的なご質問をお願いいたします。\n\n※緊急の場合は、最寄りの医療機関または救急（119）にご連絡ください。"
+        variables: []
+      height: 54
+      id: '17000000000010'
+      position:
+        x: 900
+        y: 450
+      positionAbsolute:
+        x: 900
+        y: 450
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: end
+        title: "入力拒否終了"
+        desc: "入力拒否メッセージを出力して終了"
+        outputs:
+        - variable: result
+          value_selector:
+          - '17000000000010'
+          - output
+      height: 90
+      id: '17000000000011'
+      position:
+        x: 1200
+        y: 450
+      positionAbsolute:
+        x: 1200
+        y: 450
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: template-transform
+        title: "出力拒否応答"
+        desc: "安全でない出力に対する代替メッセージを生成"
+        template: "申し訳ございませんが、適切な回答を生成できませんでした。\n\n症状についてのご心配がある場合は、かかりつけ医または最寄りの医療機関にご相談ください。\n\n緊急の場合:\n- 救急車: 119\n- 救急安心センター: #7119\n\n※本サービスは医学的助言を提供するものではありません。"
+        variables: []
+      height: 54
+      id: '17000000000012'
+      position:
+        x: 2100
+        y: 350
+      positionAbsolute:
+        x: 2100
+        y: 350
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: end
+        title: "出力拒否終了"
+        desc: "出力拒否メッセージを出力して終了"
+        outputs:
+        - variable: result
+          value_selector:
+          - '17000000000012'
+          - output
+      height: 90
+      id: '17000000000013'
+      position:
+        x: 2400
+        y: 350
+      positionAbsolute:
+        x: 2400
+        y: 350
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244

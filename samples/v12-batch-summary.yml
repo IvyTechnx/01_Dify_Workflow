@@ -1,0 +1,260 @@
+app:
+  description: 改行区切りの記事テキストをバッチ処理し、各記事の要約・論調・対応要否を分析するワークフロー。
+  icon: 📰
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'V12: バッチ要約 — メディア掲載記事の週次レビュー'
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-12000000000001-12000000000002
+      source: '12000000000001'
+      sourceHandle: source
+      target: '12000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-12000000000002-12000000000003
+      source: '12000000000002'
+      sourceHandle: source
+      target: '12000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: template-transform
+      id: e-12000000000003-12000000000005
+      source: '12000000000003'
+      sourceHandle: source
+      target: '12000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-12000000000005-12000000000006
+      source: '12000000000005'
+      sourceHandle: source
+      target: '12000000000006'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: 開始
+        desc: ''
+        variables:
+        - variable: articles
+          label: articles
+          type: paragraph
+          required: true
+          max_length: 50000
+      id: '12000000000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: code
+        title: 記事配列化
+        desc: 改行区切りのテキストを記事の配列に変換
+        code_language: python3
+        code: "def main(articles: str) -> dict:\n    items = [a.strip() for a in articles.split('\\\
+          n\\n') if a.strip()]\n    return {'items': items}\n"
+        variables:
+        - variable: articles
+          value_selector:
+          - '12000000000001'
+          - articles
+        outputs:
+          items:
+            type: array[string]
+      id: '12000000000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: iteration
+        title: 記事イテレーション
+        desc: 各記事をLLMで分析
+        iterator_selector:
+        - '12000000000002'
+        - items
+        output_selector:
+        - '12000000000004'
+        - text
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '12000000000004'
+      id: '12000000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: 記事分析LLM
+        desc: 各記事の要約・論調・対応要否を分析
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - id: prompt_iter_sys
+          role: system
+          text: '以下の記事を分析し、このフォーマットで出力してください：
+
+            要約: （2行以内）
+
+            論調: Positive/Negative/Neutral
+
+            対応要否: 要/不要'
+        - id: prompt_iter_user
+          role: user
+          text: '{{#12000000000003.items#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '12000000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '12000000000003'
+    - data:
+        type: template-transform
+        title: レポート生成
+        desc: イテレーション結果をMarkdownレポートにフォーマット
+        template: '# メディア掲載記事 週次レビューレポート
+
+
+          {{ summary_list }}
+
+
+          ---
+
+          *自動生成レポート*
+
+          '
+        variables:
+        - variable: summary_list
+          value_selector:
+          - '12000000000003'
+          - output
+      id: '12000000000005'
+      type: custom
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: end
+        title: 終了
+        desc: ''
+        outputs:
+        - variable: report
+          value_selector:
+          - '12000000000005'
+          - output
+      id: '12000000000006'
+      type: custom
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false

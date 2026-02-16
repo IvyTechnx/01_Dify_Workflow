@@ -1,0 +1,289 @@
+app:
+  description: 箇条書きメモ・対応時間・翌日予定を入力すると、Codeノードで整形しLLMが日本企業標準の日報フォーマットに仕上げるワークフロー。Template Transformで最終フォーマットを適用する。
+  icon: "\U0001F4DD"
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'CMN-02: 日報自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-40200000000001-40200000000002
+      source: '40200000000001'
+      sourceHandle: source
+      target: '40200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-40200000000002-40200000000003
+      source: '40200000000002'
+      sourceHandle: source
+      target: '40200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+      id: e-40200000000003-40200000000004
+      source: '40200000000003'
+      sourceHandle: source
+      target: '40200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-40200000000004-40200000000005
+      source: '40200000000004'
+      sourceHandle: source
+      target: '40200000000005'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '業務メモ・稼働時間・翌日予定を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: tasks_memo
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: tasks_memo
+        - label: hours_worked
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: hours_worked
+        - label: tomorrow_plan
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: tomorrow_plan
+      height: 141
+      id: '40200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '3つの入力を日報用セクションに整形する'
+        selected: false
+        title: 入力整形
+        type: code
+        code_language: python3
+        code: |
+          def main(tasks_memo: str, hours_worked: str, tomorrow_plan: str) -> dict:
+              formatted = (
+                  "【本日の業務内容（メモ）】\n"
+                  f"{tasks_memo}\n\n"
+                  f"【稼働時間】{hours_worked} 時間\n\n"
+                  "【翌日の予定】\n"
+                  f"{tomorrow_plan}"
+              )
+              return {'formatted_input': formatted}
+        variables:
+        - value_selector:
+          - '40200000000001'
+          - tasks_memo
+          variable: tasks_memo
+        - value_selector:
+          - '40200000000001'
+          - hours_worked
+          variable: hours_worked
+        - value_selector:
+          - '40200000000001'
+          - tomorrow_plan
+          variable: tomorrow_plan
+        outputs:
+          formatted_input:
+            type: string
+      height: 97
+      id: '40200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '整形済みメモから日報本文を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは日報作成アシスタントです。入力された業務メモを基に、以下のフォーマットで日報本文を作成してください。
+
+            ## 日報フォーマット
+            ### 1. 本日の業務内容
+            - 各業務を箇条書きで整理（進捗率がわかる場合は付記）
+
+            ### 2. 成果・進捗
+            - 完了したタスクや達成事項
+
+            ### 3. 課題・所感
+            - 業務で感じた課題や気づき（簡潔に）
+
+            ### 4. 翌日の予定
+            - 翌日の業務予定を箇条書きで整理
+
+            ## ルール
+            - メモの内容を忠実に整理し、事実に基づいて記述する
+            - 存在しない業務内容を追加しない
+            - ビジネス文書として適切な敬体で記述する
+            - 稼働時間を記載する
+        - role: user
+          text: '{{#40200000000002.formatted_input#}}'
+        selected: false
+        title: 日報生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '日報ヘッダー・フッターを付与し最終フォーマットに整形する'
+        selected: false
+        title: 日報フォーマット
+        type: template-transform
+        template: |
+          ━━━━━━━━━━━━━━━━━━━━━
+          日  報
+          ━━━━━━━━━━━━━━━━━━━━━
+          報告者: （氏名）
+          所  属: （部署名）
+          稼働時間: {{ hours_worked }} 時間
+
+          {{ report_body }}
+
+          ━━━━━━━━━━━━━━━━━━━━━
+          ※ 本日報はAIアシスタントにより作成されました。
+            内容をご確認の上、必要に応じて修正してください。
+          ━━━━━━━━━━━━━━━━━━━━━
+        variables:
+        - value_selector:
+          - '40200000000003'
+          - text
+          variable: report_body
+        - value_selector:
+          - '40200000000001'
+          - hours_worked
+          variable: hours_worked
+      height: 97
+      id: '40200000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '日報を出力する'
+        outputs:
+        - value_selector:
+          - '40200000000004'
+          - output
+          variable: daily_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40200000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

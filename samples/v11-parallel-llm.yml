@@ -1,0 +1,349 @@
+app:
+  description: 3つのLLMモデルに同じ質問を並列で送信し、回答を比較するベンチマークワークフロー。
+  icon: 🔍
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: 'V11: 並列LLM比較 — モデル選定ベンチマーク'
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: llm
+      id: e-11000000000001-11000000000002
+      source: '11000000000001'
+      sourceHandle: source
+      target: '11000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: start
+        targetType: llm
+      id: e-11000000000001-11000000000003
+      source: '11000000000001'
+      sourceHandle: source
+      target: '11000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: start
+        targetType: llm
+      id: e-11000000000001-11000000000004
+      source: '11000000000001'
+      sourceHandle: source
+      target: '11000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-11000000000002-11000000000005
+      source: '11000000000002'
+      sourceHandle: source
+      target: '11000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-11000000000003-11000000000005
+      source: '11000000000003'
+      sourceHandle: source
+      target: '11000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-11000000000004-11000000000005
+      source: '11000000000004'
+      sourceHandle: source
+      target: '11000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: template-transform
+      id: e-11000000000005-11000000000006
+      source: '11000000000005'
+      sourceHandle: source
+      target: '11000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-11000000000006-11000000000007
+      source: '11000000000006'
+      sourceHandle: source
+      target: '11000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: 開始
+        desc: ''
+        variables:
+        - variable: query
+          label: query
+          type: paragraph
+          required: true
+          max_length: 2000
+      id: '11000000000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: Model A (GPT-4o-mini)
+        desc: GPT-4o-miniによる回答生成
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.7
+        prompt_template:
+        - id: prompt_a_sys
+          role: system
+          text: 質問に対して簡潔に回答してください。
+        - id: prompt_a_user
+          role: user
+          text: '{{#11000000000001.query#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '11000000000002'
+      type: custom
+      position:
+        x: 380
+        y: 82
+      positionAbsolute:
+        x: 380
+        y: 82
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: Model B
+        desc: Model Bによる回答生成
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.7
+        prompt_template:
+        - id: prompt_b_sys
+          role: system
+          text: 質問に対して簡潔に回答してください。
+        - id: prompt_b_user
+          role: user
+          text: '{{#11000000000001.query#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '11000000000003'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: Model C
+        desc: Model Cによる回答生成
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.7
+        prompt_template:
+        - id: prompt_c_sys
+          role: system
+          text: 質問に対して簡潔に回答してください。
+        - id: prompt_c_user
+          role: user
+          text: '{{#11000000000001.query#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '11000000000004'
+      type: custom
+      position:
+        x: 380
+        y: 482
+      positionAbsolute:
+        x: 380
+        y: 482
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: variable-aggregator
+        title: 回答集約
+        desc: 3つのモデルの回答を集約
+        variables:
+        - - '11000000000002'
+          - text
+        - - '11000000000003'
+          - text
+        - - '11000000000004'
+          - text
+        output_type: array[string]
+        advanced_settings:
+          group_enabled: false
+      id: '11000000000005'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: template-transform
+        title: 比較レポート生成
+        desc: 3つのモデルの回答を比較テーブルとしてフォーマット
+        template: '## モデル比較結果
+
+
+          ### Model A (GPT-4o-mini)
+
+          {{ model_a }}
+
+
+          ### Model B
+
+          {{ model_b }}
+
+
+          ### Model C
+
+          {{ model_c }}
+
+          '
+        variables:
+        - variable: model_a
+          value_selector:
+          - '11000000000002'
+          - text
+        - variable: model_b
+          value_selector:
+          - '11000000000003'
+          - text
+        - variable: model_c
+          value_selector:
+          - '11000000000004'
+          - text
+      id: '11000000000006'
+      type: custom
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: end
+        title: 終了
+        desc: ''
+        outputs:
+        - variable: comparison_report
+          value_selector:
+          - '11000000000006'
+          - output
+      id: '11000000000007'
+      type: custom
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false

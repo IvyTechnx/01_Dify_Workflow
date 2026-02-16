@@ -1,0 +1,415 @@
+app:
+  description: 会議の文字起こしテキストから、Parameter Extractorでメタ情報を抽出し、並列LLMで「議事要約」と「アクションアイテム」を生成、Template Transformで正式な議事録フォーマットに整形するワークフロー。
+  icon: "\U0001F4CB"
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'CMN-03: 議事録要約・アクションアイテム抽出'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: e-40300000000001-40300000000002
+      source: '40300000000001'
+      sourceHandle: source
+      target: '40300000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: llm
+      id: e-40300000000002-40300000000003
+      source: '40300000000002'
+      sourceHandle: source
+      target: '40300000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: llm
+      id: e-40300000000002-40300000000004
+      source: '40300000000002'
+      sourceHandle: source
+      target: '40300000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40300000000003-40300000000005
+      source: '40300000000003'
+      sourceHandle: source
+      target: '40300000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40300000000004-40300000000005
+      source: '40300000000004'
+      sourceHandle: source
+      target: '40300000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: template-transform
+      id: e-40300000000005-40300000000006
+      source: '40300000000005'
+      sourceHandle: source
+      target: '40300000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-40300000000006-40300000000007
+      source: '40300000000006'
+      sourceHandle: source
+      target: '40300000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '会議テキストと会議種別を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: meeting_text
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: meeting_text
+        - label: meeting_type
+          max_length: 48
+          options:
+          - '定例会議'
+          - '臨時会議'
+          - 'プロジェクト会議'
+          - '経営会議'
+          required: true
+          type: select
+          variable: meeting_type
+      height: 115
+      id: '40300000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '会議テキストからメタ情報を抽出する'
+        selected: false
+        title: メタ情報抽出
+        type: parameter-extractor
+        query_variable_selector:
+        - '40300000000001'
+        - meeting_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: meeting_date
+          type: string
+          description: "会議日時（例: 2025年3月15日 14:00-15:30）"
+          required: true
+        - name: participants
+          type: string
+          description: "参加者一覧（カンマ区切り）"
+          required: true
+        - name: agenda
+          type: string
+          description: "議題一覧（カンマ区切り）"
+          required: true
+        - name: meeting_name
+          type: string
+          description: "会議名称"
+          required: true
+        instruction: "会議テキストから上記のメタ情報を抽出してください。見つからない場合は「不明」と記載してください。"
+        reasoning_mode: prompt
+      height: 97
+      id: '40300000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '会議テキストから議論のポイントと決定事項を要約する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは議事録作成の専門家です。会議テキストから以下の項目を抽出・要約してください。
+
+            ## 出力フォーマット
+            ### 議論のポイント
+            - 各議題について議論された主要なポイントを箇条書き
+
+            ### 決定事項
+            - 会議で決定された事項を番号付きリストで記載
+            - 決定に至った理由も簡潔に付記
+
+            ### 継続検討事項
+            - 結論が出なかった議題や、次回持ち越しの事項
+
+            ## ルール
+            - 発言内容を忠実に反映し、存在しない議論を追加しない
+            - 発言者名が特定できる場合は明記する
+            - 数値やデータは正確に引用する
+        - role: user
+          text: |
+            会議種別: {{#40300000000001.meeting_type#}}
+
+            会議テキスト:
+            {{#40300000000001.meeting_text#}}
+        selected: false
+        title: 議事要約
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40300000000003'
+      position:
+        x: 680
+        y: 182
+      positionAbsolute:
+        x: 680
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '会議テキストからアクションアイテムを抽出する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはプロジェクト管理の専門家です。会議テキストからアクションアイテム（宿題事項）を抽出してください。
+
+            ## 出力フォーマット
+            | # | アクションアイテム | 担当者 | 期限 | 優先度 |
+            |---|---|---|---|---|
+            | 1 | （内容） | （担当者名） | （期限） | 高/中/低 |
+
+            ## ルール
+            - 「〜する」「〜までに」「〜を確認」等の行動を伴う発言をアクションアイテムとして抽出する
+            - 担当者が不明な場合は「要確認」と記載
+            - 期限が不明な場合は「次回会議まで」と記載
+            - テキストに存在しないアクションアイテムを追加しない
+        - role: user
+          text: |
+            会議テキスト:
+            {{#40300000000001.meeting_text#}}
+        selected: false
+        title: アクションアイテム抽出
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40300000000004'
+      position:
+        x: 680
+        y: 382
+      positionAbsolute:
+        x: 680
+        y: 382
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '議事要約とアクションアイテムを統合する'
+        output_type: string
+        selected: false
+        title: 結果統合
+        type: variable-aggregator
+        variables:
+        - - '40300000000003'
+          - text
+        - - '40300000000004'
+          - text
+      height: 89
+      id: '40300000000005'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'メタ情報とLLM出力を正式議事録フォーマットに整形する'
+        selected: false
+        title: 議事録整形
+        type: template-transform
+        template: |
+          ━━━━━━━━━━━━━━━━━━━━━
+          議  事  録
+          ━━━━━━━━━━━━━━━━━━━━━
+          会議名: {{ meeting_name }}
+          種  別: {{ meeting_type }}
+          日  時: {{ meeting_date }}
+          参加者: {{ participants }}
+          議  題: {{ agenda }}
+          ━━━━━━━━━━━━━━━━━━━━━
+
+          {{ body }}
+
+          ━━━━━━━━━━━━━━━━━━━━━
+          ※ 本議事録はAIアシスタントにより作成されました。
+            内容をご確認の上、必要に応じて修正してください。
+          ━━━━━━━━━━━━━━━━━━━━━
+        variables:
+        - value_selector:
+          - '40300000000005'
+          - output
+          variable: body
+        - value_selector:
+          - '40300000000002'
+          - meeting_name
+          variable: meeting_name
+        - value_selector:
+          - '40300000000001'
+          - meeting_type
+          variable: meeting_type
+        - value_selector:
+          - '40300000000002'
+          - meeting_date
+          variable: meeting_date
+        - value_selector:
+          - '40300000000002'
+          - participants
+          variable: participants
+        - value_selector:
+          - '40300000000002'
+          - agenda
+          variable: agenda
+      height: 97
+      id: '40300000000006'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '議事録を出力する'
+        outputs:
+        - value_selector:
+          - '40300000000006'
+          - output
+          variable: meeting_minutes
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40300000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

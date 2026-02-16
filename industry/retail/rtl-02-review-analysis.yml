@@ -1,0 +1,406 @@
+app:
+  description: カスタマーレビューテキストをParameter Extractorで構造化し、Codeで感情スコアリング。LLMが分析要約を作成し、Template Transformでレポート形式に整えて出力するワークフロー。
+  icon: "\U00002B50"
+  icon_background: '#FFF8E1'
+  mode: workflow
+  name: 'RTL-02: カスタマーレビュー分析・要約'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: e-50200000000001-50200000000002
+      source: '50200000000001'
+      sourceHandle: source
+      target: '50200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: code
+      id: e-50200000000002-50200000000003
+      source: '50200000000002'
+      sourceHandle: source
+      target: '50200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-50200000000003-50200000000004
+      source: '50200000000003'
+      sourceHandle: source
+      target: '50200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+      id: e-50200000000004-50200000000005
+      source: '50200000000004'
+      sourceHandle: source
+      target: '50200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-50200000000005-50200000000006
+      source: '50200000000005'
+      sourceHandle: source
+      target: '50200000000006'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'レビューテキストと商品名を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: review_text
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: review_text
+        - label: product_name
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: product_name
+      height: 115
+      id: '50200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'レビューテキストから構造化情報を抽出する'
+        selected: false
+        title: レビュー情報抽出
+        type: parameter-extractor
+        query_variable_selector:
+        - '50200000000001'
+        - review_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: sentiment
+          type: string
+          description: "全体的な感情（positive/neutral/negative）"
+          required: true
+        - name: rating_estimate
+          type: number
+          description: "推定評価（1〜5の数値、レビューのトーンから推定）"
+          required: true
+        - name: pros
+          type: string
+          description: "良い点（カンマ区切り）"
+          required: true
+        - name: cons
+          type: string
+          description: "悪い点・不満点（カンマ区切り、なければ「特になし」）"
+          required: true
+        - name: key_topics
+          type: string
+          description: "主要トピック（カンマ区切り、例: 品質,価格,配送,デザイン）"
+          required: true
+        instruction: "カスタマーレビューから上記のパラメータを正確に抽出してください。感情はpositive/neutral/negativeの3値で判定してください。"
+        reasoning_mode: prompt
+      height: 97
+      id: '50200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '感情スコアと分析指標を算出する'
+        selected: false
+        title: 感情スコアリング
+        type: code
+        code_language: python3
+        code: |
+          def main(sentiment: str, rating_estimate: int,
+                   pros: str, cons: str) -> dict:
+              # 感情スコア (0-100)
+              sentiment_map = {
+                  'positive': 80,
+                  'neutral': 50,
+                  'negative': 20
+              }
+              base_score = sentiment_map.get(sentiment.lower().strip(), 50)
+
+              # 評価値による補正
+              try:
+                  rating = float(rating_estimate)
+              except (TypeError, ValueError):
+                  return {
+                      'score': 0,
+                      'grade': 'ERROR',
+                      'summary': '評価値を正しく抽出できませんでした。'
+                  }
+              rating_bonus = int((rating - 3) * 10)
+              score = max(0, min(100, base_score + rating_bonus))
+
+              # Good/Bad ポイント数
+              pros_list = [p.strip() for p in pros.split(',') if p.strip() and p.strip() != '特になし']
+              cons_list = [c.strip() for c in cons.split(',') if c.strip() and c.strip() != '特になし']
+              pros_count = len(pros_list)
+              cons_count = len(cons_list)
+
+              # グレード判定
+              if score >= 70:
+                  grade = 'GOOD'
+              elif score >= 40:
+                  grade = 'NEUTRAL'
+              else:
+                  grade = 'POOR'
+
+              summary = (
+                  f"感情スコア: {score}/100 ({grade}), "
+                  f"推定評価: {rating}/5, "
+                  f"Good: {pros_count}件, Bad: {cons_count}件"
+              )
+              return {'score': score, 'grade': grade, 'summary': summary}
+        variables:
+        - value_selector:
+          - '50200000000002'
+          - sentiment
+          variable: sentiment
+        - value_selector:
+          - '50200000000002'
+          - rating_estimate
+          variable: rating_estimate
+        - value_selector:
+          - '50200000000002'
+          - pros
+          variable: pros
+        - value_selector:
+          - '50200000000002'
+          - cons
+          variable: cons
+        outputs:
+          score:
+            type: number
+          grade:
+            type: string
+          summary:
+            type: string
+      height: 97
+      id: '50200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'レビュー分析の要約コメントを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの商品レビュー分析担当です。抽出されたレビュー情報を基に、商品改善や販促に活用できる分析コメントを作成してください。
+
+            ## 出力フォーマット
+            ### 総合評価
+            （1〜2文で総括）
+
+            ### 顧客が評価しているポイント
+            - （良い点を要約）
+
+            ### 改善が求められるポイント
+            - （悪い点を要約、なければ「目立った不満なし」）
+
+            ### 販促・改善への提案
+            - （レビューから得られるアクション提案を2〜3点）
+
+            ## ルール
+            - レビュー内容に基づく客観的な分析を行う
+            - 個人を特定できる情報は含めない
+        - role: user
+          text: |
+            商品名: {{#50200000000001.product_name#}}
+
+            レビュー原文:
+            {{#50200000000001.review_text#}}
+
+            抽出結果:
+            - 感情: {{#50200000000002.sentiment#}}
+            - 推定評価: {{#50200000000002.rating_estimate#}}/5
+            - 良い点: {{#50200000000002.pros#}}
+            - 悪い点: {{#50200000000002.cons#}}
+            - 主要トピック: {{#50200000000002.key_topics#}}
+
+            スコアリング: {{#50200000000003.summary#}}
+        selected: false
+        title: 分析要約生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50200000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'レポート形式に整形する'
+        selected: false
+        title: レポート整形
+        type: template-transform
+        template: |
+          ## カスタマーレビュー分析レポート
+
+          **商品名**: {{ product_name }}
+          **感情スコア**: {{ score }}/100 ({{ grade }})
+          **推定評価**: {{ rating }}/5
+
+          ---
+
+          {{ analysis }}
+
+          ---
+          ※ 本分析はAIによる自動解析です。重要な判断には原文レビューの確認を推奨します。
+        variables:
+        - value_selector:
+          - '50200000000001'
+          - product_name
+          variable: product_name
+        - value_selector:
+          - '50200000000003'
+          - score
+          variable: score
+        - value_selector:
+          - '50200000000003'
+          - grade
+          variable: grade
+        - value_selector:
+          - '50200000000002'
+          - rating_estimate
+          variable: rating
+        - value_selector:
+          - '50200000000004'
+          - text
+          variable: analysis
+      height: 97
+      id: '50200000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'レビュー分析レポートを出力する'
+        outputs:
+        - value_selector:
+          - '50200000000005'
+          - output
+          variable: review_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50200000000006'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

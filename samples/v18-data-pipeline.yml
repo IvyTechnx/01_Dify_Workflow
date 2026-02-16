@@ -1,0 +1,276 @@
+app:
+  description: "データ変換パイプライン（LLM不使用） - 出荷データ基幹→WMS連携"
+  icon: "\U0001F4E6"
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: "V18 出荷データ基幹WMS連携"
+  use_icon_as_answer_icon: false
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: http-request
+      id: e18-start-to-http-get
+      source: '18000000000001'
+      sourceHandle: source
+      target: '18000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: http-request
+        targetType: code
+      id: e18-http-get-to-code
+      source: '18000000000002'
+      sourceHandle: source
+      target: '18000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: template-transform
+      id: e18-code-to-tt
+      source: '18000000000003'
+      sourceHandle: source
+      target: '18000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: template-transform
+        targetType: http-request
+      id: e18-tt-to-http-post
+      source: '18000000000004'
+      sourceHandle: source
+      target: '18000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: http-request
+        targetType: end
+      id: e18-http-post-to-end
+      source: '18000000000005'
+      sourceHandle: source
+      target: '18000000000006'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: "開始"
+        desc: ''
+        variables:
+        - label: "注文ステータス"
+          variable: order_status
+          type: text-input
+          required: true
+          max_length: 50
+          default: "confirmed"
+      height: 90
+      id: '18000000000001'
+      position:
+        x: 0
+        y: 300
+      positionAbsolute:
+        x: 0
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: http-request
+        title: "ERP注文取得"
+        desc: "基幹システムから指定ステータスの注文データを取得"
+        method: get
+        url: 'https://api.example.com/erp/orders?status={{#18000000000001.order_status#}}'
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        authorization:
+          type: no-auth
+        timeout:
+          connect: 10
+          read: 60
+          write: 20
+        retry:
+          max_retries: 3
+      height: 54
+      id: '18000000000002'
+      position:
+        x: 300
+        y: 300
+      positionAbsolute:
+        x: 300
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: code
+        title: "ERP→WMS変換"
+        desc: "ERPフォーマットからWMSフォーマットへデータ変換"
+        variables:
+        - variable: orders_json
+          value_selector:
+          - '18000000000002'
+          - body
+        code_language: python3
+        code: |
+          import json
+
+          def main(orders_json: str) -> dict:
+              try:
+                  orders = json.loads(orders_json)
+              except Exception:
+                  orders = []
+              wms_items = []
+              for order in orders if isinstance(orders, list) else []:
+                  wms_items.append({
+                      "shipment_id": order.get("order_number", ""),
+                      "sku": order.get("product_code", ""),
+                      "qty": order.get("quantity", 0),
+                      "dest_zip": order.get("shipping_zip", "")
+                  })
+              return {'payload': json.dumps(wms_items, ensure_ascii=False)}
+        outputs:
+          payload:
+            type: string
+      height: 54
+      id: '18000000000003'
+      position:
+        x: 600
+        y: 300
+      positionAbsolute:
+        x: 600
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: template-transform
+        title: "WMS API整形"
+        desc: "WMS APIリクエストボディを生成"
+        template: '{"api_version": "2.0", "shipments": {{payload}}}'
+        variables:
+        - variable: payload
+          value_selector:
+          - '18000000000003'
+          - payload
+      height: 54
+      id: '18000000000004'
+      position:
+        x: 900
+        y: 300
+      positionAbsolute:
+        x: 900
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: http-request
+        title: "WMS送信"
+        desc: "変換データをWMSシステムへ送信"
+        method: post
+        url: 'https://api.example.com/wms/inbound'
+        headers: 'Content-Type: application/json'
+        params: ''
+        body:
+          type: raw-text
+          data: '{{#18000000000004.output#}}'
+        authorization:
+          type: no-auth
+        timeout:
+          connect: 10
+          read: 60
+          write: 20
+        retry:
+          max_retries: 3
+      height: 54
+      id: '18000000000005'
+      position:
+        x: 1200
+        y: 300
+      positionAbsolute:
+        x: 1200
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: end
+        title: "終了"
+        desc: "WMS送信結果を出力"
+        outputs:
+        - variable: status_code
+          value_selector:
+          - '18000000000005'
+          - status_code
+        - variable: response_body
+          value_selector:
+          - '18000000000005'
+          - body
+      height: 90
+      id: '18000000000006'
+      position:
+        x: 1500
+        y: 300
+      positionAbsolute:
+        x: 1500
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244

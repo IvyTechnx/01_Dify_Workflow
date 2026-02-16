@@ -1,0 +1,613 @@
+app:
+  description: トランザクションIDを指定してAPIから取引データを取得し、LLMで不正パターンを分析、要エスカレーション判定で通知APIに連携する不正検知ワークフロー。
+  icon: "\U0001F6A8"
+  icon_background: '#FFEBEE'
+  mode: workflow
+  name: 'BNK-04: 不正取引アラート分析・エスカレーション'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-30400000000001-30400000000002
+      source: '30400000000001'
+      sourceHandle: source
+      target: '30400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: e-30400000000002-30400000000003
+      source: '30400000000002'
+      sourceHandle: source
+      target: '30400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: e-30400000000003-30400000000004
+      source: '30400000000003'
+      sourceHandle: source
+      target: '30400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-30400000000004-30400000000005
+      source: '30400000000004'
+      sourceHandle: source
+      target: '30400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+      id: e-30400000000005-30400000000012
+      source: '30400000000005'
+      sourceHandle: source
+      target: '30400000000012'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-30400000000012-30400000000006
+      source: '30400000000012'
+      sourceHandle: source
+      target: '30400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: e-30400000000006-30400000000007
+      source: '30400000000006'
+      sourceHandle: 'true'
+      target: '30400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: e-30400000000007-30400000000008
+      source: '30400000000007'
+      sourceHandle: source
+      target: '30400000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: variable-aggregator
+      id: e-30400000000008-30400000000010
+      source: '30400000000008'
+      sourceHandle: source
+      target: '30400000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-30400000000006-30400000000009
+      source: '30400000000006'
+      sourceHandle: 'false'
+      target: '30400000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-30400000000009-30400000000010
+      source: '30400000000009'
+      sourceHandle: source
+      target: '30400000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-30400000000010-30400000000011
+      source: '30400000000010'
+      sourceHandle: source
+      target: '30400000000011'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '取引IDとアラート種別を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: transaction_id
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: transaction_id
+        - label: alert_type
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: alert_type
+      height: 115
+      id: '30400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '取引IDをURLエンコードする'
+        selected: false
+        title: URLエンコード
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(transaction_id: str) -> dict:
+              return {
+                  'transaction_id_enc': urllib.parse.quote(transaction_id, safe='')
+              }
+        variables:
+        - value_selector:
+          - '30400000000001'
+          - transaction_id
+          variable: transaction_id
+        outputs:
+          transaction_id_enc:
+            type: string
+      height: 97
+      id: '30400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'APIから取引データを取得する'
+        selected: false
+        title: 取引データ取得
+        type: http-request
+        method: get
+        url: 'https://api.example.com/transactions/{{#30400000000002.transaction_id_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 5000
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '30400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'APIレスポンスを解析し取引データサマリを生成する'
+        selected: false
+        title: データ整形
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_response: str) -> dict:
+              try:
+                  data = json.loads(api_response) if isinstance(api_response, str) else api_response
+                  txn_id = data.get('transaction_id', 'N/A')
+                  raw_amount = data.get('amount', 0)
+                  try:
+                      amount = float(raw_amount)
+                  except (TypeError, ValueError):
+                      amount = 0
+                  currency = data.get('currency', 'JPY')
+                  sender = data.get('sender_account', 'N/A')
+                  receiver = data.get('receiver_account', 'N/A')
+                  timestamp = data.get('timestamp', 'N/A')
+                  location = data.get('location', 'N/A')
+                  channel = data.get('channel', 'N/A')
+                  summary = (
+                      f"取引ID: {txn_id}\n"
+                      f"金額: {amount:,.0f} {currency}\n"
+                      f"送金元: {sender}\n"
+                      f"送金先: {receiver}\n"
+                      f"日時: {timestamp}\n"
+                      f"場所: {location}\n"
+                      f"チャネル: {channel}"
+                  )
+                  return {'summary': summary, 'amount': amount}
+              except Exception:
+                  return {'summary': 'データ取得エラー', 'amount': 0}
+        variables:
+        - value_selector:
+          - '30400000000003'
+          - body
+          variable: api_response
+        outputs:
+          summary:
+            type: string
+          amount:
+            type: number
+      height: 97
+      id: '30400000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '取引データを分析し不正パターンを評価する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の不正取引検知専門アナリストです。取引データを分析し、不正の可能性を評価してください。
+
+            ## 評価フォーマット
+            ■ 取引概要: （取引の要約）
+            ■ リスク評価: HIGH / MEDIUM / LOW
+            ■ 不正指標:
+              - 異常パターンの有無と具体的指摘
+              - 過去の不正パターンとの類似性
+            ■ 推奨アクション: （具体的な次のステップ）
+
+            ## 判定基準
+            - 高額取引（1000万円超）で通常パターンと異なる場合 → HIGH
+            - 短時間の複数取引、異なる地域からのアクセス → HIGH
+            - やや不自然だが即座の対応は不要 → MEDIUM
+            - 通常の取引パターン内 → LOW
+
+            安全側に判定し、疑わしい場合はHIGHとしてください。
+        - role: user
+          text: |
+            アラート種別: {{#30400000000001.alert_type#}}
+
+            取引データ:
+            {{#30400000000004.summary#}}
+        selected: false
+        title: 不正分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30400000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'LLM分析結果からリスクレベルを構造化抽出する'
+        selected: false
+        title: リスク判定抽出
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(llm_text: str) -> dict:
+              risk_level = "UNKNOWN"
+              match = re.search(r'リスク評価[:：]\s*(HIGH|MEDIUM|LOW)', llm_text)
+              if match:
+                  risk_level = match.group(1)
+              return {'risk_level': risk_level}
+        variables:
+        - value_selector:
+          - '30400000000005'
+          - text
+          variable: llm_text
+        outputs:
+          risk_level:
+            type: string
+      height: 97
+      id: '30400000000012'
+      position:
+        x: 1430
+        y: 282
+      positionAbsolute:
+        x: 1430
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        conditions:
+        - id: condition_1
+          variable_selector:
+          - '30400000000012'
+          - risk_level
+          comparison_operator: is
+          value: "HIGH"
+        - id: condition_2
+          variable_selector:
+          - '30400000000004'
+          - amount
+          comparison_operator: '>'
+          value: '10000000'
+        desc: 'リスクレベルと取引金額でエスカレーション要否を判定する'
+        logical_operator: or
+        selected: false
+        title: エスカレーション判定
+        type: if-else
+      height: 125
+      id: '30400000000006'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'エスカレーション通知用のJSONペイロードを構築する'
+        selected: false
+        title: JSON構築
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(transaction_id: str, alert_type: str, analysis: str) -> dict:
+              payload = json.dumps({
+                  "transaction_id": transaction_id,
+                  "alert_type": alert_type,
+                  "risk_level": "HIGH",
+                  "analysis": analysis,
+                  "action": "immediate_review"
+              }, ensure_ascii=False)
+              return {'payload': payload}
+        variables:
+        - value_selector:
+          - '30400000000001'
+          - transaction_id
+          variable: transaction_id
+        - value_selector:
+          - '30400000000001'
+          - alert_type
+          variable: alert_type
+        - value_selector:
+          - '30400000000005'
+          - text
+          variable: analysis
+        outputs:
+          payload:
+            type: string
+      height: 97
+      id: '30400000000007'
+      position:
+        x: 1880
+        y: 132
+      positionAbsolute:
+        x: 1880
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '不正検知エスカレーション通知を送信する'
+        selected: false
+        title: エスカレーション通知
+        type: http-request
+        method: post
+        url: 'https://api.example.com/fraud/escalate'
+        authorization:
+          type: no-auth
+          config: null
+        headers: 'Content-Type: application/json'
+        params: ''
+        body:
+          data: '{{#30400000000007.payload#}}'
+          type: raw-text
+        timeout:
+          connect: 5000
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '30400000000008'
+      position:
+        x: 2180
+        y: 132
+      positionAbsolute:
+        x: 2180
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '通常処理の分析結果レポートを生成する'
+        selected: false
+        title: 通常処理
+        type: template-transform
+        template: |
+          ## 不正取引アラート分析結果
+
+          取引ID: {{ transaction_id }}
+          アラート種別: {{ alert_type }}
+
+          ### 分析結果
+          {{ analysis }}
+
+          ### 判定
+          現時点でエスカレーションは不要です。
+          定期モニタリングの対象として記録されました。
+        variables:
+        - value_selector:
+          - '30400000000001'
+          - transaction_id
+          variable: transaction_id
+        - value_selector:
+          - '30400000000001'
+          - alert_type
+          variable: alert_type
+        - value_selector:
+          - '30400000000005'
+          - text
+          variable: analysis
+      height: 97
+      id: '30400000000009'
+      position:
+        x: 1880
+        y: 432
+      positionAbsolute:
+        x: 1880
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '両分岐の出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '30400000000008'
+          - body
+        - - '30400000000009'
+          - output
+      height: 89
+      id: '30400000000010'
+      position:
+        x: 2480
+        y: 282
+      positionAbsolute:
+        x: 2480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '分析結果を出力する'
+        outputs:
+        - value_selector:
+          - '30400000000010'
+          - output
+          variable: analysis_result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '30400000000011'
+      position:
+        x: 2780
+        y: 282
+      positionAbsolute:
+        x: 2780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

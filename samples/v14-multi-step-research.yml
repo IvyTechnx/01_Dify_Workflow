@@ -1,0 +1,355 @@
+app:
+  description: "マルチステップリサーチ - 市場調査レポート自動生成ワークフロー"
+  icon: "\U0001F50D"
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: "V14 マルチステップリサーチ"
+  use_icon_as_answer_icon: false
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: llm
+      id: e14-start-to-plan
+      source: '14000000000001'
+      sourceHandle: source
+      target: '14000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: code
+      id: e14-plan-to-code
+      source: '14000000000002'
+      sourceHandle: source
+      target: '14000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: code
+        targetType: iteration
+      id: e14-code-to-iter
+      source: '14000000000003'
+      sourceHandle: source
+      target: '14000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: true
+        sourceType: http-request
+        targetType: llm
+      id: e14-http-to-analysis
+      source: '14000000000005'
+      sourceHandle: source
+      target: '14000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: iteration
+        targetType: llm
+      id: e14-iter-to-final
+      source: '14000000000004'
+      sourceHandle: source
+      target: '14000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: end
+      id: e14-final-to-end
+      source: '14000000000007'
+      sourceHandle: source
+      target: '14000000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: "開始"
+        desc: ''
+        variables:
+        - label: "調査テーマ"
+          variable: theme
+          type: paragraph
+          required: true
+          max_length: 500
+      height: 90
+      id: '14000000000001'
+      position:
+        x: 0
+        y: 300
+      positionAbsolute:
+        x: 0
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: llm
+        title: "リサーチ計画"
+        desc: "調査テーマから5つの調査項目を生成"
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.7
+            max_tokens: 4096
+        prompt_template:
+        - role: system
+          text: "あなたはリサーチプランナーです。与えられたテーマについて調査すべき5つの項目をJSON配列で出力してください。例: [\"市場規模\", \"主要プレイヤー\", \"技術トレンド\", \"規制環境\", \"参入障壁\"]\n出力はJSON配列のみ、他のテキストは不要です。"
+        - role: user
+          text: '{{#14000000000001.theme#}}'
+        memory:
+          enabled: false
+        vision:
+          enabled: false
+        variables: []
+      height: 98
+      id: '14000000000002'
+      position:
+        x: 300
+        y: 300
+      positionAbsolute:
+        x: 300
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: code
+        title: "計画パース"
+        desc: "LLM出力のJSON配列をパースしてリストに変換"
+        variables:
+        - variable: plan_text
+          value_selector:
+          - '14000000000002'
+          - text
+        code_language: python3
+        code: |
+          import json
+
+          def main(plan_text: str) -> dict:
+              try:
+                  items = json.loads(plan_text.strip())
+              except Exception:
+                  items = ["市場規模", "主要プレイヤー", "技術トレンド", "規制環境", "参入障壁"]
+              if not isinstance(items, list):
+                  items = ["市場規模", "主要プレイヤー", "技術トレンド", "規制環境", "参入障壁"]
+              return {'items': items}
+        outputs:
+          items:
+            type: array[string]
+      height: 54
+      id: '14000000000003'
+      position:
+        x: 600
+        y: 300
+      positionAbsolute:
+        x: 600
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: iteration
+        title: "調査イテレーション"
+        desc: "各調査項目について情報を取得し分析する"
+        iterator_selector:
+        - '14000000000003'
+        - items
+        output_selector:
+        - '14000000000006'
+        - text
+        output_type: array[string]
+        parallel_mode: true
+        start_node_id: '14000000000005'
+        is_parallel: true
+      height: 200
+      id: '14000000000004'
+      position:
+        x: 900
+        y: 250
+      positionAbsolute:
+        x: 900
+        y: 250
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 700
+    - data:
+        type: http-request
+        title: "検索API"
+        desc: "調査項目について情報を検索"
+        isInIteration: true
+        method: get
+        url: 'https://api.example.com/search?q={{#14000000000004.item#}}'
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        authorization:
+          type: no-auth
+        timeout:
+          connect: 10
+          read: 60
+          write: 20
+        retry:
+          max_retries: 3
+      height: 54
+      id: '14000000000005'
+      position:
+        x: 960
+        y: 300
+      positionAbsolute:
+        x: 960
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+      parentId: '14000000000004'
+      extent: parent
+    - data:
+        type: llm
+        title: "項目分析"
+        desc: "各調査項目の検索結果を分析・要約"
+        isInIteration: true
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.5
+            max_tokens: 2048
+        prompt_template:
+        - role: system
+          text: "あなたはリサーチアナリストです。以下の検索結果を分析し、重要なポイントを3-5個の箇条書きで簡潔にまとめてください。データや数値があれば含めてください。"
+        - role: user
+          text: "調査項目: {{#14000000000004.item#}}\n\n検索結果:\n{{#14000000000005.body#}}"
+        memory:
+          enabled: false
+        vision:
+          enabled: false
+        variables: []
+      height: 98
+      id: '14000000000006'
+      position:
+        x: 1260
+        y: 300
+      positionAbsolute:
+        x: 1260
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+      parentId: '14000000000004'
+      extent: parent
+    - data:
+        type: llm
+        title: "最終レポート生成"
+        desc: "全調査結果を統合してレポートを作成"
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.7
+            max_tokens: 4096
+        prompt_template:
+        - role: system
+          text: "あなたはビジネスアナリストです。以下の調査結果を統合し、エグゼクティブサマリー付きの調査レポートを作成してください。SWOT分析を含めてください。"
+        - role: user
+          text: "調査テーマ: {{#14000000000001.theme#}}\n\n調査結果:\n{{#14000000000004.output#}}"
+        memory:
+          enabled: false
+        vision:
+          enabled: false
+        variables: []
+      height: 98
+      id: '14000000000007'
+      position:
+        x: 1700
+        y: 300
+      positionAbsolute:
+        x: 1700
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: end
+        title: "終了"
+        desc: ''
+        outputs:
+        - variable: report
+          value_selector:
+          - '14000000000007'
+          - text
+      height: 90
+      id: '14000000000008'
+      position:
+        x: 2000
+        y: 300
+      positionAbsolute:
+        x: 2000
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244

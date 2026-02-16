@@ -1,0 +1,498 @@
+app:
+  description: 商品情報テキストをCodeで入力検証し、Question Classifierで4カテゴリ（食品・アパレル・家電・日用品）に自動分類。各カテゴリ専用LLMが詳細タグ付けと商品登録情報を生成するワークフロー。
+  icon: "\U0001F3F7"
+  icon_background: '#FFF9C4'
+  mode: workflow
+  name: 'RTL-08: 商品カテゴリ自動分類'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-50800000000001-50800000000002
+      source: '50800000000001'
+      sourceHandle: source
+      target: '50800000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: question-classifier
+      id: e-50800000000002-50800000000003
+      source: '50800000000002'
+      sourceHandle: source
+      target: '50800000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50800000000003-50800000000004
+      source: '50800000000003'
+      sourceHandle: class_food
+      target: '50800000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50800000000003-50800000000005
+      source: '50800000000003'
+      sourceHandle: class_apparel
+      target: '50800000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50800000000003-50800000000006
+      source: '50800000000003'
+      sourceHandle: class_electronics
+      target: '50800000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-50800000000003-50800000000007
+      source: '50800000000003'
+      sourceHandle: class_daily
+      target: '50800000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000004-50800000000008
+      source: '50800000000004'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000005-50800000000008
+      source: '50800000000005'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000006-50800000000008
+      source: '50800000000006'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000007-50800000000008
+      source: '50800000000007'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-50800000000008-50800000000009
+      source: '50800000000008'
+      sourceHandle: source
+      target: '50800000000009'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '商品情報テキストを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_info
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: product_info
+      height: 89
+      id: '50800000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力テキストをバリデーションし整形する'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          def main(product_info: str) -> dict:
+              text = product_info.strip()
+              if len(text) < 10:
+                  validated = f"[警告: 情報が不足しています]\n{text}"
+              else:
+                  validated = text
+              char_count = len(text)
+              return {'validated_info': validated, 'char_count': char_count}
+        variables:
+        - value_selector:
+          - '50800000000001'
+          - product_info
+          variable: product_info
+        outputs:
+          validated_info:
+            type: string
+          char_count:
+            type: number
+      height: 97
+      id: '50800000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '商品情報を4カテゴリに分類する'
+        selected: false
+        title: カテゴリ分類
+        type: question-classifier
+        query_variable_selector:
+        - '50800000000002'
+        - validated_info
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          completion_params:
+            temperature: 0.1
+            max_tokens: 256
+        classes:
+        - id: class_food
+          name: "食品・飲料（生鮮食品、加工食品、飲料、酒類、菓子、健康食品等）"
+        - id: class_apparel
+          name: "アパレル・ファッション（衣類、靴、バッグ、アクセサリー、時計等）"
+        - id: class_electronics
+          name: "家電・電子機器（PC、スマホ、家電、AV機器、カメラ、ゲーム等）"
+        - id: class_daily
+          name: "日用品・雑貨（掃除用品、キッチン用品、文房具、インテリア、ペット用品等）"
+        instruction: |
+          商品情報テキストを読み、最も適切なカテゴリに分類してください。
+          複数カテゴリに該当する場合は、主要な特徴に基づいて1つに絞ってください。
+      height: 185
+      id: '50800000000003'
+      position:
+        x: 680
+        y: 220
+      positionAbsolute:
+        x: 680
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '食品・飲料カテゴリの詳細タグを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 1024
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの商品マスタ管理担当です。食品・飲料カテゴリの商品情報を整理し、商品登録用データを生成してください。
+
+            ## 出力フォーマット（JSON風）
+            - カテゴリ: 食品・飲料
+            - サブカテゴリ: （生鮮/加工食品/飲料/酒類/菓子/健康食品）
+            - 商品タグ: （カンマ区切りで5〜10個）
+            - アレルギー表示: （該当する特定原材料）
+            - 保存方法: （常温/冷蔵/冷凍）
+            - 賞味期限目安: （推定）
+            - 検索キーワード: （SEO用、5個）
+        - role: user
+          text: '{{#50800000000002.validated_info#}}'
+        selected: false
+        title: 食品タグ生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000004'
+      position:
+        x: 980
+        y: 32
+      positionAbsolute:
+        x: 980
+        y: 32
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'アパレル・ファッションカテゴリの詳細タグを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 1024
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの商品マスタ管理担当です。アパレル・ファッションカテゴリの商品情報を整理し、商品登録用データを生成してください。
+
+            ## 出力フォーマット
+            - カテゴリ: アパレル・ファッション
+            - サブカテゴリ: （トップス/ボトムス/アウター/靴/バッグ/アクセサリー）
+            - 商品タグ: （カンマ区切りで5〜10個）
+            - サイズ展開: （推定）
+            - 素材: （推定）
+            - シーズン: （春夏/秋冬/通年）
+            - 検索キーワード: （SEO用、5個）
+        - role: user
+          text: '{{#50800000000002.validated_info#}}'
+        selected: false
+        title: アパレルタグ生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000005'
+      position:
+        x: 980
+        y: 202
+      positionAbsolute:
+        x: 980
+        y: 202
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '家電・電子機器カテゴリの詳細タグを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 1024
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの商品マスタ管理担当です。家電・電子機器カテゴリの商品情報を整理し、商品登録用データを生成してください。
+
+            ## 出力フォーマット
+            - カテゴリ: 家電・電子機器
+            - サブカテゴリ: （PC/スマホ/家電/AV機器/カメラ/ゲーム）
+            - 商品タグ: （カンマ区切りで5〜10個）
+            - 主要スペック: （推定）
+            - 対応規格: （USB-C, Bluetooth, Wi-Fi等）
+            - 保証期間: （推定）
+            - 検索キーワード: （SEO用、5個）
+        - role: user
+          text: '{{#50800000000002.validated_info#}}'
+        selected: false
+        title: 家電タグ生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000006'
+      position:
+        x: 980
+        y: 372
+      positionAbsolute:
+        x: 980
+        y: 372
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '日用品・雑貨カテゴリの詳細タグを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 1024
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの商品マスタ管理担当です。日用品・雑貨カテゴリの商品情報を整理し、商品登録用データを生成してください。
+
+            ## 出力フォーマット
+            - カテゴリ: 日用品・雑貨
+            - サブカテゴリ: （掃除/キッチン/文房具/インテリア/ペット/その他）
+            - 商品タグ: （カンマ区切りで5〜10個）
+            - 素材・材質: （推定）
+            - サイズ・容量: （推定）
+            - 使用シーン: （推定）
+            - 検索キーワード: （SEO用、5個）
+        - role: user
+          text: '{{#50800000000002.validated_info#}}'
+        selected: false
+        title: 日用品タグ生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000007'
+      position:
+        x: 980
+        y: 542
+      positionAbsolute:
+        x: 980
+        y: 542
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '各カテゴリのタグ生成結果を集約する'
+        output_type: string
+        selected: false
+        title: 分類結果集約
+        type: variable-aggregator
+        variables:
+        - - '50800000000004'
+          - text
+        - - '50800000000005'
+          - text
+        - - '50800000000006'
+          - text
+        - - '50800000000007'
+          - text
+      height: 89
+      id: '50800000000008'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '分類・タグ付け結果を出力する'
+        outputs:
+        - value_selector:
+          - '50800000000008'
+          - output
+          variable: categorization_result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50800000000009'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

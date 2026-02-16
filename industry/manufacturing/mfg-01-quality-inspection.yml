@@ -1,0 +1,341 @@
+app:
+  description: 品質検査ロットデータをAPI取得し、LLMで品質検査レポートを自動生成する製造業向けワークフロー。
+  icon: "\U0001F50D"
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: 'MFG-01: 品質検査レポート自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-20100000000001-20100000000006
+      source: '20100000000001'
+      sourceHandle: source
+      target: '20100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: e-20100000000006-20100000000002
+      source: '20100000000006'
+      sourceHandle: source
+      target: '20100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: e-20100000000002-20100000000003
+      source: '20100000000002'
+      sourceHandle: source
+      target: '20100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-20100000000003-20100000000004
+      source: '20100000000003'
+      sourceHandle: source
+      target: '20100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-20100000000004-20100000000005
+      source: '20100000000004'
+      sourceHandle: source
+      target: '20100000000005'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'ロット番号と検査種別を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: lot_number
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: lot_number
+        - label: inspection_type
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: inspection_type
+      height: 115
+      id: '20100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力パラメータをURLエンコードする'
+        selected: false
+        title: URLエンコード
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(lot_number: str, inspection_type: str) -> dict:
+              return {
+                  'lot_number_enc': urllib.parse.quote(lot_number, safe=''),
+                  'inspection_type_enc': urllib.parse.quote(inspection_type, safe='')
+              }
+        variables:
+        - value_selector:
+          - '20100000000001'
+          - lot_number
+          variable: lot_number
+        - value_selector:
+          - '20100000000001'
+          - inspection_type
+          variable: inspection_type
+        outputs:
+          lot_number_enc:
+            type: string
+          inspection_type_enc:
+            type: string
+      height: 97
+      id: '20100000000006'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '検査データAPIからロット検査結果を取得する'
+        selected: false
+        title: 検査データ取得
+        type: http-request
+        method: get
+        url: 'https://api.example.com/inspection?lot={{#20100000000006.lot_number_enc#}}&type={{#20100000000006.inspection_type_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 5000
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '20100000000002'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'APIレスポンスを解析し主要メトリクスを抽出する'
+        selected: false
+        title: データ解析
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_response: str) -> dict:
+              try:
+                  data = json.loads(api_response) if isinstance(api_response, str) else api_response
+                  lot = data.get('lot_number', 'N/A')
+                  defect_rate = data.get('defect_rate', 0)
+                  pass_rate = data.get('pass_rate', 0)
+                  sample_count = data.get('sample_count', 0)
+                  defect_count = data.get('defect_count', 0)
+                  judgment = 'PASS' if defect_rate < 0.05 else 'FAIL'
+                  summary = (
+                      f"ロット番号: {lot}\n"
+                      f"サンプル数: {sample_count}\n"
+                      f"不良数: {defect_count}\n"
+                      f"不良率: {defect_rate*100:.2f}%\n"
+                      f"良品率: {pass_rate*100:.2f}%\n"
+                      f"判定: {judgment}"
+                  )
+                  return {'summary': summary, 'judgment': judgment}
+              except Exception:
+                  return {'summary': 'データ解析エラー', 'judgment': 'ERROR'}
+        variables:
+        - value_selector:
+          - '20100000000002'
+          - body
+          variable: api_response
+        outputs:
+          summary:
+            type: string
+          judgment:
+            type: string
+      height: 97
+      id: '20100000000003'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '検査データサマリから品質検査レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは製造業の品質管理専門家です。提供された検査データサマリに基づいて、品質検査レポートを日本語で作成してください。
+
+            ## レポートフォーマット
+            以下の形式で出力してください：
+
+            ### 品質検査レポート
+            ■ 検査概要
+            （検査データサマリをもとに概要を記載）
+
+            ■ 判定結果
+            （PASS/FAILの判定と根拠を記載）
+
+            ■ 詳細分析
+            （不良率の傾向、改善ポイントなどを分析）
+
+            ■ 推奨アクション
+            - PASSの場合：出荷承認の推奨事項
+            - FAILの場合：再検査・是正処置の推奨事項
+
+            ## 注意事項
+            - 提供されたデータのみに基づいて判定する
+            - 推測による品質判定は行わない
+            - 安全に関わる問題がある場合は必ず明記する
+        - role: user
+          text: |
+            以下の検査データサマリに基づいてレポートを作成してください。
+
+            検査データ:
+            {{#20100000000003.summary#}}
+
+            判定結果: {{#20100000000003.judgment#}}
+        selected: false
+        title: レポート生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '20100000000004'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '品質検査レポートを出力する'
+        outputs:
+        - value_selector:
+          - '20100000000004'
+          - text
+          variable: report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '20100000000005'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

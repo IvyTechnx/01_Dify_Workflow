@@ -1,0 +1,431 @@
+app:
+  description: 設備アラートの緊急度をLLMで判定し、重大アラートは保全チームに通知、軽微なものは対処手順を案内する設備保全ワークフロー。
+  icon: "\U0001F527"
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'MFG-02: 設備保全アラート対応'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: llm
+      id: e-20200000000001-20200000000002
+      source: '20200000000001'
+      sourceHandle: source
+      target: '20200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: if-else
+      id: e-20200000000002-20200000000003
+      source: '20200000000002'
+      sourceHandle: source
+      target: '20200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: e-20200000000003-20200000000008
+      source: '20200000000003'
+      sourceHandle: 'true'
+      target: '20200000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-20200000000003-20200000000005
+      source: '20200000000003'
+      sourceHandle: 'false'
+      target: '20200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: e-20200000000008-20200000000004
+      source: '20200000000008'
+      sourceHandle: source
+      target: '20200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: variable-aggregator
+      id: e-20200000000004-20200000000006
+      source: '20200000000004'
+      sourceHandle: source
+      target: '20200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-20200000000005-20200000000006
+      source: '20200000000005'
+      sourceHandle: source
+      target: '20200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-20200000000006-20200000000007
+      source: '20200000000006'
+      sourceHandle: source
+      target: '20200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '設備IDとアラート情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: equipment_id
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: equipment_id
+        - label: alert_message
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: alert_message
+        - label: alert_level
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: alert_level
+      height: 141
+      id: '20200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'アラート内容を分析し緊急度評価を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは製造設備の保全専門家です。設備アラート情報を分析し、緊急度を評価してください。
+
+            ## 評価フォーマット
+            以下の形式で出力してください：
+
+            ■ 設備ID: （設備ID）
+            ■ アラートレベル: （受信レベル）
+            ■ 緊急度評価: （critical / warning / info）
+            ■ 影響分析: （設備停止リスク、品質影響、安全リスクを1〜2行で）
+            ■ 推奨対応: （即座に必要なアクションを1〜2行で）
+
+            ## 注意事項
+            - 安全に関わるアラートは必ずcriticalと判定する
+            - 設備停止に直結するアラートもcriticalとする
+            - 不明な場合は安全側に判定する（より高い緊急度を選択）
+        - role: user
+          text: |
+            設備ID: {{#20200000000001.equipment_id#}}
+            アラートレベル: {{#20200000000001.alert_level#}}
+            アラート内容: {{#20200000000001.alert_message#}}
+        selected: false
+        title: 緊急度評価
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '20200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        conditions:
+        - id: condition_1
+          variable_selector:
+          - '20200000000002'
+          - text
+          comparison_operator: contains
+          value: "critical"
+        - id: condition_2
+          variable_selector:
+          - '20200000000001'
+          - alert_level
+          comparison_operator: contains
+          value: "critical"
+        - id: condition_3
+          variable_selector:
+          - '20200000000001'
+          - alert_level
+          comparison_operator: contains
+          value: "emergency"
+        desc: 'LLM評価結果およびアラートレベルで分岐する'
+        logical_operator: or
+        selected: false
+        title: 緊急度判定
+        type: if-else
+      height: 125
+      id: '20200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '通知APIのJSONペイロードを安全に構築する'
+        selected: false
+        title: JSON構築
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(equipment_id: str, alert_level: str, assessment: str) -> dict:
+              payload = json.dumps({
+                  "equipment_id": equipment_id,
+                  "alert_level": alert_level,
+                  "assessment": assessment,
+                  "priority": "urgent"
+              }, ensure_ascii=False)
+              return {'payload': payload}
+        variables:
+        - value_selector:
+          - '20200000000001'
+          - equipment_id
+          variable: equipment_id
+        - value_selector:
+          - '20200000000001'
+          - alert_level
+          variable: alert_level
+        - value_selector:
+          - '20200000000002'
+          - text
+          variable: assessment
+        outputs:
+          payload:
+            type: string
+      height: 97
+      id: '20200000000008'
+      position:
+        x: 980
+        y: 132
+      positionAbsolute:
+        x: 980
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '保全チームに緊急通知を送信する'
+        selected: false
+        title: 緊急通知送信
+        type: http-request
+        method: post
+        url: 'https://api.example.com/maintenance/notify'
+        authorization:
+          type: no-auth
+          config: null
+        headers: 'Content-Type: application/json'
+        params: ''
+        body:
+          data: '{{#20200000000008.payload#}}'
+          type: raw-text
+        timeout:
+          connect: 5000
+          max_connect_timeout: 300
+          max_read_timeout: 600
+          max_write_timeout: 600
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '20200000000004'
+      position:
+        x: 1280
+        y: 132
+      positionAbsolute:
+        x: 1280
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'セルフサービス保全手順ガイドを生成する'
+        selected: false
+        title: 保全手順案内
+        type: template-transform
+        template: |
+          ## 設備保全ガイド
+
+          設備ID: {{ equipment_id }}
+          アラートレベル: {{ alert_level }}
+
+          ### LLM評価結果
+          {{ assessment }}
+
+          ### セルフサービス対処手順
+          1. 設備の状態を目視確認してください
+          2. 異常音・異臭がないか確認してください
+          3. 設備ログを確認し、エラーコードを記録してください
+          4. 保全マニュアルの該当セクションを参照してください
+          5. 改善しない場合は保全チーム（内線: 2345）に連絡してください
+
+          ※ 安全に不安がある場合は無理せず保全チームに連絡してください。
+        variables:
+        - value_selector:
+          - '20200000000001'
+          - equipment_id
+          variable: equipment_id
+        - value_selector:
+          - '20200000000001'
+          - alert_level
+          variable: alert_level
+        - value_selector:
+          - '20200000000002'
+          - text
+          variable: assessment
+      height: 97
+      id: '20200000000005'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '両分岐の出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '20200000000004'
+          - body
+        - - '20200000000005'
+          - output
+      height: 89
+      id: '20200000000006'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '対応結果を出力する'
+        outputs:
+        - value_selector:
+          - '20200000000006'
+          - output
+          variable: response
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '20200000000007'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

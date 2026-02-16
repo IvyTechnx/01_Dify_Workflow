@@ -1,0 +1,191 @@
+app:
+  description: 'テンプレート整形ワークフロー - 内定通知メール自動生成'
+  icon: "\U0001F4E7"
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: "V02 Template Formatting"
+  use_icon_as_answer_icon: false
+workflow:
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  environment_variables: []
+  conversation_variables: []
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: template-transform
+      id: '2000000000001-2000000000002'
+      source: '2000000000001'
+      sourceHandle: source
+      target: '2000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: '2000000000002-2000000000003'
+      source: '2000000000002'
+      sourceHandle: source
+      target: '2000000000003'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '内定通知に必要な情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: name
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: name
+        - label: date
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: date
+        - label: department
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: department
+        - label: position
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: position
+      height: 89
+      id: '2000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'Jinja2テンプレートで内定通知メールを生成する'
+        selected: false
+        title: メール文面生成
+        type: template-transform
+        template: |
+          {{ name }} 様
+
+          拝啓 時下ますますご清祥のこととお慶び申し上げます。
+
+          先日は弊社の採用選考にご参加いただき、誠にありがとうございました。
+          厳正なる選考の結果、{{ name }} 様を下記の通り採用内定とさせていただきましたので、
+          ご通知申し上げます。
+
+          ■ 内定内容
+          ・配属部署：{{ department }}
+          ・職種：{{ position }}
+          ・入社予定日：{{ date }}
+
+          つきましては、入社手続きに必要な書類を別途ご郵送いたしますので、
+          ご確認の上、期日までにご返送くださいますようお願い申し上げます。
+
+          ご不明な点がございましたら、人事部採用担当までお気軽にお問い合わせください。
+
+          {{ name }} 様のご入社を心よりお待ちしております。
+
+          敬具
+
+          人事部 採用担当
+        variables:
+        - value_selector:
+          - '2000000000001'
+          - name
+          variable: name
+        - value_selector:
+          - '2000000000001'
+          - date
+          variable: date
+        - value_selector:
+          - '2000000000001'
+          - department
+          variable: department
+        - value_selector:
+          - '2000000000001'
+          - position
+          variable: position
+      height: 97
+      id: '2000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '生成されたメール文面を出力する'
+        outputs:
+        - value_selector:
+          - '2000000000002'
+          - output
+          variable: result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '2000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

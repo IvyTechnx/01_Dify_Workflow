@@ -1,0 +1,369 @@
+app:
+  description: カンマ区切りの競合リストをCodeで配列化・URLエンコードし、Iterationで各競合の価格データをAPIから取得。Codeで集約後、LLMが競合価格分析レポートを生成するワークフロー。
+  icon: "\U0001F4B9"
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'RTL-07: 競合価格モニタリングレポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-50700000000001-50700000000002
+      source: '50700000000001'
+      sourceHandle: source
+      target: '50700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-50700000000002-50700000000003
+      source: '50700000000002'
+      sourceHandle: source
+      target: '50700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-50700000000003-50700000000005
+      source: '50700000000003'
+      sourceHandle: source
+      target: '50700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-50700000000005-50700000000006
+      source: '50700000000005'
+      sourceHandle: source
+      target: '50700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-50700000000006-50700000000007
+      source: '50700000000006'
+      sourceHandle: source
+      target: '50700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '競合リストと商品カテゴリを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: competitor_list
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: competitor_list
+        - label: product_category
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: product_category
+      height: 115
+      id: '50700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '競合名を配列化しURLエンコードする'
+        selected: false
+        title: 競合配列化
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(competitor_list: str, product_category: str) -> dict:
+              raw = [c.strip() for c in competitor_list.split(',') if c.strip()]
+              items = [urllib.parse.quote(c, safe='') for c in raw]
+              category_enc = urllib.parse.quote(product_category, safe='')
+              return {'items': items, 'category_enc': category_enc}
+        variables:
+        - value_selector:
+          - '50700000000001'
+          - competitor_list
+          variable: competitor_list
+        - value_selector:
+          - '50700000000001'
+          - product_category
+          variable: product_category
+        outputs:
+          items:
+            type: array[string]
+          category_enc:
+            type: string
+      height: 97
+      id: '50700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        type: iteration
+        title: 競合イテレーション
+        desc: '各競合の価格データをAPIから取得する'
+        iterator_selector:
+        - '50700000000002'
+        - items
+        output_selector:
+        - '50700000000004'
+        - body
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '50700000000004'
+      id: '50700000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        desc: '競合の価格データを取得する'
+        selected: false
+        title: 価格API
+        type: http-request
+        method: get
+        url: 'https://api.example.com/pricing?competitor={{#50700000000003.item#}}&category={{#50700000000002.category_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+        mask_authorization_header: false
+      id: '50700000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '50700000000003'
+    - data:
+        desc: '競合価格データを集約し比較テキストを生成する'
+        selected: false
+        title: 価格データ集約
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_results: list) -> dict:
+              lines = []
+              for i, result in enumerate(api_results):
+                  try:
+                      data = json.loads(result) if isinstance(result, str) else result
+                      name = data.get('competitor_name', f'競合{i+1}')
+                      avg_price = data.get('avg_price', 'N/A')
+                      min_price = data.get('min_price', 'N/A')
+                      max_price = data.get('max_price', 'N/A')
+                      product_count = data.get('product_count', 'N/A')
+                      last_updated = data.get('last_updated', 'N/A')
+                      lines.append(
+                          f"競合: {name}, "
+                          f"平均価格: {avg_price}円, "
+                          f"最安値: {min_price}円, "
+                          f"最高値: {max_price}円, "
+                          f"商品数: {product_count}, "
+                          f"更新日: {last_updated}"
+                      )
+                  except Exception:
+                      lines.append(f"競合{i+1}: データ取得エラー")
+              summary = '\n'.join(lines)
+              return {'summary': summary}
+        variables:
+        - value_selector:
+          - '50700000000003'
+          - output
+          variable: api_results
+        outputs:
+          summary:
+            type: string
+      height: 97
+      id: '50700000000005'
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '競合価格の分析レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはECサイトの価格戦略アナリストです。競合の価格データを分析し、価格戦略レポートを作成してください。
+
+            ## レポートフォーマット
+            ### 競合価格サマリ
+            （各競合の価格帯を表形式で整理）
+
+            ### 価格ポジション分析
+            - 市場全体の価格帯
+            - 自社の位置づけ（想定）
+            - 価格差の傾向
+
+            ### 注目すべき動向
+            - 特に安値を設定している競合とその戦略推察
+            - 価格変動が大きい商品カテゴリ
+
+            ### 価格戦略提言
+            - 具体的な価格調整案（3項目以内）
+            - プロモーション戦略への示唆
+
+            ## ルール
+            - データに基づく客観的な分析を行う
+            - 価格だけでなくサービス価値も考慮する
+            - 独占禁止法に抵触する価格カルテル的な提案は行わない
+        - role: user
+          text: |
+            商品カテゴリ: {{#50700000000001.product_category#}}
+
+            競合価格データ:
+            {{#50700000000005.summary#}}
+        selected: false
+        title: 価格分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50700000000006'
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '競合価格分析レポートを出力する'
+        outputs:
+        - value_selector:
+          - '50700000000006'
+          - text
+          variable: pricing_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50700000000007'
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

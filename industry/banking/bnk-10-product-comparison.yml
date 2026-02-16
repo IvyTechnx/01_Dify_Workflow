@@ -1,0 +1,365 @@
+app:
+  description: 複数の金融商品名を入力し、各商品をLLMで個別分析した後、比較総括レポートを生成するワークフロー。商品企画・営業支援向け。
+  icon: "\U0001F4CA"
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'BNK-10: 金融商品比較レポート生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-30A00000000001-30A00000000002
+      source: '30A00000000001'
+      sourceHandle: source
+      target: '30A00000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-30A00000000002-30A00000000003
+      source: '30A00000000002'
+      sourceHandle: source
+      target: '30A00000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-30A00000000003-30A00000000005
+      source: '30A00000000003'
+      sourceHandle: source
+      target: '30A00000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-30A00000000005-30A00000000006
+      source: '30A00000000005'
+      sourceHandle: source
+      target: '30A00000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-30A00000000006-30A00000000007
+      source: '30A00000000006'
+      sourceHandle: source
+      target: '30A00000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '改行区切りの金融商品名リストと比較観点を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_list
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: product_list
+        - label: comparison_focus
+          max_length: 48
+          options:
+          - "リスク・リターン"
+          - "手数料比較"
+          - "顧客ターゲット"
+          - "総合比較"
+          required: true
+          type: select
+          variable: comparison_focus
+      height: 115
+      id: '30A00000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '改行区切りの商品名リストを配列に変換する'
+        selected: false
+        title: 商品配列化
+        type: code
+        code_language: python3
+        code: |
+          def main(product_list: str) -> dict:
+              items = [p.strip() for p in product_list.split('\n') if p.strip()]
+              return {'items': items}
+        variables:
+        - value_selector:
+          - '30A00000000001'
+          - product_list
+          variable: product_list
+        outputs:
+          items:
+            type: array[string]
+      height: 97
+      id: '30A00000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        type: iteration
+        title: 商品分析イテレーション
+        desc: '各金融商品を個別にLLMで分析'
+        iterator_selector:
+        - '30A00000000002'
+        - items
+        output_selector:
+        - '30A00000000004'
+        - text
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '30A00000000004'
+      id: '30A00000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '個別の金融商品を分析する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の金融商品アナリストです。指定された金融商品について簡潔な分析を行ってください。
+
+            ## 分析フォーマット（1商品あたり）
+            商品名: （商品名）
+            カテゴリ: （預金/投資信託/保険/ローン/外貨建て商品 等）
+            主なリスク: （元本割れリスク、金利変動リスク、為替リスク等）
+            期待リターン: （低/中/高 + 概要）
+            手数料: （一般的な手数料構造）
+            ターゲット顧客: （適合する顧客層）
+            特記事項: （規制上の留意点、販売時の注意事項等）
+
+            簡潔に、各項目2行以内で記述してください。
+        - role: user
+          text: '{{#30A00000000003.item#}}'
+        selected: false
+        title: 商品個別分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30A00000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      width: 243
+      parentId: '30A00000000003'
+    - data:
+        desc: 'イテレーション結果を集約し分析用テキストを生成する'
+        selected: false
+        title: 結果集約
+        type: code
+        code_language: python3
+        code: |
+          def main(analysis_results: list) -> dict:
+              combined = []
+              for i, result in enumerate(analysis_results):
+                  if result and str(result).strip():
+                      combined.append(f"--- 商品{i+1} ---\n{result}")
+                  else:
+                      combined.append(f"--- 商品{i+1} ---\n分析エラー")
+              summary = '\n\n'.join(combined)
+              return {'summary': summary}
+        variables:
+        - value_selector:
+          - '30A00000000003'
+          - output
+          variable: analysis_results
+        outputs:
+          summary:
+            type: string
+      height: 97
+      id: '30A00000000005'
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '個別分析結果を基に比較総括レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の金融商品企画の専門家です。複数の金融商品の個別分析結果を基に、比較総括レポートを作成してください。
+
+            ## レポートフォーマット
+
+            ### 商品比較サマリ
+            （各商品の主要指標を表形式で比較）
+
+            ### リスク・リターン分析
+            （各商品のリスクとリターンのバランスを比較）
+
+            ### 手数料構造比較
+            （各商品の手数料を比較）
+
+            ### ターゲット顧客の違い
+            （各商品が適合する顧客セグメントの比較）
+
+            ### 総合評価・提言
+            （比較観点に基づく総合評価と、営業推進上の提言）
+
+            ## ルール
+            - 客観的なデータに基づく分析を行う
+            - 特定商品への偏った推奨は行わない
+            - 適合性原則を考慮した提言を行う
+            - 金融商品取引法上のリスク説明義務に言及する
+        - role: user
+          text: |
+            比較観点: {{#30A00000000001.comparison_focus#}}
+
+            以下は各金融商品の個別分析結果です。これらを基に比較総括レポートを作成してください。
+
+            {{#30A00000000005.summary#}}
+        selected: false
+        title: 比較総括
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30A00000000006'
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '比較総括レポートを出力する'
+        outputs:
+        - value_selector:
+          - '30A00000000006'
+          - text
+          variable: comparison_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '30A00000000007'
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

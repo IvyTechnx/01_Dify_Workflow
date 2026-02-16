@@ -1,0 +1,725 @@
+app:
+  description: 営業シーンに応じたメールを自動生成する。入力検証後、Question Classifierで「新規アポ」「フォロー」「見積送付」「お礼」の4種類に分類し、専用LLMで最適なメール文面を生成するワークフロー。
+  icon: "\U0001F4E7"
+  icon_background: '#E1F5FE'
+  mode: workflow
+  name: 'CMN-10: 営業メール自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-41000000000001-41000000000002
+      source: '41000000000001'
+      sourceHandle: source
+      target: '41000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-41000000000002-41000000000003
+      source: '41000000000002'
+      sourceHandle: source
+      target: '41000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: question-classifier
+      id: e-41000000000003-41000000000005
+      source: '41000000000003'
+      sourceHandle: 'true'
+      target: '41000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-41000000000003-41000000000004
+      source: '41000000000003'
+      sourceHandle: 'false'
+      target: '41000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-41000000000004-41000000000012
+      source: '41000000000004'
+      sourceHandle: source
+      target: '41000000000012'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-41000000000005-41000000000006
+      source: '41000000000005'
+      sourceHandle: class_appointment
+      target: '41000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-41000000000005-41000000000007
+      source: '41000000000005'
+      sourceHandle: class_followup
+      target: '41000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-41000000000005-41000000000008
+      source: '41000000000005'
+      sourceHandle: class_quote
+      target: '41000000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-41000000000005-41000000000009
+      source: '41000000000005'
+      sourceHandle: class_thanks
+      target: '41000000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-41000000000006-41000000000010
+      source: '41000000000006'
+      sourceHandle: source
+      target: '41000000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-41000000000007-41000000000010
+      source: '41000000000007'
+      sourceHandle: source
+      target: '41000000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-41000000000008-41000000000010
+      source: '41000000000008'
+      sourceHandle: source
+      target: '41000000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-41000000000009-41000000000010
+      source: '41000000000009'
+      sourceHandle: source
+      target: '41000000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: code
+      id: e-41000000000010-41000000000011
+      source: '41000000000010'
+      sourceHandle: source
+      target: '41000000000011'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: end
+      id: e-41000000000011-41000000000012
+      source: '41000000000011'
+      sourceHandle: source
+      target: '41000000000012'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'メール作成に必要な情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: email_context
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: email_context
+        - label: recipient_name
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: recipient_name
+        - label: company_name
+          max_length: 200
+          options: []
+          required: true
+          type: text-input
+          variable: company_name
+        - label: email_type
+          max_length: 48
+          options:
+          - '新規アポイント'
+          - '商談フォロー'
+          - '見積送付'
+          - 'お礼'
+          required: true
+          type: select
+          variable: email_type
+      height: 167
+      id: '41000000000001'
+      position:
+        x: 80
+        y: 350
+      positionAbsolute:
+        x: 80
+        y: 350
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '必須項目チェックと不正パターン検出を行う'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(email_context: str, recipient_name: str, company_name: str) -> dict:
+              issues = []
+
+              if not recipient_name.strip():
+                  issues.append("宛先担当者名が未入力です")
+              if not company_name.strip():
+                  issues.append("会社名が未入力です")
+              if len(email_context.strip()) < 10:
+                  issues.append("メール背景情報が短すぎます（10文字以上入力してください）")
+
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+              ]
+              for pattern in injection_patterns:
+                  if re.search(pattern, email_context):
+                      issues.append("不正な入力パターンが検出されました")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              detail = "入力OK" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'detail': detail}
+        variables:
+        - value_selector:
+          - '41000000000001'
+          - email_context
+          variable: email_context
+        - value_selector:
+          - '41000000000001'
+          - recipient_name
+          variable: recipient_name
+        - value_selector:
+          - '41000000000001'
+          - company_name
+          variable: company_name
+        outputs:
+          is_valid:
+            type: string
+          detail:
+            type: string
+      height: 97
+      id: '41000000000002'
+      position:
+        x: 380
+        y: 350
+      positionAbsolute:
+        x: 380
+        y: 350
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        conditions:
+        - id: condition_valid
+          variable_selector:
+          - '41000000000002'
+          - is_valid
+          comparison_operator: is
+          value: "true"
+        desc: '入力検証結果で分岐する'
+        logical_operator: and
+        selected: false
+        title: 入力判定
+        type: if-else
+      height: 125
+      id: '41000000000003'
+      position:
+        x: 680
+        y: 350
+      positionAbsolute:
+        x: 680
+        y: 350
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力不正時のエラーメッセージを出力する'
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |
+          ## メール作成エラー
+
+          入力内容に問題があるため、メールを作成できませんでした。
+
+          ### エラー内容
+          {{ detail }}
+
+          入力を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '41000000000002'
+          - detail
+          variable: detail
+      height: 97
+      id: '41000000000004'
+      position:
+        x: 980
+        y: 550
+      positionAbsolute:
+        x: 980
+        y: 550
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'メール種別を4カテゴリに分類する'
+        selected: false
+        title: メール種別分類
+        type: question-classifier
+        query_variable_selector:
+        - '41000000000001'
+        - email_context
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 256
+        classes:
+        - id: class_appointment
+          name: "新規アポイントメール"
+        - id: class_followup
+          name: "商談フォローメール"
+        - id: class_quote
+          name: "見積送付メール"
+        - id: class_thanks
+          name: "お礼メール"
+        instruction: |
+          メールの背景情報とメール種別を考慮して分類してください：
+          - 初回商談・新規訪問の依頼 → 新規アポイントメール
+          - 商談後のフォローアップ・議事メモの共有 → 商談フォローメール
+          - 見積書・提案書の送付 → 見積送付メール
+          - 訪問・契約・紹介のお礼 → お礼メール
+      height: 160
+      id: '41000000000005'
+      position:
+        x: 980
+        y: 200
+      positionAbsolute:
+        x: 980
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '新規アポイント依頼メールを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは日本のビジネスメール作成の専門家です。新規アポイント依頼メールを作成してください。
+
+            ## メール構成
+            1. 件名: 簡潔で開封率の高い件名
+            2. 宛名: 「[会社名] [担当者名]様」
+            3. 挨拶: 初めてのご連絡の場合の丁寧な導入
+            4. 自己紹介: 簡潔な会社・自分の紹介
+            5. 用件: アポイントの目的と提供できる価値
+            6. 候補日時: 3つの候補を提示する形式
+            7. 締め: 丁寧な結び
+
+            ## ルール
+            - ビジネスマナーに沿った敬語を使用する
+            - 一方的な売り込みにならないよう配慮する
+            - 簡潔で読みやすい文面にする
+        - role: user
+          text: |
+            宛先: {{#41000000000001.company_name#}} {{#41000000000001.recipient_name#}}様
+            背景: {{#41000000000001.email_context#}}
+        selected: false
+        title: 新規アポメール
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '41000000000006'
+      position:
+        x: 1280
+        y: 50
+      positionAbsolute:
+        x: 1280
+        y: 50
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '商談フォローメールを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは日本のビジネスメール作成の専門家です。商談後のフォローアップメールを作成してください。
+
+            ## メール構成
+            1. 件名: 商談の内容がわかる件名
+            2. 宛名
+            3. 挨拶: 商談のお礼
+            4. 議事メモ: 商談で話した内容の要約
+            5. 合意事項: 決定した事項
+            6. 次のステップ: 次回のアクション提案
+            7. 締め
+
+            ## ルール
+            - 商談内容を正確に反映する
+            - 次のアクションを明確にする
+            - 相手の時間への感謝を示す
+        - role: user
+          text: |
+            宛先: {{#41000000000001.company_name#}} {{#41000000000001.recipient_name#}}様
+            背景: {{#41000000000001.email_context#}}
+        selected: false
+        title: フォローメール
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '41000000000007'
+      position:
+        x: 1280
+        y: 200
+      positionAbsolute:
+        x: 1280
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '見積送付メールを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは日本のビジネスメール作成の専門家です。見積書送付メールを作成してください。
+
+            ## メール構成
+            1. 件名: 「お見積書のご送付」を含む件名
+            2. 宛名
+            3. 挨拶: ご依頼への感謝
+            4. 送付内容: 見積書の概要（品目、金額が分かる場合）
+            5. 有効期限: 見積有効期限の案内
+            6. 補足説明: 見積に関する補足事項
+            7. 締め: 検討のお願いと質問対応の案内
+
+            ## ルール
+            - 正式なビジネス文書の形式を保つ
+            - 金額に関する情報は背景情報から正確に引用する
+            - 見積有効期限がない場合は「別途ご案内」と記載する
+        - role: user
+          text: |
+            宛先: {{#41000000000001.company_name#}} {{#41000000000001.recipient_name#}}様
+            背景: {{#41000000000001.email_context#}}
+        selected: false
+        title: 見積メール
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '41000000000008'
+      position:
+        x: 1280
+        y: 350
+      positionAbsolute:
+        x: 1280
+        y: 350
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'お礼メールを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは日本のビジネスメール作成の専門家です。お礼メールを作成してください。
+
+            ## メール構成
+            1. 件名: 感謝の意が伝わる件名
+            2. 宛名
+            3. 挨拶: 時候の挨拶（季節に応じた定型表現）
+            4. お礼の本文: 感謝の具体的内容
+            5. 今後の展望: 今後の関係性への期待
+            6. 締め: 引き続きのお付き合いのお願い
+
+            ## ルール
+            - 心のこもった丁寧な表現を使用する
+            - 具体的に何に対するお礼かを明記する
+            - 簡潔にまとめる（長すぎない）
+        - role: user
+          text: |
+            宛先: {{#41000000000001.company_name#}} {{#41000000000001.recipient_name#}}様
+            背景: {{#41000000000001.email_context#}}
+        selected: false
+        title: お礼メール
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '41000000000009'
+      position:
+        x: 1280
+        y: 500
+      positionAbsolute:
+        x: 1280
+        y: 500
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '4つのLLM出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '41000000000006'
+          - text
+        - - '41000000000007'
+          - text
+        - - '41000000000008'
+          - text
+        - - '41000000000009'
+          - text
+      height: 89
+      id: '41000000000010'
+      position:
+        x: 1580
+        y: 275
+      positionAbsolute:
+        x: 1580
+        y: 275
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'メール文面をJSON形式で構造化する'
+        selected: false
+        title: JSON構築
+        type: code
+        code_language: python3
+        code: |
+          import json
+          import re
+
+          def main(email_body: str, recipient_name: str, company_name: str) -> dict:
+              # 件名を抽出（「件名:」行があれば取得）
+              subject_match = re.search(r'件名[:：]\s*(.+)', email_body)
+              subject = subject_match.group(1).strip() if subject_match else "ご連絡"
+
+              email_data = {
+                  "to_name": recipient_name,
+                  "to_company": company_name,
+                  "subject": subject,
+                  "body": email_body
+              }
+              email_json = json.dumps(email_data, ensure_ascii=False, indent=2)
+              return {'email_json': email_json}
+        variables:
+        - value_selector:
+          - '41000000000010'
+          - output
+          variable: email_body
+        - value_selector:
+          - '41000000000001'
+          - recipient_name
+          variable: recipient_name
+        - value_selector:
+          - '41000000000001'
+          - company_name
+          variable: company_name
+        outputs:
+          email_json:
+            type: string
+      height: 97
+      id: '41000000000011'
+      position:
+        x: 1880
+        y: 275
+      positionAbsolute:
+        x: 1880
+        y: 275
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'メール生成結果を出力する'
+        outputs:
+        - value_selector:
+          - '41000000000011'
+          - email_json
+          variable: email_draft
+        - value_selector:
+          - '41000000000004'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '41000000000012'
+      position:
+        x: 2180
+        y: 350
+      positionAbsolute:
+        x: 2180
+        y: 350
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

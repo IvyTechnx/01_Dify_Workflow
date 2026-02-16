@@ -1,0 +1,313 @@
+app:
+  description: 融資案件の基本情報を入力すると、社内稟議書のドラフトを自動生成するワークフロー。Code で入力を整形し、LLMが稟議書フォーマットで文書を生成する。
+  icon: "\U0001F4DD"
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'BNK-07: 稟議書ドラフト作成支援'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-30700000000001-30700000000002
+      source: '30700000000001'
+      sourceHandle: source
+      target: '30700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-30700000000002-30700000000003
+      source: '30700000000002'
+      sourceHandle: source
+      target: '30700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-30700000000003-30700000000004
+      source: '30700000000003'
+      sourceHandle: source
+      target: '30700000000004'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '融資案件の基本情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: company_name
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: company_name
+        - label: industry
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: industry
+        - label: loan_amount
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: loan_amount
+        - label: loan_term
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: loan_term
+        - label: interest_rate
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: interest_rate
+        - label: collateral
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: collateral
+        - label: purpose
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: purpose
+        - label: financial_summary
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: financial_summary
+      height: 115
+      id: '30700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力パラメータを稟議書用に整形する'
+        selected: false
+        title: 入力整形
+        type: code
+        code_language: python3
+        code: |
+          def main(company_name: str, industry: str, loan_amount: str, loan_term: str, interest_rate: str, collateral: str, purpose: str, financial_summary: str) -> dict:
+              formatted = (
+                  f"【企業名】{company_name}\n"
+                  f"【業種】{industry}\n"
+                  f"【融資金額】{loan_amount}万円\n"
+                  f"【融資期間】{loan_term}\n"
+                  f"【適用金利】{interest_rate}\n"
+                  f"【担保・保証】\n{collateral}\n"
+                  f"【資金使途】\n{purpose}\n"
+                  f"【財務概要】\n{financial_summary}"
+              )
+              return {'formatted_input': formatted}
+        variables:
+        - value_selector:
+          - '30700000000001'
+          - company_name
+          variable: company_name
+        - value_selector:
+          - '30700000000001'
+          - industry
+          variable: industry
+        - value_selector:
+          - '30700000000001'
+          - loan_amount
+          variable: loan_amount
+        - value_selector:
+          - '30700000000001'
+          - loan_term
+          variable: loan_term
+        - value_selector:
+          - '30700000000001'
+          - interest_rate
+          variable: interest_rate
+        - value_selector:
+          - '30700000000001'
+          - collateral
+          variable: collateral
+        - value_selector:
+          - '30700000000001'
+          - purpose
+          variable: purpose
+        - value_selector:
+          - '30700000000001'
+          - financial_summary
+          variable: financial_summary
+        outputs:
+          formatted_input:
+            type: string
+      height: 97
+      id: '30700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '整形された案件情報から稟議書ドラフトを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の融資審査部門のベテラン行員です。提供された案件情報に基づいて、融資稟議書のドラフトを作成してください。
+
+            ## 稟議書フォーマット
+            以下の構成で作成してください：
+
+            ━━━━━━━━━━━━━━━━━━━━
+            融資稟議書（ドラフト）
+            ━━━━━━━━━━━━━━━━━━━━
+
+            1. 件名
+            （融資案件の概要を1行で）
+
+            2. 申請概要
+            | 項目 | 内容 |
+            |---|---|
+            | 融資先 | （企業名） |
+            | 業種 | （業種） |
+            | 融資金額 | （金額） |
+            | 融資期間 | （期間） |
+            | 適用金利 | （金利） |
+            | 担保・保証 | （概要） |
+            | 資金使途 | （概要） |
+
+            3. 融資先概要
+            （企業の概要、業歴、主要取引先等を財務概要から推測可能な範囲で記載）
+
+            4. 財務分析
+            （財務概要に基づく定量分析。自己資本比率、流動比率、売上成長率等に言及）
+
+            5. 案件評価
+            - 融資妥当性の評価
+            - リスク要因の整理
+            - 担保・保証の充足度評価
+
+            6. 審査意見
+            （総合的な審査意見。承認推奨/条件付き承認/再検討 のいずれかを提示）
+
+            ## 注意事項
+            - 提供された情報のみに基づいて記載する
+            - 不足情報がある場合は「※要確認」と明記する
+            - このドラフトは参考資料であり、最終稟議書は審査担当者が責任を持って作成する旨を末尾に注記する
+        - role: user
+          text: '{{#30700000000002.formatted_input#}}'
+        selected: false
+        title: 稟議書生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '稟議書ドラフトを出力する'
+        outputs:
+        - value_selector:
+          - '30700000000003'
+          - text
+          variable: ringi_draft
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '30700000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

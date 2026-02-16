@@ -1,0 +1,157 @@
+app:
+  description: '外部API呼び出しワークフロー - 為替レート取得'
+  icon: "\U0001F4B1"
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: "V03 API Call"
+  use_icon_as_answer_icon: false
+workflow:
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  environment_variables: []
+  conversation_variables: []
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: http-request
+      id: '3000000000001-3000000000002'
+      source: '3000000000001'
+      sourceHandle: source
+      target: '3000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: end
+      id: '3000000000002-3000000000003'
+      source: '3000000000002'
+      sourceHandle: source
+      target: '3000000000003'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '通貨ペアを指定する'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: base_currency
+          max_length: 10
+          options: []
+          required: true
+          type: text-input
+          variable: base_currency
+        - label: target_currency
+          max_length: 10
+          options: []
+          required: true
+          type: text-input
+          variable: target_currency
+      height: 89
+      id: '3000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '為替レートAPIを呼び出す'
+        selected: false
+        title: 為替レート取得
+        type: http-request
+        method: get
+        url: 'https://api.exchangerate.host/latest?base={{#3000000000001.base_currency#}}&symbols={{#3000000000001.target_currency#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 5000
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '3000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'APIレスポンスを出力する'
+        outputs:
+        - value_selector:
+          - '3000000000002'
+          - body
+          variable: response_body
+        - value_selector:
+          - '3000000000002'
+          - status_code
+          variable: status_code
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '3000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

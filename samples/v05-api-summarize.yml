@@ -1,0 +1,282 @@
+app:
+  description: 'API取得→LLM要約ワークフロー - 競合プレスリリース日次サマリ'
+  icon: "\U0001F4F0"
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: "V05 API Summarize"
+  use_icon_as_answer_icon: false
+workflow:
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  environment_variables: []
+  conversation_variables: []
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: http-request
+      id: '5000000000001-5000000000002'
+      source: '5000000000001'
+      sourceHandle: source
+      target: '5000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: '5000000000002-5000000000003'
+      source: '5000000000002'
+      sourceHandle: source
+      target: '5000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: '5000000000003-5000000000004'
+      source: '5000000000003'
+      sourceHandle: source
+      target: '5000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: '5000000000004-5000000000005'
+      source: '5000000000004'
+      sourceHandle: source
+      target: '5000000000005'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '取得対象のURLを指定する'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: url
+          max_length: 2000
+          options: []
+          required: true
+          type: text-input
+          variable: url
+      height: 89
+      id: '5000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '指定URLからコンテンツを取得する'
+        selected: false
+        title: コンテンツ取得
+        type: http-request
+        method: get
+        url: '{{#5000000000001.url#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10000
+          read: 30000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '5000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'HTMLからテキストを抽出・整形する'
+        selected: false
+        title: テキスト抽出
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(body: str) -> dict:
+              text = body
+              # Remove script and style tags and their content
+              text = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', text, flags=re.IGNORECASE)
+              text = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', text, flags=re.IGNORECASE)
+              # Remove HTML tags
+              text = re.sub(r'<[^>]+>', ' ', text)
+              # Decode common HTML entities
+              text = text.replace('&amp;', '&')
+              text = text.replace('&lt;', '<')
+              text = text.replace('&gt;', '>')
+              text = text.replace('&quot;', '"')
+              text = text.replace('&#39;', "'")
+              text = text.replace('&nbsp;', ' ')
+              # Collapse whitespace
+              text = re.sub(r'\s+', ' ', text).strip()
+              # Truncate to avoid token limits
+              if len(text) > 10000:
+                  text = text[:10000]
+              return {'content': text}
+        variables:
+        - value_selector:
+          - '5000000000002'
+          - body
+          variable: body
+        outputs:
+          content:
+            type: string
+      height: 97
+      id: '5000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'コンテンツを日本語で要約し影響度を評価する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.7
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは競合分析の専門家です。提供されたプレスリリースやニュース記事の内容を分析し、日本語で要約してください。
+
+            ## 出力フォーマット
+            以下の形式で出力してください：
+
+            ### 要約
+            記事の内容を3〜5文で簡潔に要約してください。
+
+            ### 重要ポイント
+            - ポイント1
+            - ポイント2
+            - ポイント3
+
+            ### 影響度評価
+            自社ビジネスへの影響度を以下の3段階で評価してください：
+            - 高：直接的な競合や市場への大きな影響が予想される
+            - 中：間接的な影響や中期的な注視が必要
+            - 低：現時点での影響は限定的
+
+            影響度：（高/中/低）
+            理由：（1〜2文で根拠を記載）
+
+            ## 注意事項
+            - 事実に基づいた分析を行い、推測は最小限にする
+            - 情報が不十分な場合はその旨を明記する
+        - role: user
+          text: |
+            以下のコンテンツを分析・要約してください：
+
+            {{#5000000000003.content#}}
+        selected: false
+        title: 要約・分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '5000000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '要約結果を出力する'
+        outputs:
+        - value_selector:
+          - '5000000000004'
+          - text
+          variable: result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '5000000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

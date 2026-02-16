@@ -1,0 +1,339 @@
+app:
+  description: 為替レートAPIから最新レートを取得し、顧客向けにわかりやすい解説を生成するワークフロー。
+  icon: "\U0001F4B1"
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'BNK-08: 外国為替レート照会・顧客向け解説'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-30800000000001-30800000000002
+      source: '30800000000001'
+      sourceHandle: source
+      target: '30800000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: e-30800000000002-30800000000003
+      source: '30800000000002'
+      sourceHandle: source
+      target: '30800000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: e-30800000000003-30800000000004
+      source: '30800000000003'
+      sourceHandle: source
+      target: '30800000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-30800000000004-30800000000005
+      source: '30800000000004'
+      sourceHandle: source
+      target: '30800000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-30800000000005-30800000000006
+      source: '30800000000005'
+      sourceHandle: source
+      target: '30800000000006'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '通貨ペアと利用目的を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: currency_pair
+          max_length: 10
+          options: []
+          required: true
+          type: text-input
+          variable: currency_pair
+        - label: customer_purpose
+          max_length: 48
+          options:
+          - '海外送金'
+          - '外貨預金'
+          - '輸出入決済'
+          - '旅行'
+          required: true
+          type: select
+          variable: customer_purpose
+      height: 115
+      id: '30800000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '通貨ペアをURLエンコードする'
+        selected: false
+        title: URLエンコード
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(currency_pair: str) -> dict:
+              pair_enc = urllib.parse.quote(currency_pair, safe='')
+              return {'currency_pair_enc': pair_enc}
+        variables:
+        - value_selector:
+          - '30800000000001'
+          - currency_pair
+          variable: currency_pair
+        outputs:
+          currency_pair_enc:
+            type: string
+      height: 97
+      id: '30800000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '為替レートAPIからレートを取得する'
+        selected: false
+        title: 為替レート取得
+        type: http-request
+        method: get
+        url: 'https://api.example.com/fx-rate?pair={{#30800000000002.currency_pair_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 5000
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '30800000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'APIレスポンスを解析しレートサマリを生成する'
+        selected: false
+        title: レート解析
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_response: str) -> dict:
+              try:
+                  data = json.loads(api_response) if isinstance(api_response, str) else api_response
+                  pair = data.get('pair', 'N/A')
+                  bid = data.get('bid', 0)
+                  ask = data.get('ask', 0)
+                  mid = (bid + ask) / 2 if bid and ask else 0
+                  spread = ask - bid if bid and ask else 0
+                  change_24h = data.get('change_24h_percent', 0)
+                  high_24h = data.get('high_24h', 0)
+                  low_24h = data.get('low_24h', 0)
+                  timestamp = data.get('timestamp', 'N/A')
+                  summary = (
+                      f"通貨ペア: {pair}\n"
+                      f"Bid(売値): {bid:.2f}\n"
+                      f"Ask(買値): {ask:.2f}\n"
+                      f"仲値: {mid:.2f}\n"
+                      f"スプレッド: {spread:.2f}\n"
+                      f"24H変動率: {change_24h:+.2f}%\n"
+                      f"24H高値: {high_24h:.2f}\n"
+                      f"24H安値: {low_24h:.2f}\n"
+                      f"取得日時: {timestamp}"
+                  )
+                  return {'summary': summary}
+              except Exception:
+                  return {'summary': 'レートデータ取得エラー'}
+        variables:
+        - value_selector:
+          - '30800000000003'
+          - body
+          variable: api_response
+        outputs:
+          summary:
+            type: string
+      height: 97
+      id: '30800000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '為替レートデータに基づき顧客向け解説を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の外国為替アドバイザーです。為替レートデータに基づいて、顧客にわかりやすい解説を提供してください。
+
+            ## 解説フォーマット
+            ■ 現在のレート概要
+            （レートの要約を平易な言葉で）
+
+            ■ 直近の動向
+            （24時間の変動率から読み取れるトレンドを説明）
+
+            ■ お客様の目的に合わせたアドバイス
+            （海外送金/外貨預金/輸出入決済/旅行に応じた具体的なアドバイス）
+
+            ■ ご注意事項
+            - 為替レートは常に変動しており、表示レートは参考値です
+            - 実際の適用レートは取引時のレートとなります
+            - 大口取引の場合は為替予約のご検討をお勧めします
+            - 為替リスクについては窓口でご相談ください
+
+            ## ルール
+            - 将来の為替レートの予測は行わない（「上がる」「下がる」等の断定禁止）
+            - 投資助言に該当する表現は避ける
+            - 手数料・スプレッドは別途窓口で確認するよう案内する
+        - role: user
+          text: |
+            通貨ペア: {{#30800000000001.currency_pair#}}
+            利用目的: {{#30800000000001.customer_purpose#}}
+
+            為替レートデータ:
+            {{#30800000000004.summary#}}
+        selected: false
+        title: 顧客向け解説
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30800000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '為替レート解説を出力する'
+        outputs:
+        - value_selector:
+          - '30800000000005'
+          - text
+          variable: rate_explanation
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '30800000000006'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

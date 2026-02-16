@@ -1,0 +1,363 @@
+app:
+  description: 複数支店の実績データをAPIから一括取得し、LLMで経営分析レポートを生成する経営企画部門向けワークフロー。
+  icon: "\U0001F3E6"
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'BNK-05: 支店実績経営分析レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-30500000000001-30500000000002
+      source: '30500000000001'
+      sourceHandle: source
+      target: '30500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-30500000000002-30500000000003
+      source: '30500000000002'
+      sourceHandle: source
+      target: '30500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-30500000000003-30500000000005
+      source: '30500000000003'
+      sourceHandle: source
+      target: '30500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-30500000000005-30500000000006
+      source: '30500000000005'
+      sourceHandle: source
+      target: '30500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-30500000000006-30500000000007
+      source: '30500000000006'
+      sourceHandle: source
+      target: '30500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'カンマ区切りの支店コードとレポート期間を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: branch_list
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: branch_list
+        - label: report_period
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: report_period
+      height: 115
+      id: '30500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '支店コードを配列に変換しレポート期間をURLエンコードする'
+        selected: false
+        title: 支店配列化
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(branch_list: str, report_period: str) -> dict:
+              items = [b.strip() for b in branch_list.split(',') if b.strip()]
+              report_period_enc = urllib.parse.quote(report_period, safe='')
+              return {'items': items, 'report_period_enc': report_period_enc}
+        variables:
+        - value_selector:
+          - '30500000000001'
+          - branch_list
+          variable: branch_list
+        - value_selector:
+          - '30500000000001'
+          - report_period
+          variable: report_period
+        outputs:
+          items:
+            type: array[string]
+          report_period_enc:
+            type: string
+      height: 97
+      id: '30500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        type: iteration
+        title: 支店イテレーション
+        desc: '各支店の実績データを取得'
+        iterator_selector:
+        - '30500000000002'
+        - items
+        output_selector:
+        - '30500000000004'
+        - body
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '30500000000004'
+      id: '30500000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        desc: '支店の実績データをAPIから取得する'
+        selected: false
+        title: 実績API
+        type: http-request
+        method: get
+        url: 'https://api.example.com/branch-performance?branch={{#30500000000003.item#}}&period={{#30500000000002.report_period_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+        mask_authorization_header: false
+      id: '30500000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '30500000000003'
+    - data:
+        desc: 'イテレーション結果を集約し分析用テキストを生成する'
+        selected: false
+        title: 結果集約
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_results: list) -> dict:
+              summary_lines = []
+              for i, result in enumerate(api_results):
+                  try:
+                      data = json.loads(result) if isinstance(result, str) else result
+                      branch = data.get('branch_code', f'支店{i+1}')
+                      branch_name = data.get('branch_name', branch)
+                      deposits = data.get('deposits_billion', 'N/A')
+                      loans = data.get('loans_billion', 'N/A')
+                      profit = data.get('profit_million', 'N/A')
+                      new_accounts = data.get('new_accounts', 'N/A')
+                      summary_lines.append(
+                          f"支店: {branch_name}({branch}), "
+                          f"預金残高: {deposits}億円, "
+                          f"貸出残高: {loans}億円, "
+                          f"利益: {profit}百万円, "
+                          f"新規口座: {new_accounts}件"
+                      )
+                  except Exception:
+                      summary_lines.append(f"支店{i+1}: データ取得エラー")
+              summary = '\n'.join(summary_lines)
+              return {'summary': summary}
+        variables:
+        - value_selector:
+          - '30500000000003'
+          - output
+          variable: api_results
+        outputs:
+          summary:
+            type: string
+      height: 97
+      id: '30500000000005'
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '支店実績データを分析し経営レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは銀行の経営企画アナリストです。各支店の実績データを分析し、経営レポートを作成してください。
+
+            ## レポートフォーマット
+            ### 支店実績サマリ
+            （各支店の実績を表形式で整理）
+
+            ### 全体分析
+            - 預金・貸出の全体トレンド
+            - 利益率の比較分析
+            - 新規口座獲得状況
+
+            ### 優良支店・要改善支店
+            - トップパフォーマー（理由付き）
+            - 要改善支店（具体的な改善提案付き）
+
+            ### 経営提言
+            （データに基づく具体的なアクション提案）
+
+            数値に基づく客観的な分析を行い、推測は最小限にしてください。
+        - role: user
+          text: |
+            レポート期間: {{#30500000000001.report_period#}}
+
+            支店実績データ:
+            {{#30500000000005.summary#}}
+        selected: false
+        title: 経営分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '30500000000006'
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '経営分析レポートを出力する'
+        outputs:
+        - value_selector:
+          - '30500000000006'
+          - text
+          variable: report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '30500000000007'
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

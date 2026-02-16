@@ -1,0 +1,217 @@
+app:
+  description: 'V06: 構造化データ抽出 — 名刺情報のCRM登録'
+  icon: "\U0001F4C7"
+  icon_background: '#E4FBCC'
+  mode: workflow
+  name: "V06 名刺データ抽出"
+  use_icon_as_answer_icon: false
+workflow:
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  environment_variables: []
+  conversation_variables: []
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: '60000000000001-60000000000002'
+      source: '60000000000001'
+      sourceHandle: source
+      target: '60000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: template-transform
+      id: '60000000000002-60000000000003'
+      source: '60000000000002'
+      sourceHandle: source
+      target: '60000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: '60000000000003-60000000000004'
+      source: '60000000000003'
+      sourceHandle: source
+      target: '60000000000004'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'OCRで読み取った名刺テキストを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: card_text
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: card_text
+      height: 89
+      id: '60000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '名刺テキストから構造化データを抽出する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        query_variable_selector:
+        - '60000000000001'
+        - card_text
+        parameters:
+        - name: company
+          type: string
+          required: true
+          description: '会社名'
+        - name: name
+          type: string
+          required: true
+          description: '氏名'
+        - name: title
+          type: string
+          required: false
+          description: '役職'
+        - name: phone
+          type: string
+          required: false
+          description: '電話番号'
+        - name: email
+          type: string
+          required: false
+          description: 'メールアドレス'
+        instruction: '名刺テキストから情報を正確に抽出してください。'
+        reasoning_mode: prompt
+        selected: false
+        title: パラメータ抽出
+        type: parameter-extractor
+      height: 197
+      id: '60000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '抽出データをCSV形式に整形する'
+        selected: false
+        template: "company,name,title,phone,email\n{{ company }},{{ name }},{{ title }},{{ phone }},{{ email }}"
+        title: CSV変換
+        type: template-transform
+        variables:
+        - value_selector:
+          - '60000000000002'
+          - company
+          variable: company
+        - value_selector:
+          - '60000000000002'
+          - name
+          variable: name
+        - value_selector:
+          - '60000000000002'
+          - title
+          variable: title
+        - value_selector:
+          - '60000000000002'
+          - phone
+          variable: phone
+        - value_selector:
+          - '60000000000002'
+          - email
+          variable: email
+      height: 89
+      id: '60000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'CSV形式の名刺データを出力する'
+        outputs:
+        - value_selector:
+          - '60000000000003'
+          - output
+          variable: csv_output
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '60000000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

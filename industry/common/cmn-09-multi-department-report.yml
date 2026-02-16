@@ -1,0 +1,367 @@
+app:
+  description: カンマ区切りで指定した複数部門のKPIデータをAPIから一括取得し、LLMが全部門横断の経営分析レポートを生成するワークフロー。月次経営会議の資料作成を自動化する。
+  icon: "\U0001F4CA"
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'CMN-09: 部門別KPIレポート一括生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-40900000000001-40900000000002
+      source: '40900000000001'
+      sourceHandle: source
+      target: '40900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-40900000000002-40900000000003
+      source: '40900000000002'
+      sourceHandle: source
+      target: '40900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-40900000000003-40900000000005
+      source: '40900000000003'
+      sourceHandle: source
+      target: '40900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-40900000000005-40900000000006
+      source: '40900000000005'
+      sourceHandle: source
+      target: '40900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-40900000000006-40900000000007
+      source: '40900000000006'
+      sourceHandle: source
+      target: '40900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'カンマ区切りの部門名とレポート月度を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: department_list
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: department_list
+        - label: report_month
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: report_month
+      height: 115
+      id: '40900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '部門名を配列に変換しレポート月度をURLエンコードする'
+        selected: false
+        title: 部門配列化
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(department_list: str, report_month: str) -> dict:
+              raw = [d.strip() for d in department_list.split(',') if d.strip()]
+              items = [urllib.parse.quote(d, safe='') for d in raw]
+              report_month_enc = urllib.parse.quote(report_month, safe='')
+              return {'items': items, 'report_month_enc': report_month_enc}
+        variables:
+        - value_selector:
+          - '40900000000001'
+          - department_list
+          variable: department_list
+        - value_selector:
+          - '40900000000001'
+          - report_month
+          variable: report_month
+        outputs:
+          items:
+            type: array[string]
+          report_month_enc:
+            type: string
+      height: 97
+      id: '40900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        type: iteration
+        title: 部門イテレーション
+        desc: '各部門のKPIデータをAPIから取得する'
+        iterator_selector:
+        - '40900000000002'
+        - items
+        output_selector:
+        - '40900000000004'
+        - body
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '40900000000004'
+      id: '40900000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        desc: '部門のKPIデータをAPIから取得する'
+        selected: false
+        title: KPI API
+        type: http-request
+        method: get
+        url: 'https://api.example.com/kpi?dept={{#40900000000003.item#}}&month={{#40900000000002.report_month_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+        mask_authorization_header: false
+      id: '40900000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '40900000000003'
+    - data:
+        desc: 'API取得結果を集約し分析用テキストを生成する'
+        selected: false
+        title: 結果集約
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_results: list) -> dict:
+              summary_lines = []
+              for i, result in enumerate(api_results):
+                  try:
+                      data = json.loads(result) if isinstance(result, str) else result
+                      dept = data.get('department', f'部門{i+1}')
+                      revenue_target = data.get('revenue_target_pct', 'N/A')
+                      cost_ratio = data.get('cost_ratio_pct', 'N/A')
+                      headcount_util = data.get('headcount_utilization_pct', 'N/A')
+                      csat = data.get('customer_satisfaction', 'N/A')
+                      summary_lines.append(
+                          f"部門: {dept}, "
+                          f"売上達成率: {revenue_target}%, "
+                          f"コスト比率: {cost_ratio}%, "
+                          f"人員稼働率: {headcount_util}%, "
+                          f"顧客満足度: {csat}"
+                      )
+                  except Exception:
+                      summary_lines.append(f"部門{i+1}: データ取得エラー")
+              summary = '\n'.join(summary_lines)
+              return {'summary': summary}
+        variables:
+        - value_selector:
+          - '40900000000003'
+          - output
+          variable: api_results
+        outputs:
+          summary:
+            type: string
+      height: 97
+      id: '40900000000005'
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '全部門KPIデータを横断分析し経営レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは経営企画部のアナリストです。各部門のKPIデータを横断分析し、経営レポートを作成してください。
+
+            ## レポートフォーマット
+            ### 部門別KPIサマリ
+            （各部門の主要KPIを表形式で整理）
+
+            ### 全体分析
+            - 売上達成率の全体トレンド
+            - コスト効率の比較分析
+            - 人員稼働率の評価
+
+            ### 優良部門・要改善部門
+            - トップパフォーマー（根拠付き）
+            - 要改善部門（具体的な改善提案付き）
+
+            ### 経営提言
+            - データに基づく具体的なアクション提案（3項目以内）
+            - 次月の重点施策
+
+            ## ルール
+            - 数値に基づく客観的な分析を行う
+            - 推測は最小限にし、データの裏付けを明示する
+            - 改善提案は具体的かつ実行可能な内容にする
+        - role: user
+          text: |
+            レポート月度: {{#40900000000001.report_month#}}
+
+            部門別KPIデータ:
+            {{#40900000000005.summary#}}
+        selected: false
+        title: 経営分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40900000000006'
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'KPI経営分析レポートを出力する'
+        outputs:
+        - value_selector:
+          - '40900000000006'
+          - text
+          variable: kpi_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40900000000007'
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,376 @@
+app:
+  description: 製造現場の作業手順書を指定言語（英語・中国語・ベトナム語）に翻訳するワークフロー。言語分類により適切な翻訳LLMにルーティングする。
+  icon: "\U0001F310"
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'MFG-05: 作業手順書翻訳 — 生産技術部門向け'
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: question-classifier
+      id: e-20500000000001-20500000000002
+      source: '20500000000001'
+      sourceHandle: source
+      target: '20500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-20500000000002-20500000000003
+      source: '20500000000002'
+      sourceHandle: class_en
+      target: '20500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-20500000000002-20500000000004
+      source: '20500000000002'
+      sourceHandle: class_cn
+      target: '20500000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-20500000000002-20500000000005
+      source: '20500000000002'
+      sourceHandle: class_vi
+      target: '20500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-20500000000003-20500000000006
+      source: '20500000000003'
+      sourceHandle: source
+      target: '20500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-20500000000004-20500000000006
+      source: '20500000000004'
+      sourceHandle: source
+      target: '20500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-20500000000005-20500000000006
+      source: '20500000000005'
+      sourceHandle: source
+      target: '20500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-20500000000006-20500000000007
+      source: '20500000000006'
+      sourceHandle: source
+      target: '20500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: 開始
+        desc: ''
+        variables:
+        - variable: instruction_text
+          label: instruction_text
+          type: paragraph
+          required: true
+          max_length: 50000
+        - variable: target_language
+          label: target_language
+          type: select
+          required: true
+          options:
+          - English
+          - "\u4E2D\u6587"
+          - "Ti\u1EBFng Vi\u1EC7t"
+      id: '20500000000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: question-classifier
+        title: 翻訳言語分類
+        desc: 指定された翻訳先言語を判定
+        query_variable_selector:
+        - '20500000000001'
+        - target_language
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 256
+        classes:
+        - id: class_en
+          name: 英語
+        - id: class_cn
+          name: 中国語
+        - id: class_vi
+          name: ベトナム語
+        instruction: "入力されたテキストに基づいて翻訳先言語を分類してください。English\u2192\u82F1\u8A9E\u3001\u4E2D\u6587\u2192\u4E2D\u56FD\u8A9E\u3001Ti\u1EBFng Vi\u1EC7t\u2192\u30D9\u30C8\u30CA\u30E0\u8A9E"
+      id: '20500000000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      height: 160
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: 英語翻訳
+        desc: 作業手順書を英語に翻訳
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+        prompt_template:
+        - id: prompt_en_sys
+          role: system
+          text: 'You are a professional translator specializing in manufacturing and production engineering documentation.
+
+            Translate the following Japanese work instruction into English.
+
+
+            IMPORTANT RULES:
+
+            - Maintain the original document structure (numbered steps, bullet points, section headings)
+
+            - Use standard manufacturing terminology (e.g., torque, jig, fixture, tolerance, burr, chamfer)
+
+            - Keep part numbers, model numbers, and measurement values unchanged
+
+            - Translate safety warnings and caution labels with appropriate emphasis
+
+            - Use imperative form for procedural steps (e.g., "Tighten the bolt to 25 Nm")
+
+            - Preserve any references to standards (JIS, ISO, etc.) as-is'
+        - id: prompt_en_user
+          role: user
+          text: '{{#20500000000001.instruction_text#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '20500000000003'
+      type: custom
+      position:
+        x: 680
+        y: 82
+      positionAbsolute:
+        x: 680
+        y: 82
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: 中国語翻訳
+        desc: 作業手順書を中国語に翻訳
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+        prompt_template:
+        - id: prompt_cn_sys
+          role: system
+          text: "你是一名专业翻译，专门从事制造业和生产技术文档翻译。\n请将以下日语作业指导书翻译成简体中文。\n\n重要规则：\n\
+            - 保持原文档结构（编号步骤、项目符号、章节标题）\n- 使用标准制造业术语（如：扭矩、夹具、公差、毛刺、倒角）\n- 零件编号、型号和测量值保持不变\n\
+            - 安全警告和注意标签要使用适当的强调方式\n- 操作步骤使用祈使句形式\n- 保留对标准的引用（JIS、ISO等）原样不变"
+        - id: prompt_cn_user
+          role: user
+          text: '{{#20500000000001.instruction_text#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '20500000000004'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: llm
+        title: ベトナム語翻訳
+        desc: 作業手順書をベトナム語に翻訳
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+        prompt_template:
+        - id: prompt_vi_sys
+          role: system
+          text: "B\u1EA1n l\xE0 phi\xEAn d\u1ECBch chuy\xEAn nghi\u1EC7p chuy\xEA\
+            n v\u1EC1 t\xE0i li\u1EC7u s\u1EA3n xu\u1EA5t v\xE0 k\u1EF9 thu\u1EAD\
+            t s\u1EA3n xu\u1EA5t.\nH\xE3y d\u1ECBch h\u01B0\u1EDBng d\u1EABn c\xF4\
+            ng vi\u1EC7c b\u1EB1ng ti\u1EBFng Nh\u1EADt sau \u0111\xE2y sang ti\u1EBF\
+            ng Vi\u1EC7t.\n\nQUY T\u1EAEc QUAN TR\u1ECENG:\n- Gi\u1EEF nguy\xEAn\
+            \ c\u1EA5u tr\xFAc t\xE0i li\u1EC7u g\u1ED1c (c\xE1c b\u01B0\u1EDB\
+            c \u0111\xE1nh s\u1ED1, d\u1EA5u \u0111\u1EA7u d\xF2ng, ti\xEAu \u0111\
+            \u1EC1 ph\u1EA7n)\n- S\u1EED d\u1EE5ng thu\u1EADt ng\u1EEF s\u1EA3n\
+            \ xu\u1EA5t ti\xEAu chu\u1EA9n (v\xED d\u1EE5: m\xF4-men xi\u1EBFt,\
+            \ \u0111\u1ED3 g\xE1, dung sai, ba via, v\xE1t m\xE9p)\n- Gi\u1EEF nguy\xEA\
+            n m\xE3 linh ki\u1EC7n, s\u1ED1 model v\xE0 gi\xE1 tr\u1ECB \u0111o\
+            \ l\u01B0\u1EDDng\n- D\u1ECBch c\xE1c c\u1EA3nh b\xE1o an to\xE0n v\xE0\
+            \ nh\xE3n ch\xFA \xFD v\u1EDBi s\u1EF1 nh\u1EA5n m\u1EA1nh ph\xF9 h\u1EE3\
+            p\n- S\u1EED d\u1EE5ng th\u1EC3 m\u1EC7nh l\u1EC7nh cho c\xE1c b\u01B0\
+            \u1EDBc th\u1EE7 t\u1EE5c\n- Gi\u1EEF nguy\xEAn c\xE1c tham chi\u1EBF\
+            u ti\xEAu chu\u1EA9n (JIS, ISO, v.v.)"
+        - id: prompt_vi_user
+          role: user
+          text: '{{#20500000000001.instruction_text#}}'
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+      id: '20500000000005'
+      type: custom
+      position:
+        x: 680
+        y: 482
+      positionAbsolute:
+        x: 680
+        y: 482
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: variable-aggregator
+        title: 翻訳結果統合
+        desc: 各言語の翻訳結果を統合
+        variables:
+        - - '20500000000003'
+          - text
+        - - '20500000000004'
+          - text
+        - - '20500000000005'
+          - text
+        output_type: string
+        advanced_settings:
+          group_enabled: false
+      id: '20500000000006'
+      type: custom
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        type: end
+        title: 終了
+        desc: ''
+        outputs:
+        - variable: translated_instruction
+          value_selector:
+          - '20500000000006'
+          - output
+      id: '20500000000007'
+      type: custom
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

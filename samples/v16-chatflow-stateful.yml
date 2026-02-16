@@ -1,0 +1,437 @@
+app:
+  description: "Chatflow分類+状態保持 - コールセンターAIアシスタント"
+  icon: "\U0001F4DE"
+  icon_background: '#FFF3E0'
+  mode: advanced-chat
+  name: "V16 コールセンターAIアシスタント"
+  use_icon_as_answer_icon: false
+kind: app
+version: 0.1.5
+workflow:
+  conversation_variables:
+  - id: cv_customer_id
+    name: customer_id
+    description: "顧客ID（会話中に保持）"
+    value_type: string
+    value: ""
+  environment_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: question-classifier
+      id: e16-start-to-qc
+      source: '16000000000001'
+      sourceHandle: source
+      target: '16000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: question-classifier
+        targetType: parameter-extractor
+      id: e16-qc-to-pe
+      source: '16000000000002'
+      sourceHandle: class_order
+      target: '16000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: parameter-extractor
+        targetType: http-request
+      id: e16-pe-to-http
+      source: '16000000000003'
+      sourceHandle: source
+      target: '16000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: http-request
+        targetType: llm
+      id: e16-http-to-llm-order
+      source: '16000000000004'
+      sourceHandle: source
+      target: '16000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: variable-assigner
+      id: e16-llm-order-to-va
+      source: '16000000000005'
+      sourceHandle: source
+      target: '16000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: variable-assigner
+        targetType: answer
+      id: e16-va-to-answer-order
+      source: '16000000000006'
+      sourceHandle: source
+      target: '16000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: question-classifier
+        targetType: knowledge-retrieval
+      id: e16-qc-to-kr
+      source: '16000000000002'
+      sourceHandle: class_product
+      target: '16000000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: e16-kr-to-llm-product
+      source: '16000000000008'
+      sourceHandle: source
+      target: '16000000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: answer
+      id: e16-llm-product-to-answer
+      source: '16000000000009'
+      sourceHandle: source
+      target: '16000000000010'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        type: start
+        title: "開始"
+        desc: ''
+        variables: []
+      height: 90
+      id: '16000000000001'
+      position:
+        x: 0
+        y: 300
+      positionAbsolute:
+        x: 0
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: question-classifier
+        title: "問い合わせ分類"
+        desc: "ユーザーの問い合わせを注文系と製品系に分類"
+        query_variable_selector:
+        - sys
+        - query
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+            max_tokens: 1024
+        classes:
+        - id: class_order
+          name: "注文・契約に関する問い合わせ"
+        - id: class_product
+          name: "製品・サービスの質問"
+        instruction: "ユーザーの問い合わせを以下のカテゴリに分類してください:\n- 注文状況、契約内容、配送、請求に関する問い合わせは「注文・契約に関する問い合わせ」\n- 製品の仕様、使い方、トラブルシューティングに関する質問は「製品・サービスの質問」"
+      height: 180
+      id: '16000000000002'
+      position:
+        x: 300
+        y: 250
+      positionAbsolute:
+        x: 300
+        y: 250
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: parameter-extractor
+        title: "パラメータ抽出"
+        desc: "問い合わせから電話番号と注文IDを抽出"
+        query_variable_selector:
+        - sys
+        - query
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: phone_number
+          type: string
+          description: "お客様の電話番号（ハイフン付き可）"
+          required: false
+        - name: order_id
+          type: string
+          description: "注文ID（例: ORD-12345）"
+          required: false
+        instruction: "ユーザーの問い合わせから電話番号と注文IDを抽出してください。見つからない場合は空文字列にしてください。"
+        reasoning_mode: prompt
+      height: 150
+      id: '16000000000003'
+      position:
+        x: 600
+        y: 100
+      positionAbsolute:
+        x: 600
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: http-request
+        title: "注文API照会"
+        desc: "注文管理システムから注文情報を取得"
+        method: get
+        url: 'https://api.example.com/orders?phone={{#16000000000003.phone_number#}}&order_id={{#16000000000003.order_id#}}'
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        authorization:
+          type: no-auth
+        timeout:
+          connect: 10
+          read: 60
+          write: 20
+        retry:
+          max_retries: 3
+      height: 54
+      id: '16000000000004'
+      position:
+        x: 900
+        y: 100
+      positionAbsolute:
+        x: 900
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: llm
+        title: "注文対応AI"
+        desc: "注文情報に基づいてお客様に回答"
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.5
+            max_tokens: 2048
+        prompt_template:
+        - role: system
+          text: "あなたはコールセンターの注文対応AIアシスタントです。\n注文管理システムから取得した情報に基づいて、お客様の問い合わせに丁寧に回答してください。\n\nルール:\n- 注文が見つからない場合は、正しい注文IDの確認をお願いする\n- 個人情報は最小限の開示にとどめる\n- エスカレーションが必要な場合は担当者への転送を案内する"
+        - role: user
+          text: "お客様の問い合わせ: {{#sys.query#}}\n\n注文API応答:\n{{#16000000000004.body#}}"
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+          role_prefix:
+            user: ""
+            assistant: ""
+        vision:
+          enabled: false
+        variables: []
+      height: 98
+      id: '16000000000005'
+      position:
+        x: 1200
+        y: 100
+      positionAbsolute:
+        x: 1200
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: variable-assigner
+        title: "顧客ID保存"
+        desc: "会話変数に顧客IDを保存"
+        assigned_variable_selector:
+        - conversation
+        - customer_id
+        input:
+        - variable_selector:
+          - '16000000000003'
+          - phone_number
+          write_mode: over-write
+      height: 54
+      id: '16000000000006'
+      position:
+        x: 1500
+        y: 100
+      positionAbsolute:
+        x: 1500
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: answer
+        title: "注文応答"
+        desc: "注文に関する回答を返す"
+        answer: '{{#16000000000005.text#}}'
+      height: 107
+      id: '16000000000007'
+      position:
+        x: 1800
+        y: 100
+      positionAbsolute:
+        x: 1800
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: knowledge-retrieval
+        title: "製品ナレッジ検索"
+        desc: "製品マニュアルとFAQを検索"
+        query_variable_selector:
+        - sys
+        - query
+        dataset_ids:
+        - "product-kb-placeholder"
+        retrieval_mode: multiple
+        multiple_retrieval_config:
+          top_k: 3
+          score_threshold: 0.5
+          reranking_model:
+            provider: ''
+            model: ''
+      height: 54
+      id: '16000000000008'
+      position:
+        x: 600
+        y: 500
+      positionAbsolute:
+        x: 600
+        y: 500
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: llm
+        title: "製品対応AI"
+        desc: "ナレッジベースに基づいて製品の質問に回答"
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.7
+            max_tokens: 2048
+        prompt_template:
+        - role: system
+          text: "あなたはコールセンターの製品サポートAIアシスタントです。\nナレッジベースの情報に基づいて、お客様の製品に関する質問に丁寧に回答してください。\n\nルール:\n- 技術的な説明はわかりやすい言葉で行う\n- トラブルシューティングはステップバイステップで案内する\n- ナレッジベースに情報がない場合は正直に伝え、専門チームへの問い合わせを案内する"
+        - role: user
+          text: '{{#sys.query#}}'
+        context:
+          enabled: true
+          variable_selector:
+          - '16000000000008'
+          - result
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+          role_prefix:
+            user: ""
+            assistant: ""
+        vision:
+          enabled: false
+        variables: []
+      height: 98
+      id: '16000000000009'
+      position:
+        x: 900
+        y: 500
+      positionAbsolute:
+        x: 900
+        y: 500
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        type: answer
+        title: "製品応答"
+        desc: "製品に関する回答を返す"
+        answer: '{{#16000000000009.text#}}'
+      height: 107
+      id: '16000000000010'
+      position:
+        x: 1200
+        y: 500
+      positionAbsolute:
+        x: 1200
+        y: 500
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244

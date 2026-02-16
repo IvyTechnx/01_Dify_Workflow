@@ -1,0 +1,357 @@
+app:
+  description: 日本企業特有の稟議書（決裁申請書）の汎用ドラフトを自動生成する。件名、申請区分、金額、目的、期待効果、リスクを入力し、正式な稟議書フォーマットに仕上げるワークフロー。
+  icon: "\U0001F4CB"
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'CMN-07: 稟議書ドラフト作成（汎用版）'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-40700000000001-40700000000002
+      source: '40700000000001'
+      sourceHandle: source
+      target: '40700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-40700000000002-40700000000003
+      source: '40700000000002'
+      sourceHandle: source
+      target: '40700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+      id: e-40700000000003-40700000000004
+      source: '40700000000003'
+      sourceHandle: source
+      target: '40700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-40700000000004-40700000000005
+      source: '40700000000004'
+      sourceHandle: source
+      target: '40700000000005'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '稟議書作成に必要な情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: subject
+          max_length: 200
+          options: []
+          required: true
+          type: text-input
+          variable: subject
+        - label: category
+          max_length: 48
+          options:
+          - '設備投資'
+          - 'システム導入'
+          - '外注委託'
+          - '人員採用'
+          - '契約締結'
+          - 'その他'
+          required: true
+          type: select
+          variable: category
+        - label: amount
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: amount
+        - label: purpose
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: purpose
+        - label: expected_effect
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: expected_effect
+        - label: risk_alternatives
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: risk_alternatives
+      height: 245
+      id: '40700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '6つの入力を稟議書用セクションに整形する'
+        selected: false
+        title: 入力整形
+        type: code
+        code_language: python3
+        code: |
+          def main(subject: str, category: str, amount: str,
+                   purpose: str, expected_effect: str, risk_alternatives: str) -> dict:
+              formatted = (
+                  f"■ 件名: {subject}\n"
+                  f"■ 申請区分: {category}\n"
+                  f"■ 申請金額: {amount}\n\n"
+                  f"■ 目的・理由:\n{purpose}\n\n"
+                  f"■ 期待効果:\n{expected_effect}\n\n"
+                  f"■ リスク・代替案:\n{risk_alternatives}"
+              )
+              return {'formatted_input': formatted}
+        variables:
+        - value_selector:
+          - '40700000000001'
+          - subject
+          variable: subject
+        - value_selector:
+          - '40700000000001'
+          - category
+          variable: category
+        - value_selector:
+          - '40700000000001'
+          - amount
+          variable: amount
+        - value_selector:
+          - '40700000000001'
+          - purpose
+          variable: purpose
+        - value_selector:
+          - '40700000000001'
+          - expected_effect
+          variable: expected_effect
+        - value_selector:
+          - '40700000000001'
+          - risk_alternatives
+          variable: risk_alternatives
+        outputs:
+          formatted_input:
+            type: string
+      height: 97
+      id: '40700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '整形済み情報から稟議書本文を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは稟議書作成の専門アシスタントです。入力された情報を基に、正式な稟議書ドラフトを作成してください。
+
+            ## 稟議書フォーマット
+
+            ### 1. 件名
+            （件名を記載）
+
+            ### 2. 申請概要
+            - 申請区分、申請金額、実施予定時期を整理
+
+            ### 3. 背景・目的
+            - 申請に至った背景と目的を論理的に説明
+            - 現状の課題を明確にし、本申請による解決を示す
+
+            ### 4. 実施内容
+            - 具体的な実施計画（フェーズ、スケジュール）
+            - 必要なリソース（人員、設備等）
+
+            ### 5. 費用対効果
+            - 申請金額の内訳（可能な範囲で）
+            - 期待される定量的効果
+            - 投資回収期間の見込み
+
+            ### 6. リスク評価
+            - 想定リスクと対策
+            - 代替案との比較
+
+            ### 7. 審議事項
+            - 本稟議で決裁を求める事項を明確に記載
+
+            ## ルール
+            - 入力情報を忠実に反映し、事実に基づいて記述する
+            - 存在しないデータや数値を追加しない
+            - 費用対効果の試算は入力情報に基づく範囲で行う
+            - 簡潔かつ論理的なビジネス文書として記述する
+        - role: user
+          text: |
+            以下の情報で稟議書ドラフトを作成してください。
+
+            {{#40700000000002.formatted_input#}}
+        selected: false
+        title: 稟議書生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '稟議書ヘッダー・決裁欄・フッターを付与する'
+        selected: false
+        title: 稟議書フォーマット
+        type: template-transform
+        template: |
+          ┌────────────────────────────────┐
+          │          稟  議  書            │
+          ├────────────────────────────────┤
+          │ 起案日:（yyyy/mm/dd）          │
+          │ 起案者:（氏名）               │
+          │ 所  属:（部署名）             │
+          ├────────────────────────────────┤
+          │ 申請区分: {{ category }}        │
+          │ 申請金額: {{ amount }}          │
+          ├────────────────────────────────┤
+          │ 決裁欄                         │
+          │ 部長:     課長:     係長:      │
+          │ [    ]    [    ]    [    ]     │
+          └────────────────────────────────┘
+
+          {{ ringi_body }}
+
+          ━━━━━━━━━━━━━━━━━━━━━
+          ※ 本稟議書はAIアシスタントにより下書き作成されました。
+            内容をご確認の上、必要に応じて加筆・修正してください。
+          ━━━━━━━━━━━━━━━━━━━━━
+        variables:
+        - value_selector:
+          - '40700000000003'
+          - text
+          variable: ringi_body
+        - value_selector:
+          - '40700000000001'
+          - category
+          variable: category
+        - value_selector:
+          - '40700000000001'
+          - amount
+          variable: amount
+      height: 97
+      id: '40700000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '稟議書ドラフトを出力する'
+        outputs:
+        - value_selector:
+          - '40700000000004'
+          - output
+          variable: ringi_draft
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40700000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1
