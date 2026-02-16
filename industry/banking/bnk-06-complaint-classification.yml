@@ -540,6 +540,7 @@ workflow:
     - data:
         advanced_settings:
           group_enabled: false
+          groups: []
         desc: '5つのLLM出力を集約する'
         output_type: string
         selected: false
