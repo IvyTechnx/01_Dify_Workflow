@@ -1,3 +1,5 @@
+kind: app
+version: '0.1.5'
 app:
   description: ローン申請情報からパラメータを抽出し、基本要件（年齢、年収、勤続年数、借入比率）をCode判定、要件充足/不充足で分岐して審査レポートまたは不適合通知を生成するワークフロー。
   icon: "\U0001F3E6"
@@ -254,15 +256,17 @@ workflow:
       type: custom
       width: 243
     - data:
-        conditions:
-        - id: condition_pass
-          variable_selector:
-          - '30200000000003'
-          - result
-          comparison_operator: is
-          value: "PASS"
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_pass
+            variable_selector:
+            - '30200000000003'
+            - result
+            comparison_operator: is
+            value: "PASS"
         desc: '基本要件チェック結果で分岐する'
-        logical_operator: and
         selected: false
         title: 要件判定分岐
         type: if-else

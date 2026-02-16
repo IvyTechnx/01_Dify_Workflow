@@ -1,3 +1,5 @@
+kind: app
+version: '0.1.5'
 app:
   description: トランザクションIDを指定してAPIから取引データを取得し、LLMで不正パターンを分析、要エスカレーション判定で通知APIに連携する不正検知ワークフロー。
   icon: "\U0001F6A8"
@@ -405,21 +407,23 @@ workflow:
       type: custom
       width: 243
     - data:
-        conditions:
-        - id: condition_1
-          variable_selector:
-          - '30400000000012'
-          - risk_level
-          comparison_operator: is
-          value: "HIGH"
-        - id: condition_2
-          variable_selector:
-          - '30400000000004'
-          - amount
-          comparison_operator: '>'
-          value: '10000000'
+        cases:
+        - case_id: 'true'
+          logical_operator: or
+          conditions:
+          - id: condition_1
+            variable_selector:
+            - '30400000000012'
+            - risk_level
+            comparison_operator: is
+            value: "HIGH"
+          - id: condition_2
+            variable_selector:
+            - '30400000000004'
+            - amount
+            comparison_operator: '>'
+            value: '10000000'
         desc: 'リスクレベルと取引金額でエスカレーション要否を判定する'
-        logical_operator: or
         selected: false
         title: エスカレーション判定
         type: if-else

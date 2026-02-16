@@ -1,3 +1,5 @@
+kind: app
+version: '0.1.5'
 app:
   description: 為替レートAPIから最新レートを取得し、顧客向けにわかりやすい解説を生成するワークフロー。
   icon: "\U0001F4B1"

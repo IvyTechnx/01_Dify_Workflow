@@ -1,3 +1,5 @@
+kind: app
+version: '0.1.5'
 app:
   description: 複数支店の実績データをAPIから一括取得し、LLMで経営分析レポートを生成する経営企画部門向けワークフロー。
   icon: "\U0001F3E6"
