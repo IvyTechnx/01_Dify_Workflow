@@ -146,7 +146,7 @@ workflow:
         selected: false
         title: 申請情報抽出
         type: parameter-extractor
-        query_variable_selector:
+        query:
         - '30200000000001'
         - application_text
         model:
@@ -182,6 +182,9 @@ workflow:
           description: "借入目的（住宅、自動車、教育、事業、その他）"
           required: true
         instruction: "ローン申請書テキストから上記パラメータを抽出してください。数値は万円単位で抽出してください。"
+        memory: null
+        vision:
+          enabled: false
         reasoning_mode: prompt
       height: 97
       id: '30200000000002'
@@ -398,6 +401,7 @@ workflow:
     - data:
         advanced_settings:
           group_enabled: false
+          groups: []
         desc: '審査レポートと不適合通知を集約する'
         output_type: string
         selected: false

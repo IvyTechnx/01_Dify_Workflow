@@ -119,7 +119,7 @@ workflow:
         selected: false
         title: パラメータ抽出
         type: parameter-extractor
-        query_variable_selector:
+        query:
         - '30900000000001'
         - transaction_details
         model:
@@ -159,6 +159,9 @@ workflow:
           description: "疑わしいと判断した理由の要約"
           required: true
         instruction: "疑わしい取引の報告テキストから上記情報を抽出してください。複数取引がある場合は主要な取引の情報を抽出してください。"
+        memory: null
+        vision:
+          enabled: false
         reasoning_mode: prompt
       height: 97
       id: '30900000000002'
