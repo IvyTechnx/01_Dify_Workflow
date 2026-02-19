@@ -143,8 +143,6 @@ workflow:
           text: "あなたはリサーチプランナーです。与えられたテーマについて調査すべき5つの項目をJSON配列で出力してください。例: [\"市場規模\", \"主要プレイヤー\", \"技術トレンド\", \"規制環境\", \"参入障壁\"]\n出力はJSON配列のみ、他のテキストは不要です。"
         - role: user
           text: '{{#14000000000001.theme#}}'
-        memory:
-          enabled: false
         vision:
           enabled: false
         variables: []
@@ -277,8 +275,6 @@ workflow:
           text: "あなたはリサーチアナリストです。以下の検索結果を分析し、重要なポイントを3-5個の箇条書きで簡潔にまとめてください。データや数値があれば含めてください。"
         - role: user
           text: "調査項目: {{#14000000000004.item#}}\n\n検索結果:\n{{#14000000000005.body#}}"
-        memory:
-          enabled: false
         vision:
           enabled: false
         variables: []
@@ -313,8 +309,6 @@ workflow:
           text: "あなたはビジネスアナリストです。以下の調査結果を統合し、エグゼクティブサマリー付きの調査レポートを作成してください。SWOT分析を含めてください。"
         - role: user
           text: "調査テーマ: {{#14000000000001.theme#}}\n\n調査結果:\n{{#14000000000004.output#}}"
-        memory:
-          enabled: false
         vision:
           enabled: false
         variables: []

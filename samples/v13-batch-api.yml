@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: サプライヤーリストに対してバッチAPIリクエストを実行し、価格データを集約・分析して最適なサプライヤーを推奨するワークフロー。
   icon: 📦
@@ -179,7 +181,7 @@ workflow:
         title: 価格見積API
         desc: サプライヤーの価格見積もりを取得
         method: get
-        url: https://api.example.com/quote?part={{#13000000000001.part_number#}}&supplier={{#13000000000003.items#}}
+        url: https://api.example.com/quote?part={{#13000000000001.part_number#}}&supplier={{#13000000000003.item#}}
         authorization:
           type: no-auth
         headers: ''
@@ -255,6 +257,7 @@ workflow:
           mode: chat
           completion_params:
             temperature: 0.3
+            max_tokens: 4096
         prompt_template:
         - id: prompt_supplier_sys
           role: system
@@ -274,7 +277,6 @@ workflow:
         - id: prompt_supplier_user
           role: user
           text: '{{#13000000000005.summary#}}'
-        memory: null
         context:
           enabled: false
           variable_selector: []

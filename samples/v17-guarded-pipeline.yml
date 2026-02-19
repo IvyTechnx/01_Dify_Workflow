@@ -261,7 +261,7 @@ workflow:
     - data:
         type: knowledge-retrieval
         title: "医療ナレッジ検索"
-        desc: "医療知識ベースから関連情報を検索"
+        desc: "医療知識ベースから関連情報を検索（※ dataset_ids を実在のIDに置換すること）"
         query_variable_selector:
         - '17000000000002'
         - sanitized
@@ -308,8 +308,6 @@ workflow:
           variable_selector:
           - '17000000000004'
           - result
-        memory:
-          enabled: false
         vision:
           enabled: false
         variables: []

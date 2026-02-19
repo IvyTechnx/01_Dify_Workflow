@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: ローン相談AIの入力防御ワークフロー。ユーザー入力をバリデーションし、安全な入力のみLLMに渡します。
   icon: 🛡
@@ -197,6 +199,7 @@ workflow:
           mode: chat
           completion_params:
             temperature: 0.7
+            max_tokens: 4096
         prompt_template:
         - id: prompt_1
           role: system
@@ -212,7 +215,6 @@ workflow:
         - id: prompt_2
           role: user
           text: '{{#10000000000002.clean_input#}}'
-        memory: null
         context:
           enabled: false
           variable_selector: []

@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 'V08: IF/ELSE条件分岐 — 日英バイリンガルFAQ'
   icon: "\U0001F310"
@@ -131,7 +133,8 @@ workflow:
       width: 243
     - data:
         conditions:
-        - comparison_operator: is
+        - id: condition_1
+          comparison_operator: is
           value: English
           variable_selector:
           - '80000000000001'

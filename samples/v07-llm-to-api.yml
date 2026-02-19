@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 'V07: LLM生成→外部API連携 — 障害報告の自動Slack通知'
   icon: "\U0001F6A8"
@@ -37,7 +39,10 @@ workflow:
       enabled: false
       language: ''
       voice: ''
-  environment_variables: []
+  environment_variables:
+  - name: slack_webhook_url
+    type: secret
+    value: ''
   conversation_variables: []
   graph:
     edges:
@@ -197,7 +202,10 @@ workflow:
           write: 10000
         title: Slack通知
         type: http-request
-        url: 'https://hooks.slack.com/services/PLACEHOLDER/WEBHOOK'
+        url: '{{#ENV.slack_webhook_url#}}'
+        retry:
+          max_retries: 3
+          retry_interval: 1000
       height: 89
       id: '70000000000004'
       position:

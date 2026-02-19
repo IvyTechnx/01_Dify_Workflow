@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 'シンプルなQAワークフロー - ゴールデンルール検証用'
   icon: "\U0001F916"

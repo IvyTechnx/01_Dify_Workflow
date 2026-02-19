@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 改行区切りの記事テキストをバッチ処理し、各記事の要約・論調・対応要否を分析するワークフロー。
   icon: 📰
@@ -170,6 +172,7 @@ workflow:
           mode: chat
           completion_params:
             temperature: 0.3
+            max_tokens: 4096
         prompt_template:
         - id: prompt_iter_sys
           role: system
@@ -182,8 +185,7 @@ workflow:
             対応要否: 要/不要'
         - id: prompt_iter_user
           role: user
-          text: '{{#12000000000003.items#}}'
-        memory: null
+          text: '{{#12000000000003.item#}}'
         context:
           enabled: false
           variable_selector: []

@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 'V09: インテント分類ルーティング — EC統合カスタマーサポート'
   icon: "\U0001F6D2"
@@ -190,7 +192,10 @@ workflow:
     - data:
         dataset_ids:
         - product-kb-placeholder
-        desc: '商品ナレッジベースから関連情報を検索する'
+        desc: '商品ナレッジベースから関連情報を検索する（※ dataset_ids を実在のIDに置換すること）'
+        query_variable_selector:
+        - '90000000000001'
+        - query
         multiple_retrieval_config:
           reranking_model:
             model: ''
@@ -236,7 +241,7 @@ workflow:
             frequency_penalty: 0
             max_tokens: 4096
             presence_penalty: 0
-            temperature: 0.7
+            temperature: 0.3
             top_p: 1
           mode: chat
           name: gpt-4o-mini
@@ -323,6 +328,9 @@ workflow:
           max_write_timeout: 600
           read: 10000
           write: 10000
+        retry:
+          max_retries: 3
+          retry_interval: 1000
         title: 注文API
         type: http-request
         url: 'https://api.example.com/orders'

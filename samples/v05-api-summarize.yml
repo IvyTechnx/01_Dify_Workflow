@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 'API取得→LLM要約ワークフロー - 競合プレスリリース日次サマリ'
   icon: "\U0001F4F0"
@@ -122,6 +124,9 @@ workflow:
           connect: 10000
           read: 30000
           write: 10000
+        retry:
+          max_retries: 3
+          retry_interval: 1000
         mask_authorization_header: false
       height: 97
       id: '5000000000002'

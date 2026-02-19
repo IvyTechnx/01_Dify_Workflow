@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 'V06: 構造化データ抽出 — 名刺情報のCRM登録'
   icon: "\U0001F4C7"

@@ -1,3 +1,5 @@
+version: "0.1.4"
+kind: "app"
 app:
   description: 3つのLLMモデルに同じ質問を並列で送信し、回答を比較するベンチマークワークフロー。
   icon: 🔍
@@ -152,6 +154,7 @@ workflow:
           mode: chat
           completion_params:
             temperature: 0.7
+            max_tokens: 4096
         prompt_template:
         - id: prompt_a_sys
           role: system
@@ -159,7 +162,6 @@ workflow:
         - id: prompt_a_user
           role: user
           text: '{{#11000000000001.query#}}'
-        memory: null
         context:
           enabled: false
           variable_selector: []
@@ -188,6 +190,7 @@ workflow:
           mode: chat
           completion_params:
             temperature: 0.7
+            max_tokens: 4096
         prompt_template:
         - id: prompt_b_sys
           role: system
@@ -195,7 +198,6 @@ workflow:
         - id: prompt_b_user
           role: user
           text: '{{#11000000000001.query#}}'
-        memory: null
         context:
           enabled: false
           variable_selector: []
@@ -224,6 +226,7 @@ workflow:
           mode: chat
           completion_params:
             temperature: 0.7
+            max_tokens: 4096
         prompt_template:
         - id: prompt_c_sys
           role: system
@@ -231,7 +234,6 @@ workflow:
         - id: prompt_c_user
           role: user
           text: '{{#11000000000001.query#}}'
-        memory: null
         context:
           enabled: false
           variable_selector: []

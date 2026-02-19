@@ -346,7 +346,7 @@ workflow:
     - data:
         type: knowledge-retrieval
         title: "製品ナレッジ検索"
-        desc: "製品マニュアルとFAQを検索"
+        desc: "製品マニュアルとFAQを検索（※ dataset_ids を実在のIDに置換すること）"
         query_variable_selector:
         - sys
         - query

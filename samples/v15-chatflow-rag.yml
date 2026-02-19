@@ -95,7 +95,7 @@ workflow:
     - data:
         type: knowledge-retrieval
         title: "ナレッジ検索"
-        desc: "契約書テンプレートとレビューガイドラインを検索"
+        desc: "契約書テンプレートとレビューガイドラインを検索（※ dataset_ids を実在のIDに置換すること）"
         query_variable_selector:
         - sys
         - query
