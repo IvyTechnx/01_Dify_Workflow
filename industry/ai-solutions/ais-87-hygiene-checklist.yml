@@ -1,0 +1,437 @@
+kind: app
+version: 0.1.5
+app:
+  description: 店舗の業態・規模を入力すると、HACCP準拠の衛生管理チェックリストと管理計画を自動生成するワークフロー。
+  icon: 🧹
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'AIS-87: 衛生管理チェックリスト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-58700000000001-58700000000002
+      source: '58700000000001'
+      sourceHandle: source
+      target: '58700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-58700000000002-58700000000003
+      source: '58700000000002'
+      sourceHandle: source
+      target: '58700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-58700000000003-58700000000004
+      source: '58700000000003'
+      sourceHandle: 'true'
+      target: '58700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-58700000000003-58700000000006
+      source: '58700000000003'
+      sourceHandle: 'false'
+      target: '58700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-58700000000004-58700000000005
+      source: '58700000000004'
+      sourceHandle: source
+      target: '58700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58700000000005-58700000000007
+      source: '58700000000005'
+      sourceHandle: source
+      target: '58700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58700000000006-58700000000007
+      source: '58700000000006'
+      sourceHandle: source
+      target: '58700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: store_info
+          variable: store_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: business_category
+          variable: business_category
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 一般飲食店
+          - 大量調理施設
+          - 食品製造
+          - 惣菜・弁当製造
+          - ベーカリー・菓子製造
+          - 給食施設
+        - label: haccp_level
+          variable: haccp_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - HACCP基準A（大規模）
+          - HACCP基準B（小規模・簡易）
+          - 現状把握・初期導入
+      height: 149
+      id: '58700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(store_info: str) -> dict:
+              issues = []
+              if len(store_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = store_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '58700000000001'
+          - store_info
+          variable: store_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '58700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '58700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '58700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 店舗の業態・規模を入力すると、HACCP準拠の衛生管理チェックリストと管理計画を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは食品衛生管理の専門家（食品衛生責任者・HACCP管理者）です。食品衛生法およびHACCPの考え方に基づいた衛生管理チェックリストと管理計画を作成してください。
+
+            ## あなたの役割
+            2021年6月完全義務化されたHACCPに沿った衛生管理の実施を支援し、食中毒リスクを最小化する管理体制を構築します。
+
+            ## 出力フォーマット
+            ### 1. 一般衛生管理プログラム（PP: Prerequisite Programs）
+            | # | 管理項目 | チェック内容 | 頻度 | 基準 | 記録方法 |
+            |---|---|---|---|---|---|
+
+            ### 2. HACCPプラン
+            #### 危害要因分析
+            | 工程 | 危害要因 | 発生可能性 | 重篤度 | CCP判定 |
+            |---|---|---|---|---|
+
+            #### 重要管理点（CCP）
+            | CCP | 管理基準（CL） | モニタリング方法 | 是正措置 | 検証方法 |
+            |---|---|---|---|---|
+
+            ### 3. 日次チェックリスト
+            開店前・営業中・閉店後のチェック項目一覧
+
+            ### 4. 週次・月次管理項目
+
+            ### 5. 従業員衛生管理
+            - 健康管理 / 手洗い手順 / 身だしなみ基準
+
+            ### 6. 異常時対応フロー
+            食中毒発生時・異物混入時の対応手順
+
+            ## ルール
+            - 食品衛生法および厚生労働省のHACCPガイドラインに準拠すること
+            - 業態・規模に応じたHACCP基準（A or B）で作成すること
+            - 食中毒菌の増殖条件（温度・時間・水分活性）を考慮すること
+            - 温度管理は具体的な数値基準（加熱75℃1分以上等）を明記すること
+            - 記録様式は厚労省のひな形に準じること
+            - アレルゲン管理（交差汚染防止）を含めること
+            - 害虫防除（IPM: Integrated Pest Management）計画を含めること
+            - 保健所の営業許可要件を考慮すること
+        - role: user
+          text: |-
+            store_info:
+            {{#58700000000001.store_info#}}
+
+            business_category: {{#58700000000001.business_category#}}
+
+            haccp_level: {{#58700000000001.haccp_level#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '58700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 衛生管理チェックリスト
+
+          **business_category**: {{ business_category }}
+          **haccp_level**: {{ haccp_level }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した衛生管理チェックリストのドラフトです。食品衛生責任者の確認と保健所の指導に基づいて最終調整してください。*
+        variables:
+        - value_selector:
+          - '58700000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '58700000000001'
+          - business_category
+          variable: business_category
+        - value_selector:
+          - '58700000000001'
+          - haccp_level
+          variable: haccp_level
+      height: 97
+      id: '58700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          衛生管理チェックリストの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '58700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '58700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '58700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '58700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '58700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

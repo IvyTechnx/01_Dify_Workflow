@@ -1,0 +1,449 @@
+kind: app
+version: 0.1.5
+app:
+  description: 需要・在庫データを入力すると、生産計画の最適化アドバイスを自動生成するワークフロー。
+  icon: 📈
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-31: 生産計画アドバイザー'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-53100000000001-53100000000002
+      source: '53100000000001'
+      sourceHandle: source
+      target: '53100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-53100000000002-53100000000003
+      source: '53100000000002'
+      sourceHandle: source
+      target: '53100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-53100000000003-53100000000004
+      source: '53100000000003'
+      sourceHandle: 'true'
+      target: '53100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-53100000000003-53100000000006
+      source: '53100000000003'
+      sourceHandle: 'false'
+      target: '53100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-53100000000004-53100000000005
+      source: '53100000000004'
+      sourceHandle: source
+      target: '53100000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53100000000005-53100000000007
+      source: '53100000000005'
+      sourceHandle: source
+      target: '53100000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53100000000006-53100000000007
+      source: '53100000000006'
+      sourceHandle: source
+      target: '53100000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: demand_inventory_data
+          variable: demand_inventory_data
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: planning_horizon
+          variable: planning_horizon
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 週次計画
+          - 月次計画
+          - 四半期計画
+          - 年間計画
+        - label: production_constraints
+          variable: production_constraints
+          required: false
+          type: paragraph
+          max_length: 10000
+          options: []
+        - label: optimization_priority
+          variable: optimization_priority
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - コスト最小化
+          - 納期遵守率最大化
+          - 在庫最小化
+          - 稼働率最大化
+          - バランス型
+      height: 149
+      id: '53100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(demand_inventory_data: str, production_constraints: str) -> dict:
+              issues = []
+              if len(demand_inventory_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = demand_inventory_data + ' ' + production_constraints
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '53100000000001'
+          - demand_inventory_data
+          variable: demand_inventory_data
+        - value_selector:
+          - '53100000000001'
+          - production_constraints
+          variable: production_constraints
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '53100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '53100000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '53100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 需要・在庫データを入力すると、生産計画の最適化アドバイスを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは生産管理・SCM（サプライチェーンマネジメント）の専門家です。MRP（資材所要量計画）やスケジューリング理論に基づいて、生産計画の最適化アドバイスを提供してください。
+
+            ## 出力フォーマット
+            ### 1. 需要分析
+            - 需要トレンドの分析
+            - 季節変動・特異要因の識別
+
+            ### 2. 在庫分析
+            | 品目 | 現在庫 | 安全在庫 | 発注点 | 推奨発注量 |
+            |---|---|---|---|---|
+
+            ### 3. 生産計画案
+            | 期間 | 品目 | 生産数量 | ライン | 開始日 | 完了日 |
+            |---|---|---|---|---|---|
+
+            ### 4. 負荷山積み・山崩し
+            - 各工程・ラインの負荷率
+            - ボトルネック工程の特定
+
+            ### 5. 資材調達計画
+            必要資材とリードタイムを考慮した発注タイミング
+
+            ### 6. リスクと対策
+            - 需要変動リスク
+            - 供給リスク
+            - 設備故障リスク
+
+            ### 7. KPI目標
+            | KPI | 現状 | 目標 | 改善施策 |
+
+            ## ルール
+            - 最適化の優先度に応じた計画を立案すること
+            - 制約条件（設備能力・人員・リードタイム）を考慮すること
+            - ABC分析による品目の優先度付けを行うこと
+            - 安全在庫はサービスレベルに基づいて算出すること
+            - データが不足する場合は仮定を明記すること
+            - TOC（制約理論）の観点でボトルネックを特定すること
+            - 実行可能性を考慮した現実的な計画にすること
+        - role: user
+          text: |-
+            demand_inventory_data:
+            {{#53100000000001.demand_inventory_data#}}
+
+            planning_horizon: {{#53100000000001.planning_horizon#}}
+
+            production_constraints:
+            {{#53100000000001.production_constraints#}}
+
+            optimization_priority: {{#53100000000001.optimization_priority#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '53100000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 生産計画アドバイス
+
+          **planning_horizon**: {{ planning_horizon }}
+          **optimization_priority**: {{ optimization_priority }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した生産計画のアドバイスです。実際の計画策定は生産管理部門の判断で行ってください。*
+        variables:
+        - value_selector:
+          - '53100000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '53100000000001'
+          - planning_horizon
+          variable: planning_horizon
+        - value_selector:
+          - '53100000000001'
+          - optimization_priority
+          variable: optimization_priority
+      height: 97
+      id: '53100000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          生産計画アドバイザーの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '53100000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '53100000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '53100000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '53100000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '53100000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

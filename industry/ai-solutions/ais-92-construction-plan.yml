@@ -1,0 +1,452 @@
+kind: app
+version: 0.1.5
+app:
+  description: 建設工事の基本情報と条件を入力すると、施工計画書のドラフトを自動生成するワークフロー。
+  icon: 🏗
+  icon_background: '#EFEBE9'
+  mode: workflow
+  name: 'AIS-92: 施工計画書ドラフト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-59200000000001-59200000000002
+      source: '59200000000001'
+      sourceHandle: source
+      target: '59200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-59200000000002-59200000000003
+      source: '59200000000002'
+      sourceHandle: source
+      target: '59200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-59200000000003-59200000000004
+      source: '59200000000003'
+      sourceHandle: 'true'
+      target: '59200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-59200000000003-59200000000006
+      source: '59200000000003'
+      sourceHandle: 'false'
+      target: '59200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-59200000000004-59200000000005
+      source: '59200000000004'
+      sourceHandle: source
+      target: '59200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59200000000005-59200000000007
+      source: '59200000000005'
+      sourceHandle: source
+      target: '59200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59200000000006-59200000000007
+      source: '59200000000006'
+      sourceHandle: source
+      target: '59200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: project_info
+          variable: project_info
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: construction_type
+          variable: construction_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 建築工事
+          - 土木工事
+          - 設備工事
+          - 解体工事
+          - 改修・リフォーム工事
+          - 外構・造園工事
+        - label: project_scale
+          variable: project_scale
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 小規模（1億円未満）
+          - 中規模（1億〜10億円）
+          - 大規模（10億円以上）
+        - label: special_conditions
+          variable: special_conditions
+          required: false
+          type: text-input
+          max_length: 512
+          options: []
+      height: 149
+      id: '59200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(project_info: str) -> dict:
+              issues = []
+              if len(project_info.strip()) < 50:
+                  issues.append("入力が短すぎます（50文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = project_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '59200000000001'
+          - project_info
+          variable: project_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '59200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '59200000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '59200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 建設工事の基本情報と条件を入力すると、施工計画書のドラフトを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは建設業における施工管理の専門家です。建設業法・労働安全衛生法・建築基準法に精通し、国土交通省の施工計画書作成ガイドラインに準拠した施工計画書ドラフトを作成してください。
+
+            ## あなたの役割
+            元請・下請の施工管理技士として、発注者・監理者に提出可能な品質の施工計画書を作成する専門家です。
+
+            ## 出力フォーマット
+            ### 1. 工事概要
+            - 工事名称 / 工事場所 / 工期 / 発注者 / 施工者
+            - 工事内容の概要 / 設計図書一覧
+
+            ### 2. 施工体制
+            - 現場組織図（テキスト形式）
+            - 主要な有資格者の配置計画
+            - 下請業者の管理体制
+
+            ### 3. 工程計画
+            - 主要工種の施工順序
+            - マイルストーン一覧
+            - クリティカルパスの特定
+
+            ### 4. 仮設計画
+            - 仮設設備の配置計画
+            - 揚重計画・搬入出計画
+
+            ### 5. 品質管理計画
+            | 管理項目 | 管理基準 | 検査方法 | 頻度 | 記録方法 |
+            |---|---|---|---|---|
+
+            ### 6. 安全衛生管理計画
+            ### 7. 環境対策計画
+            ### 8. 近隣対策
+
+            ## ルール
+            - 建設業法第26条に基づく主任技術者・監理技術者の配置を考慮すること
+            - 労働安全衛生法に基づく安全管理体制を含めること
+            - 建築基準法・都市計画法等の関連法規を遵守した計画にすること
+            - 工種ごとの品質管理基準（JASS等）を参照すること
+            - 仮設計画は仮設工業会の基準を踏まえること
+            - 環境配慮（騒音・振動・粉塵・排水等）を含めること
+            - 具体的な数値や基準値を可能な限り記載すること
+            - 推測と事実を明確に区別し、仮定は明示すること
+        - role: user
+          text: |-
+            project_info:
+            {{#59200000000001.project_info#}}
+
+            construction_type: {{#59200000000001.construction_type#}}
+
+            project_scale: {{#59200000000001.project_scale#}}
+
+            special_conditions: {{#59200000000001.special_conditions#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '59200000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 施工計画書ドラフト
+
+          **construction_type**: {{ construction_type }}
+          **project_scale**: {{ project_scale }}
+          **special_conditions**: {{ special_conditions }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した施工計画書のドラフトです。監理技術者・現場代理人の確認を経て正式文書としてください。法令・基準への適合は専門家が最終確認してください。*
+        variables:
+        - value_selector:
+          - '59200000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '59200000000001'
+          - construction_type
+          variable: construction_type
+        - value_selector:
+          - '59200000000001'
+          - project_scale
+          variable: project_scale
+        - value_selector:
+          - '59200000000001'
+          - special_conditions
+          variable: special_conditions
+      height: 97
+      id: '59200000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          施工計画書ドラフトの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '59200000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '59200000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '59200000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '59200000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '59200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

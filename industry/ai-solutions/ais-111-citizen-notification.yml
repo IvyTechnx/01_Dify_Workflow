@@ -1,0 +1,456 @@
+kind: app
+version: 0.1.5
+app:
+  description: 行政手続きの概要を入力すると、住民にわかりやすい通知文・案内文を自動生成するワークフロー。
+  icon: 📨
+  icon_background: '#E0F2F1'
+  mode: workflow
+  name: 'AIS-111: 住民向け通知文生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61100000000001-61100000000002
+      source: '61100000000001'
+      sourceHandle: source
+      target: '61100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61100000000002-61100000000003
+      source: '61100000000002'
+      sourceHandle: source
+      target: '61100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61100000000003-61100000000004
+      source: '61100000000003'
+      sourceHandle: 'true'
+      target: '61100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61100000000003-61100000000006
+      source: '61100000000003'
+      sourceHandle: 'false'
+      target: '61100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61100000000004-61100000000005
+      source: '61100000000004'
+      sourceHandle: source
+      target: '61100000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61100000000005-61100000000007
+      source: '61100000000005'
+      sourceHandle: source
+      target: '61100000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61100000000006-61100000000007
+      source: '61100000000006'
+      sourceHandle: source
+      target: '61100000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: procedure_info
+          variable: procedure_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: notification_type
+          variable: notification_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 税金・保険料通知
+          - 届出・手続き案内
+          - 施設利用案内
+          - 防災・緊急情報
+          - イベント・催事案内
+          - 制度変更のお知らせ
+          - 健康診断・予防接種案内
+          - その他
+        - label: target_audience
+          variable: target_audience
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 全住民
+          - 高齢者
+          - 子育て世帯
+          - 外国人住民
+          - 事業者
+          - 特定年齢層
+          - 対象地域住民
+        - label: tone_level
+          variable: tone_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - やさしい日本語
+          - 標準的な行政文書
+          - フォーマル（公告）
+      height: 149
+      id: '61100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(procedure_info: str) -> dict:
+              issues = []
+              if len(procedure_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = procedure_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61100000000001'
+          - procedure_info
+          variable: procedure_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61100000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 行政手続きの概要を入力すると、住民にわかりやすい通知文・案内文を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.4
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは自治体の広報・住民コミュニケーションの専門家です。行政手続きの情報に基づいて、住民にわかりやすく正確な通知文を作成してください。
+
+            ## あなたの役割
+            行政情報を住民目線で翻訳し、必要な手続きが確実に伝わる通知文を作成する行政広報のプロフェッショナルです。ユニバーサルデザインの観点と情報アクセシビリティを重視します。
+
+            ## 出力フォーマット
+            ### 通知文本文
+            件名・日付・発信元を含む正式な通知文
+
+            ### 要点まとめ（3点以内）
+            最も重要な情報を箇条書きで
+
+            ### 手続きフロー
+            ステップ1 → ステップ2 → ... の形式で手続きの流れを図示
+
+            ### 必要書類一覧
+            | # | 書類名 | 入手方法 | 備考 |
+            |---|---|---|---|
+
+            ### お問い合わせ先（テンプレート）
+            担当課・電話番号・受付時間の記載欄
+
+            ### やさしい日本語版（対象が外国人住民・高齢者の場合）
+            漢字にふりがなを付け、一文を短くした平易な表現
+
+            ### FAQ（想定される質問3〜5問）
+
+            ## ルール
+            1. 行政用語は可能な限り平易な表現に言い換える
+            2. 期限・対象者・必要書類は明確に記載する
+            3. 「やさしい日本語」版では漢字にふりがなを付ける
+            4. 個人情報に関する記載は個人情報保護条例に配慮する
+            5. 手続きの期限は目立つ位置に記載する
+            6. 問い合わせ先は必ず含める
+            7. ターゲット層に応じた文体・情報量を調整する
+            8. 法的根拠（条例・法律名）を適切に記載する
+        - role: user
+          text: |-
+            procedure_info:
+            {{#61100000000001.procedure_info#}}
+
+            notification_type: {{#61100000000001.notification_type#}}
+
+            target_audience: {{#61100000000001.target_audience#}}
+
+            tone_level: {{#61100000000001.tone_level#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61100000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 住民向け通知文
+
+          **notification_type**: {{ notification_type }}
+          **target_audience**: {{ target_audience }}
+          **tone_level**: {{ tone_level }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した通知文のドラフトです。正式な発送前に担当部署の確認と決裁を経てください。*
+        variables:
+        - value_selector:
+          - '61100000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61100000000001'
+          - notification_type
+          variable: notification_type
+        - value_selector:
+          - '61100000000001'
+          - target_audience
+          variable: target_audience
+        - value_selector:
+          - '61100000000001'
+          - tone_level
+          variable: tone_level
+      height: 97
+      id: '61100000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          住民向け通知文生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61100000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61100000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61100000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61100000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61100000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

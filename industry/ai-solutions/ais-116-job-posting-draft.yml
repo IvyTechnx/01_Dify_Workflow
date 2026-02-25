@@ -1,0 +1,461 @@
+kind: app
+version: 0.1.5
+app:
+  description: 募集要項と企業情報を入力すると、応募率を高める求人広告の原稿を自動生成するワークフロー。
+  icon: 📢
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-116: 求人原稿AI生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61600000000001-61600000000002
+      source: '61600000000001'
+      sourceHandle: source
+      target: '61600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61600000000002-61600000000003
+      source: '61600000000002'
+      sourceHandle: source
+      target: '61600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61600000000003-61600000000004
+      source: '61600000000003'
+      sourceHandle: 'true'
+      target: '61600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61600000000003-61600000000006
+      source: '61600000000003'
+      sourceHandle: 'false'
+      target: '61600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61600000000004-61600000000005
+      source: '61600000000004'
+      sourceHandle: source
+      target: '61600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61600000000005-61600000000007
+      source: '61600000000005'
+      sourceHandle: source
+      target: '61600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61600000000006-61600000000007
+      source: '61600000000006'
+      sourceHandle: source
+      target: '61600000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: job_requirements
+          variable: job_requirements
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: employment_type
+          variable: employment_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 正社員
+          - 契約社員
+          - パート・アルバイト
+          - 派遣社員
+          - 業務委託
+          - インターンシップ
+        - label: job_category
+          variable: job_category
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 営業
+          - エンジニア・IT
+          - 事務・管理
+          - 企画・マーケティング
+          - 製造・物流
+          - 医療・介護
+          - 教育
+          - クリエイティブ
+          - その他
+        - label: company_appeal
+          variable: company_appeal
+          required: false
+          type: text-input
+          max_length: 1000
+          options: []
+      height: 149
+      id: '61600000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(job_requirements: str) -> dict:
+              issues = []
+              if len(job_requirements.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = job_requirements
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61600000000001'
+          - job_requirements
+          variable: job_requirements
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61600000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61600000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61600000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 募集要項と企業情報を入力すると、応募率を高める求人広告の原稿を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.6
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは採用マーケティングを専門とするHRコピーライターです。募集要項と企業情報に基づいて、求職者の応募意欲を高める求人原稿を作成してください。
+
+            ## あなたの役割
+            求職者のインサイトを理解し、企業の魅力を最大限に伝える求人広告を作成する採用ブランディングの専門家です。各求人媒体の特性と応募率向上のノウハウに精通しています。
+
+            ## 出力フォーマット
+            ### 求人タイトル（3パターン）
+            求職者の検索キーワードを意識した職種名+魅力ポイント
+
+            ### キャッチコピー
+            求職者の心に刺さる一言（30文字以内）
+
+            ### 仕事内容
+            具体的な業務内容を箇条書きで（5〜8項目）
+
+            ### 応募資格
+            - 必須条件
+            - 歓迎条件
+
+            ### 企業の魅力・働く環境
+            求職者が知りたい情報を中心に構成
+
+            ### 募集要項（テーブル形式）
+            | 項目 | 内容 |
+            |---|---|
+            | 雇用形態 | |
+            | 給与 | |
+            | 勤務地 | |
+            | 勤務時間 | |
+            | 休日・休暇 | |
+            | 福利厚生 | |
+
+            ### 選考プロセス
+            ### SEOキーワード（求人検索向け）
+
+            ## ルール
+            1. 職業安定法・労働基準法に準拠した表現を使用する
+            2. 性別・年齢・国籍等による差別的表現は絶対に使用しない
+            3. 給与は可能な限り具体的な金額・範囲を記載する
+            4. 「アットホームな職場」等の曖昧な表現を避け、具体的なエピソードで魅力を伝える
+            5. 雇用形態に応じた法定記載事項を網羅する
+            6. 求職者が転職で重視する項目（成長機会・ワークライフバランス等）を盛り込む
+            7. 虚偽・誇大な表現は使用しない
+            8. 検索されやすいキーワードを自然に含める
+        - role: user
+          text: |-
+            job_requirements:
+            {{#61600000000001.job_requirements#}}
+
+            employment_type: {{#61600000000001.employment_type#}}
+
+            job_category: {{#61600000000001.job_category#}}
+
+            company_appeal: {{#61600000000001.company_appeal#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61600000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 求人原稿
+
+          **employment_type**: {{ employment_type }}
+          **job_category**: {{ job_category }}
+          **company_appeal**: {{ company_appeal }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した求人原稿のドラフトです。職業安定法・男女雇用機会均等法等の法令遵守を確認してからご使用ください。*
+        variables:
+        - value_selector:
+          - '61600000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61600000000001'
+          - employment_type
+          variable: employment_type
+        - value_selector:
+          - '61600000000001'
+          - job_category
+          variable: job_category
+        - value_selector:
+          - '61600000000001'
+          - company_appeal
+          variable: company_appeal
+      height: 97
+      id: '61600000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          求人原稿AI生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61600000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61600000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61600000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61600000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61600000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

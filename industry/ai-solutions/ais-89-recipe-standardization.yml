@@ -1,0 +1,450 @@
+kind: app
+version: 0.1.5
+app:
+  description: 料理のレシピ情報を入力すると、誰が作っても同じ品質を再現できる標準化レシピドキュメントを自動生成するワークフロー。
+  icon: 📖
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'AIS-89: レシピ標準化ドキュメント'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-58900000000001-58900000000002
+      source: '58900000000001'
+      sourceHandle: source
+      target: '58900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-58900000000002-58900000000003
+      source: '58900000000002'
+      sourceHandle: source
+      target: '58900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-58900000000003-58900000000004
+      source: '58900000000003'
+      sourceHandle: 'true'
+      target: '58900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-58900000000003-58900000000006
+      source: '58900000000003'
+      sourceHandle: 'false'
+      target: '58900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-58900000000004-58900000000005
+      source: '58900000000004'
+      sourceHandle: source
+      target: '58900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58900000000005-58900000000007
+      source: '58900000000005'
+      sourceHandle: source
+      target: '58900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58900000000006-58900000000007
+      source: '58900000000006'
+      sourceHandle: source
+      target: '58900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: recipe_info
+          variable: recipe_info
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: dish_name
+          variable: dish_name
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: serving_size
+          variable: serving_size
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 1人前
+          - 2人前
+          - 5人前
+          - 10人前
+          - 20人前以上（大量調理）
+        - label: skill_level
+          variable: skill_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - アルバイト対応可
+          - 調理経験者向け
+          - 専門調理師向け
+      height: 149
+      id: '58900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(recipe_info: str) -> dict:
+              issues = []
+              if len(recipe_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = recipe_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '58900000000001'
+          - recipe_info
+          variable: recipe_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '58900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '58900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '58900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 料理のレシピ情報を入力すると、誰が作っても同じ品質を再現できる標準化レシピドキュメントを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは調理技術指導・飲食店オペレーション標準化の専門家です。多店舗展開やスタッフ教育に使用できる、再現性の高い標準レシピドキュメントを作成してください。
+
+            ## あなたの役割
+            属人化しがちな調理技術をマニュアル化し、どのスタッフが作っても一定品質を保てるレシピの標準化を支援します。
+
+            ## 出力フォーマット
+            ### レシピカード
+            - 料理名 / カテゴリ / 提供人数 / 調理時間 / 難易度
+
+            ### 食材表
+            | # | 食材 | 分量（g/ml） | 下処理 | 代替食材 | 備考 |
+            |---|---|---|---|---|---|
+
+            ### 調理手順
+            | ステップ | 作業内容 | ポイント・コツ | 温度・時間 | 写真挿入箇所 |
+            |---|---|---|---|---|
+
+            ### 品質基準（盛付け・味・見た目）
+            - 完成品の基準写真説明
+            - 味の基準（塩分濃度・甘味度など数値化できるもの）
+            - 盛付け図解の指示
+
+            ### 仕込み手順
+            事前準備が必要な工程の詳細
+
+            ### 原価情報（1人前あたり）
+            概算の食材原価
+
+            ### アレルゲン情報
+            特定原材料7品目+21品目のチェック
+
+            ## ルール
+            - すべての分量はg/ml単位で数値化すること（「適量」「少々」は具体的な数値に変換）
+            - 温度と時間は必ず具体的な数値で指定すること
+            - 対象スキルレベルに合わせた詳細度で記述すること
+            - 写真撮影すべきポイントを【写真】マークで指示すること
+            - スケールアップ/ダウン時の注意点を記載すること
+            - 衛生管理上の注意事項（手洗い・温度管理等）を各工程に含めること
+            - 食品表示基準に準拠したアレルゲン情報を記載すること
+            - 失敗しやすいポイントとリカバリー方法を記載すること
+        - role: user
+          text: |-
+            recipe_info:
+            {{#58900000000001.recipe_info#}}
+
+            dish_name: {{#58900000000001.dish_name#}}
+
+            serving_size: {{#58900000000001.serving_size#}}
+
+            skill_level: {{#58900000000001.skill_level#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '58900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 標準レシピドキュメント
+
+          **dish_name**: {{ dish_name }}
+          **serving_size**: {{ serving_size }}
+          **skill_level**: {{ skill_level }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した標準レシピのドラフトです。実際の調理テストを経て料理長が最終確認・承認してください。*
+        variables:
+        - value_selector:
+          - '58900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '58900000000001'
+          - dish_name
+          variable: dish_name
+        - value_selector:
+          - '58900000000001'
+          - serving_size
+          variable: serving_size
+        - value_selector:
+          - '58900000000001'
+          - skill_level
+          variable: skill_level
+      height: 97
+      id: '58900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          レシピ標準化ドキュメントの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '58900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '58900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '58900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '58900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '58900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

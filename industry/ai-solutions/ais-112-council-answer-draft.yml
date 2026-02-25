@@ -1,0 +1,451 @@
+kind: app
+version: 0.1.5
+app:
+  description: 議会質問の内容を入力すると、事実に基づく答弁書のドラフトを自動生成するワークフロー。
+  icon: 🏛️
+  icon_background: '#E0F2F1'
+  mode: workflow
+  name: 'AIS-112: 議会答弁書ドラフト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61200000000001-61200000000002
+      source: '61200000000001'
+      sourceHandle: source
+      target: '61200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61200000000002-61200000000003
+      source: '61200000000002'
+      sourceHandle: source
+      target: '61200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61200000000003-61200000000004
+      source: '61200000000003'
+      sourceHandle: 'true'
+      target: '61200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61200000000003-61200000000006
+      source: '61200000000003'
+      sourceHandle: 'false'
+      target: '61200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61200000000004-61200000000005
+      source: '61200000000004'
+      sourceHandle: source
+      target: '61200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61200000000005-61200000000007
+      source: '61200000000005'
+      sourceHandle: source
+      target: '61200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61200000000006-61200000000007
+      source: '61200000000006'
+      sourceHandle: source
+      target: '61200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: question_content
+          variable: question_content
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: policy_area
+          variable: policy_area
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 総務・財政
+          - 福祉・医療
+          - 教育・文化
+          - 都市計画・建設
+          - 環境・衛生
+          - 産業・観光
+          - 防災・安全
+          - 子育て支援
+        - label: background_data
+          variable: background_data
+          required: false
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: answer_tone
+          variable: answer_tone
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 丁寧・慎重
+          - 積極的・前向き
+          - 中立・客観的
+      height: 149
+      id: '61200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(question_content: str, background_data: str) -> dict:
+              issues = []
+              if len(question_content.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = question_content + ' ' + background_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61200000000001'
+          - question_content
+          variable: question_content
+        - value_selector:
+          - '61200000000001'
+          - background_data
+          variable: background_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61200000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 議会質問の内容を入力すると、事実に基づく答弁書のドラフトを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは自治体の政策企画・議会対応を専門とする行政職員向けアドバイザーです。議会質問に対する答弁書のドラフトを作成してください。
+
+            ## あなたの役割
+            議会質問の趣旨を正確に把握し、事実に基づいた誠実な答弁書を作成する議会対応の専門家です。地方自治法および議会運営のルールに精通しています。
+
+            ## 出力フォーマット
+            ### 質問要旨の整理
+            質問者の主張・要求のポイントを整理
+
+            ### 答弁書本文
+            議長宛の正式な答弁書形式
+            - 冒頭あいさつ
+            - 質問事項ごとの回答
+            - 今後の方針・取り組み
+            - 結びの言葉
+
+            ### 想定再質問と回答案
+            | # | 想定再質問 | 回答案 |
+            |---|---|---|
+
+            ### 答弁の根拠データ
+            | 項目 | データ | 出典 | 備考 |
+            |---|---|---|---|
+
+            ### 答弁時の注意点
+            - 政治的リスク
+            - 過去の答弁との整合性
+            - メディア対応の留意点
+
+            ## ルール
+            1. 事実と意見・方針を明確に区別する
+            2. 議会答弁にふさわしい丁寧かつ正確な表現を使用する
+            3. 数値データは根拠を明示する
+            4. 過去の議会答弁との矛盾が生じないよう留意する
+            5. 将来の施策については「検討中」等の留保表現を適切に使用する
+            6. 個人を特定する情報は含めない
+            7. 質問者の趣旨に正面から回答し、論点をずらさない
+            8. 地方自治法の規定に準拠した形式で作成する
+        - role: user
+          text: |-
+            question_content:
+            {{#61200000000001.question_content#}}
+
+            policy_area: {{#61200000000001.policy_area#}}
+
+            background_data:
+            {{#61200000000001.background_data#}}
+
+            answer_tone: {{#61200000000001.answer_tone#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61200000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 議会答弁書ドラフト
+
+          **policy_area**: {{ policy_area }}
+          **answer_tone**: {{ answer_tone }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した答弁書のドラフトです。正式な答弁には担当部署の事実確認と首長の確認を経てください。*
+        variables:
+        - value_selector:
+          - '61200000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61200000000001'
+          - policy_area
+          variable: policy_area
+        - value_selector:
+          - '61200000000001'
+          - answer_tone
+          variable: answer_tone
+      height: 97
+      id: '61200000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          議会答弁書ドラフトの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61200000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61200000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61200000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61200000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

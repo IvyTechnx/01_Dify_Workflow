@@ -1,0 +1,458 @@
+kind: app
+version: 0.1.5
+app:
+  description: 飲食店へのクレーム内容を入力すると、適切な謝罪・対応文と再発防止策を自動生成するワークフロー。
+  icon: 💬
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'AIS-91: クレーム対応文生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-59100000000001-59100000000002
+      source: '59100000000001'
+      sourceHandle: source
+      target: '59100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-59100000000002-59100000000003
+      source: '59100000000002'
+      sourceHandle: source
+      target: '59100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-59100000000003-59100000000004
+      source: '59100000000003'
+      sourceHandle: 'true'
+      target: '59100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-59100000000003-59100000000006
+      source: '59100000000003'
+      sourceHandle: 'false'
+      target: '59100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-59100000000004-59100000000005
+      source: '59100000000004'
+      sourceHandle: source
+      target: '59100000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59100000000005-59100000000007
+      source: '59100000000005'
+      sourceHandle: source
+      target: '59100000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59100000000006-59100000000007
+      source: '59100000000006'
+      sourceHandle: source
+      target: '59100000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: complaint_details
+          variable: complaint_details
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: complaint_type
+          variable: complaint_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 異物混入
+          - 食中毒・体調不良
+          - 接客態度
+          - 待ち時間・提供遅延
+          - 味・品質
+          - 予約トラブル
+          - 会計ミス
+          - アレルギー対応
+          - その他
+        - label: response_channel
+          variable: response_channel
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 対面・口頭
+          - 電話
+          - メール
+          - SNS・口コミ返信
+          - 書面（公式文書）
+        - label: customer_info
+          variable: customer_info
+          required: false
+          type: text-input
+          max_length: 256
+          options: []
+      height: 149
+      id: '59100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(complaint_details: str) -> dict:
+              issues = []
+              if len(complaint_details.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = complaint_details
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '59100000000001'
+          - complaint_details
+          variable: complaint_details
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '59100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '59100000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '59100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 飲食店へのクレーム内容を入力すると、適切な謝罪・対応文と再発防止策を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは飲食業界のカスタマーサービス・危機管理の専門家です。クレームの内容と状況に応じた適切な対応文を作成し、顧客満足度の回復と再発防止につなげてください。
+
+            ## あなたの役割
+            クレームをお客様の声として真摯に受け止め、ピンチをチャンスに変える対応で顧客ロイヤルティの回復を目指します。
+
+            ## 出力フォーマット
+            ### 1. 初期対応文
+            チャネル別の第一声・謝罪文（即座に送信/伝達できるもの）
+
+            ### 2. 詳細対応文
+            - お詫びの言葉
+            - 事実確認の報告
+            - 原因の説明
+            - 具体的な対応措置
+            - 再発防止策
+            - お客様へのお願い（必要な場合）
+
+            ### 3. 社内報告・記録
+            | 項目 | 内容 |
+            |---|---|
+            | 発生日時 | |
+            | クレーム種別 | |
+            | 内容要約 | |
+            | 対応内容 | |
+            | 再発防止策 | |
+            | 対応完了日 | |
+
+            ### 4. 再発防止チェックリスト
+            具体的な改善アクションと実施期限
+
+            ### 5. フォローアップ計画
+            お客様へのフォローアップ時期と方法
+
+            ## ルール
+            - 対応チャネルに応じた適切なトーン・フォーマットで記述すること
+            - まず謝罪、次に事実確認、最後に再発防止の順序を守ること
+            - 食中毒・アレルギーなど健康被害の場合は保健所への報告義務に言及すること
+            - 法的責任の認否については慎重に表現し、断定的な過失認定は避けること
+            - 消費者契約法・製造物責任法（PL法）の観点を考慮すること
+            - 補償内容（返金・次回割引等）の提案は店舗方針に委ねる形で選択肢を提示すること
+            - SNS上の返信は他の顧客の目にも触れることを意識した表現にすること
+            - 感情的な表現は避け、事実ベースで誠実に対応すること
+        - role: user
+          text: |-
+            complaint_details:
+            {{#59100000000001.complaint_details#}}
+
+            complaint_type: {{#59100000000001.complaint_type#}}
+
+            response_channel: {{#59100000000001.response_channel#}}
+
+            customer_info: {{#59100000000001.customer_info#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '59100000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # クレーム対応文
+
+          **complaint_type**: {{ complaint_type }}
+          **response_channel**: {{ response_channel }}
+          **customer_info**: {{ customer_info }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したクレーム対応文のドラフトです。法的リスクのある案件は弁護士に、健康被害は保健所に相談した上で店長が最終判断してください。*
+        variables:
+        - value_selector:
+          - '59100000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '59100000000001'
+          - complaint_type
+          variable: complaint_type
+        - value_selector:
+          - '59100000000001'
+          - response_channel
+          variable: response_channel
+        - value_selector:
+          - '59100000000001'
+          - customer_info
+          variable: customer_info
+      height: 97
+      id: '59100000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          クレーム対応文生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '59100000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '59100000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '59100000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '59100000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '59100000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

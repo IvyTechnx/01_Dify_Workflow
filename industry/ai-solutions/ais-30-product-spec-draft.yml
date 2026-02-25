@@ -1,0 +1,454 @@
+kind: app
+version: 0.1.5
+app:
+  description: 製品要件を入力すると、製品仕様書のドラフトを自動生成するワークフロー。
+  icon: 📐
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-30: 製品仕様書ドラフト生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-53000000000001-53000000000002
+      source: '53000000000001'
+      sourceHandle: source
+      target: '53000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-53000000000002-53000000000003
+      source: '53000000000002'
+      sourceHandle: source
+      target: '53000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-53000000000003-53000000000004
+      source: '53000000000003'
+      sourceHandle: 'true'
+      target: '53000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-53000000000003-53000000000006
+      source: '53000000000003'
+      sourceHandle: 'false'
+      target: '53000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-53000000000004-53000000000005
+      source: '53000000000004'
+      sourceHandle: source
+      target: '53000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53000000000005-53000000000007
+      source: '53000000000005'
+      sourceHandle: source
+      target: '53000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53000000000006-53000000000007
+      source: '53000000000006'
+      sourceHandle: source
+      target: '53000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: requirements
+          variable: requirements
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: product_category
+          variable: product_category
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 機械部品
+          - 電子機器
+          - 化学製品
+          - 食品
+          - 医療機器
+          - ソフトウェア組込み製品
+        - label: target_market
+          variable: target_market
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 国内市場
+          - 北米市場
+          - 欧州市場
+          - アジア市場
+          - グローバル
+        - label: compliance_notes
+          variable: compliance_notes
+          required: false
+          type: paragraph
+          max_length: 10000
+          options: []
+      height: 149
+      id: '53000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(requirements: str, compliance_notes: str) -> dict:
+              issues = []
+              if len(requirements.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = requirements + ' ' + compliance_notes
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '53000000000001'
+          - requirements
+          variable: requirements
+        - value_selector:
+          - '53000000000001'
+          - compliance_notes
+          variable: compliance_notes
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '53000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '53000000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '53000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 製品要件を入力すると、製品仕様書のドラフトを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは製品設計・開発の専門家です。JIS規格およびISO規格に準拠した製品仕様書のドラフトを作成してください。
+
+            ## 出力フォーマット
+            ### 1. 文書管理
+            - 仕様書番号（仮番号） / 版数 / 作成日
+
+            ### 2. 製品概要
+            - 製品名 / 用途 / 対象ユーザー
+
+            ### 3. 機能仕様
+            | # | 機能要件 | 優先度 | 詳細 |
+            |---|---|---|---|
+
+            ### 4. 性能仕様
+            | 性能項目 | 規格値 | 測定方法 | 備考 |
+            |---|---|---|---|
+
+            ### 5. 外観・寸法仕様
+            - 外形寸法 / 質量 / 色 / 表面処理
+
+            ### 6. 材料仕様
+            使用材料と要求特性
+
+            ### 7. 環境・信頼性要件
+            - 使用温度範囲 / 耐湿性 / 寿命要件
+
+            ### 8. 安全・規制要件
+            - 適用法規制 / 認証要件（CE、UL、PSE等）
+            - 対象市場に応じた規制対応
+
+            ### 9. 包装・表示要件
+            ### 10. 検査基準（受入検査項目）
+
+            ## ルール
+            - 定量的な仕様値を可能な限り記載すること
+            - 対象市場の規制要件を考慮すること
+            - RoHS/REACH等の環境規制を考慮すること
+            - 製品カテゴリに応じた業界標準を参照すること
+            - 曖昧な要件は具体化の提案を添えること
+            - 不足している仕様項目を指摘すること
+            - 測定方法・試験方法を明記すること
+        - role: user
+          text: |-
+            requirements:
+            {{#53000000000001.requirements#}}
+
+            product_category: {{#53000000000001.product_category#}}
+
+            target_market: {{#53000000000001.target_market#}}
+
+            compliance_notes:
+            {{#53000000000001.compliance_notes#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '53000000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 製品仕様書ドラフト
+
+          **product_category**: {{ product_category }}
+          **target_market**: {{ target_market }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した仕様書ドラフトです。設計・品質・法規部門の確認を経てから正式文書化してください。*
+        variables:
+        - value_selector:
+          - '53000000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '53000000000001'
+          - product_category
+          variable: product_category
+        - value_selector:
+          - '53000000000001'
+          - target_market
+          variable: target_market
+      height: 97
+      id: '53000000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          製品仕様書ドラフト生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '53000000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '53000000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '53000000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '53000000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '53000000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

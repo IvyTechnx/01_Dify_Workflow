@@ -1,0 +1,444 @@
+kind: app
+version: 0.1.5
+app:
+  description: 遺言者の意向と財産情報を入力すると、法的要件を踏まえた遺言書のドラフトを作成支援するワークフロー。
+  icon: 📝
+  icon_background: '#FBE9E7'
+  mode: workflow
+  name: 'AIS-109: 遺言書ドラフト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-60900000000001-60900000000002
+      source: '60900000000001'
+      sourceHandle: source
+      target: '60900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-60900000000002-60900000000003
+      source: '60900000000002'
+      sourceHandle: source
+      target: '60900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-60900000000003-60900000000004
+      source: '60900000000003'
+      sourceHandle: 'true'
+      target: '60900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-60900000000003-60900000000006
+      source: '60900000000003'
+      sourceHandle: 'false'
+      target: '60900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-60900000000004-60900000000005
+      source: '60900000000004'
+      sourceHandle: source
+      target: '60900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-60900000000005-60900000000007
+      source: '60900000000005'
+      sourceHandle: source
+      target: '60900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-60900000000006-60900000000007
+      source: '60900000000006'
+      sourceHandle: source
+      target: '60900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: testator_info
+          variable: testator_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: will_type
+          variable: will_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 自筆証書遺言
+          - 公正証書遺言（案文）
+          - 秘密証書遺言
+        - label: asset_info
+          variable: asset_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: special_wishes
+          variable: special_wishes
+          required: false
+          type: text-input
+          max_length: 2000
+          options: []
+      height: 149
+      id: '60900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(testator_info: str, asset_info: str) -> dict:
+              issues = []
+              if len(testator_info.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = testator_info + ' ' + asset_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '60900000000001'
+          - testator_info
+          variable: testator_info
+        - value_selector:
+          - '60900000000001'
+          - asset_info
+          variable: asset_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '60900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '60900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '60900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 遺言者の意向と財産情報を入力すると、法的要件を踏まえた遺言書のドラフトを作成支援するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは相続法務を専門とする法務アドバイザーです。遺言者の意向と財産情報に基づき、民法の要件を踏まえた遺言書のドラフトを作成してください。
+
+            ## あなたの役割
+            遺言者の意思を正確に法的文書に反映し、相続紛争を予防するための遺言書ドラフトを作成する相続法務の専門家です。民法第960条以下の遺言に関する規定に精通しています。
+
+            ## 出力フォーマット
+            ### 遺言書ドラフト
+            遺言書の本文（法的様式に準拠）
+
+            ### 遺言書の構成説明
+            各条項の趣旨と法的根拠の解説
+
+            ### 法的要件チェックリスト
+            | # | 要件 | 充足状況 | 注意事項 |
+            |---|---|---|---|
+            | 1 | 遺言能力 | | |
+            | 2 | 方式要件 | | |
+            | 3 | 遺留分への配慮 | | |
+            | 4 | 相続人の特定 | | |
+            | 5 | 財産の特定 | | |
+
+            ### 遺留分シミュレーション
+            各法定相続人の遺留分と本遺言による配分の比較
+
+            ### 遺言執行に関する提案
+            遺言執行者の指定・執行手続きに関する助言
+
+            ### 確認事項・注意点
+            専門家への確認が必要な事項
+
+            ## ルール
+            1. 民法第960条〜第1027条の遺言に関する規定に準拠する
+            2. 遺言の方式要件（自筆証書遺言の場合：全文自書・日付・氏名・押印）を明示する
+            3. 遺留分侵害の可能性がある場合は明確に警告する
+            4. 財産の特定は登記簿記載事項・口座情報等で明確にする
+            5. 予備的遺言（補充遺言）の必要性を検討する
+            6. 付言事項（遺言者の思い）の記載を提案する
+            7. 税務上の影響（相続税）についても注意喚起する
+            8. 最終的な遺言書作成は弁護士・司法書士・公証人に依頼すべき旨を明記する
+        - role: user
+          text: |-
+            testator_info:
+            {{#60900000000001.testator_info#}}
+
+            will_type: {{#60900000000001.will_type#}}
+
+            asset_info:
+            {{#60900000000001.asset_info#}}
+
+            special_wishes: {{#60900000000001.special_wishes#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '60900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 遺言書ドラフト
+
+          **will_type**: {{ will_type }}
+          **special_wishes**: {{ special_wishes }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した遺言書のドラフトです。法的効力を持たせるには弁護士・司法書士・公証人にご相談のうえ正式に作成してください。*
+        variables:
+        - value_selector:
+          - '60900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '60900000000001'
+          - will_type
+          variable: will_type
+        - value_selector:
+          - '60900000000001'
+          - special_wishes
+          variable: special_wishes
+      height: 97
+      id: '60900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          遺言書ドラフトの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '60900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '60900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '60900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '60900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '60900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

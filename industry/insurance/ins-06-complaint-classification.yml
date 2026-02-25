@@ -1,0 +1,604 @@
+kind: app
+version: '0.1.5'
+app:
+  description: 顧客からの苦情テキストを「保険金支払」「契約手続」「営業対応」「商品内容」「その他」の5カテゴリに自動分類し、カテゴリ別の対応案を生成するワークフロー。
+  icon: "\U0001F4E2"
+  icon_background: '#FFEBEE'
+  mode: workflow
+  name: 'INS-06: 苦情・クレーム自動分類・対応案生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: question-classifier
+      id: e-40600000000001-40600000000002
+      source: '40600000000001'
+      sourceHandle: source
+      target: '40600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-40600000000002-40600000000003
+      source: '40600000000002'
+      sourceHandle: class_payment
+      target: '40600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-40600000000002-40600000000004
+      source: '40600000000002'
+      sourceHandle: class_procedure
+      target: '40600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-40600000000002-40600000000005
+      source: '40600000000002'
+      sourceHandle: class_sales
+      target: '40600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-40600000000002-40600000000006
+      source: '40600000000002'
+      sourceHandle: class_product
+      target: '40600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: question-classifier
+        targetType: llm
+      id: e-40600000000002-40600000000007
+      source: '40600000000002'
+      sourceHandle: class_other
+      target: '40600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40600000000003-40600000000008
+      source: '40600000000003'
+      sourceHandle: source
+      target: '40600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40600000000004-40600000000008
+      source: '40600000000004'
+      sourceHandle: source
+      target: '40600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40600000000005-40600000000008
+      source: '40600000000005'
+      sourceHandle: source
+      target: '40600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40600000000006-40600000000008
+      source: '40600000000006'
+      sourceHandle: source
+      target: '40600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40600000000007-40600000000008
+      source: '40600000000007'
+      sourceHandle: source
+      target: '40600000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-40600000000008-40600000000009
+      source: '40600000000008'
+      sourceHandle: source
+      target: '40600000000009'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '苦情テキストと顧客セグメントを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: complaint_text
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: complaint_text
+        - label: customer_segment
+          max_length: 48
+          options:
+          - '個人'
+          - '法人'
+          - '団体'
+          required: true
+          type: select
+          variable: customer_segment
+      height: 115
+      id: '40600000000001'
+      position:
+        x: 80
+        y: 400
+      positionAbsolute:
+        x: 80
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '苦情テキストを5カテゴリに分類する'
+        selected: false
+        title: 苦情分類
+        type: question-classifier
+        query_variable_selector:
+        - '40600000000001'
+        - complaint_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+            max_tokens: 256
+        classes:
+        - id: class_payment
+          name: "保険金支払に関する苦情"
+        - id: class_procedure
+          name: "契約手続に関する苦情"
+        - id: class_sales
+          name: "営業対応に関する苦情"
+        - id: class_product
+          name: "商品内容に関する苦情"
+        - id: class_other
+          name: "その他の苦情"
+        instruction: |
+          顧客の苦情内容を以下のカテゴリに分類してください：
+          - 保険金支払の遅延・支払額への不満・支払拒否 → 保険金支払に関する苦情
+          - 契約手続きの遅延・書類不備の指摘・手続き方法の不満 → 契約手続に関する苦情
+          - 営業職員の態度・説明不足・不適切な勧誘 → 営業対応に関する苦情
+          - 保障内容への不満・保険料の妥当性・商品設計への疑問 → 商品内容に関する苦情
+          - いずれにも該当しない苦情 → その他の苦情
+      height: 160
+      id: '40600000000002'
+      position:
+        x: 380
+        y: 400
+      positionAbsolute:
+        x: 380
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '保険金支払カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の顧客対応スペシャリストです。保険金支払に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 保険金支払のSLA（標準処理期間）を確認し、遅延がある場合は理由を明確にする
+            - 査定プロセス（請求受付→調査→査定→支払決定）を丁寧に説明する
+            - 支払状況の最新情報を提供する手段を案内する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: 保険金支払
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#40600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#40600000000001.complaint_text#}}
+        selected: false
+        title: 保険金支払対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40600000000003'
+      position:
+        x: 680
+        y: 100
+      positionAbsolute:
+        x: 680
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '契約手続カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の顧客対応スペシャリストです。契約手続に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 手続きの簡素化・迅速化に向けた改善策を提示する
+            - 書類要件を明確にし、不足書類を具体的に案内する
+            - オンライン手続き・郵送手続き等の代替チャネルを案内する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: 契約手続
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#40600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#40600000000001.complaint_text#}}
+        selected: false
+        title: 契約手続対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40600000000004'
+      position:
+        x: 680
+        y: 250
+      positionAbsolute:
+        x: 680
+        y: 250
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '営業対応カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の顧客対応スペシャリストです。営業対応に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 保険業法第300条（保険募集に関する禁止行為）に照らしたコンプライアンス確認を行う
+            - 事実確認プロセス（顧客ヒアリング、営業職員ヒアリング、記録確認）を提示する
+            - コンプライアンス調査の必要性を判断し、必要に応じて案内する
+            - 営業職員への再教育・研修実施を推奨する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: 営業対応
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#40600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#40600000000001.complaint_text#}}
+        selected: false
+        title: 営業対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40600000000005'
+      position:
+        x: 680
+        y: 400
+      positionAbsolute:
+        x: 680
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '商品内容カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の顧客対応スペシャリストです。商品内容に関する苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 保障内容（補償範囲・免責事項・特約）を分かりやすく説明する
+            - 顧客のニーズと現行契約の適合性を評価する
+            - 必要に応じて契約内容の見直し・プラン変更を提案する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: 商品内容
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#40600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#40600000000001.complaint_text#}}
+        selected: false
+        title: 商品内容対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40600000000006'
+      position:
+        x: 680
+        y: 550
+      positionAbsolute:
+        x: 680
+        y: 550
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'その他カテゴリの対応案を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の顧客対応スペシャリストです。その他の苦情に対応してください。
+
+            ## ルール
+            - 顧客の感情に寄り添い、共感を示す
+            - 具体的な対応策を提示する
+            - 補償が必要な場合は上長承認を案内する
+            - 個人情報は出力しない
+
+            ## カテゴリ固有の対応
+            - 苦情内容に応じた適切な担当部署を特定する
+            - 担当部署の連絡先（電話番号・受付時間等）を案内する
+
+            ## 出力フォーマット
+            ■ 苦情カテゴリ: その他
+            ■ 感情分析（怒り度: HIGH / MEDIUM / LOW）
+            ■ 問題の要約
+            ■ 推奨対応案（3項目以内）
+            ■ エスカレーション要否
+        - role: user
+          text: |
+            顧客セグメント: {{#40600000000001.customer_segment#}}
+
+            苦情テキスト:
+            {{#40600000000001.complaint_text#}}
+        selected: false
+        title: その他対応
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40600000000007'
+      position:
+        x: 680
+        y: 700
+      positionAbsolute:
+        x: 680
+        y: 700
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+          groups: []
+        desc: '5つのLLM出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '40600000000003'
+          - text
+        - - '40600000000004'
+          - text
+        - - '40600000000005'
+          - text
+        - - '40600000000006'
+          - text
+        - - '40600000000007'
+          - text
+      height: 89
+      id: '40600000000008'
+      position:
+        x: 980
+        y: 400
+      positionAbsolute:
+        x: 980
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '対応案を出力する'
+        outputs:
+        - value_selector:
+          - '40600000000008'
+          - output
+          variable: response
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40600000000009'
+      position:
+        x: 1280
+        y: 400
+      positionAbsolute:
+        x: 1280
+        y: 400
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,423 @@
+kind: app
+version: 0.1.5
+app:
+  description: 求人要件と候補者の履歴書/職務経歴書を入力すると、マッチ度評価・強み/懸念点・面接ポイントを自動生成するワークフロー。HireVue/Pymetricsに対抗。
+  icon: 📝
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'AIS-18: 履歴書スクリーニング・評価'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-51800000000001-51800000000002
+      source: '51800000000001'
+      sourceHandle: source
+      target: '51800000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-51800000000002-51800000000003
+      source: '51800000000002'
+      sourceHandle: source
+      target: '51800000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51800000000003-51800000000004
+      source: '51800000000003'
+      sourceHandle: 'true'
+      target: '51800000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-51800000000003-51800000000006
+      source: '51800000000003'
+      sourceHandle: 'false'
+      target: '51800000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-51800000000004-51800000000005
+      source: '51800000000004'
+      sourceHandle: source
+      target: '51800000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51800000000005-51800000000007
+      source: '51800000000005'
+      sourceHandle: source
+      target: '51800000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51800000000006-51800000000007
+      source: '51800000000006'
+      sourceHandle: source
+      target: '51800000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: job_requirements
+          max_length: 20000
+          options: []
+          required: true
+          type: paragraph
+          variable: job_requirements
+        - label: resume_text
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: resume_text
+        - label: evaluation_focus
+          max_length: 48
+          options:
+          - 総合評価
+          - スキルマッチ重視
+          - カルチャーフィット重視
+          - 成長ポテンシャル重視
+          required: true
+          type: select
+          variable: evaluation_focus
+      height: 149
+      id: '51800000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの長さチェックとインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(job_requirements: str, resume_text: str) -> dict:
+              issues = []
+              if len(job_requirements.strip()) < 20:
+                  issues.append("求人要件が短すぎます（20文字以上必要）")
+              if len(resume_text.strip()) < 50:
+                  issues.append("履歴書/職務経歴書が短すぎます（50文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = job_requirements + ' ' + resume_text
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '51800000000001'
+          - job_requirements
+          variable: job_requirements
+        - value_selector:
+          - '51800000000001'
+          - resume_text
+          variable: resume_text
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '51800000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51800000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '51800000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 求人要件と候補者の履歴書/職務経歴書を入力すると、マッチ度評価・強み/懸念点・面接ポイントを自動生成するワークフロー。HireVue/Pymetricsに対抗。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは採用のプロフェッショナルです。求人要件と候補者の履歴書を照合し、公正な評価を行ってください。
+
+            ## 出力フォーマット
+            ### マッチ度スコア
+            **総合**: X/100点
+            | 評価項目 | スコア | 根拠 |
+            |---|---|---|
+            | 必須スキル | X/25 | |
+            | 経験年数・実績 | X/25 | |
+            | 業界知識 | X/25 | |
+            | カルチャーフィット | X/25 | |
+
+            ### 強み（3-5個）
+            ### 懸念点（0-3個）
+            ### 面接で確認すべきポイント（3-5個）
+            ### 推奨: 合格/保留/不合格
+
+            ## ルール
+            - 年齢・性別・国籍等による差別的評価は絶対に行わない
+            - 客観的な事実に基づく評価を行う
+            - 不足情報は「確認が必要」と明記する
+            - 最終判断は人事担当者が行う旨を注記する
+        - role: user
+          text: |-
+            求人要件:
+            {{#51800000000001.job_requirements#}}
+
+            評価観点: {{#51800000000001.evaluation_focus#}}
+
+            履歴書/職務経歴書:
+            {{#51800000000001.resume_text#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51800000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 履歴書スクリーニング結果
+
+          **評価観点**: {{ evaluation_focus }}
+
+          ---
+
+          {{ screening_result }}
+
+          ---
+          > AIによる参考評価です。採用判断は必ず複数の人事担当者で行ってください。
+          > 差別的な判断基準に基づく評価は含まれていません。
+        variables:
+        - value_selector:
+          - '51800000000004'
+          - text
+          variable: screening_result
+        - value_selector:
+          - '51800000000001'
+          - evaluation_focus
+          variable: evaluation_focus
+      height: 97
+      id: '51800000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          履歴書スクリーニング・評価の生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - 求人要件は20文字以上で入力してください
+          - 履歴書/職務経歴書は50文字以上で入力してください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '51800000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '51800000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '51800000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '51800000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '51800000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

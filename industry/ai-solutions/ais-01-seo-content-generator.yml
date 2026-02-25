@@ -1,0 +1,643 @@
+app:
+  description: SEOターゲットキーワードと記事タイプを指定すると、構成案を自動生成し、各セクションをイテレーションで並列執筆、最終的に統合・推敲してSEO最適化された記事を出力するワークフロー。SAKUBUN/Transcopeに匹敵するAIライティング機能を提供する。
+  icon: "\U0001F4DD"
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: 'AIS-01: SEO記事自動生成'
+  use_icon_as_answer_icon: false
+version: '0.1.5'
+kind: app
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-50100000000001-50100000000002
+      source: '50100000000001'
+      sourceHandle: source
+      target: '50100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-50100000000002-50100000000003
+      source: '50100000000002'
+      sourceHandle: source
+      target: '50100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-50100000000003-50100000000004
+      source: '50100000000003'
+      sourceHandle: 'true'
+      target: '50100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-50100000000003-50100000000009
+      source: '50100000000003'
+      sourceHandle: 'false'
+      target: '50100000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+        isInIteration: false
+      id: e-50100000000004-50100000000005
+      source: '50100000000004'
+      sourceHandle: source
+      target: '50100000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+        isInIteration: false
+      id: e-50100000000005-50100000000006
+      source: '50100000000005'
+      sourceHandle: source
+      target: '50100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: llm
+        isInIteration: false
+      id: e-50100000000006-50100000000008
+      source: '50100000000006'
+      sourceHandle: source
+      target: '50100000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+        isInIteration: false
+      id: e-50100000000008-50100000000010
+      source: '50100000000008'
+      sourceHandle: source
+      target: '50100000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-50100000000009-50100000000010
+      source: '50100000000009'
+      sourceHandle: source
+      target: '50100000000010'
+      targetHandle: target
+      type: custom
+    nodes:
+    # ── Node 1: Start ──
+    - data:
+        desc: 'SEOキーワード・記事タイプ・目標文字数・追加指示を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: target_keyword
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: target_keyword
+        - label: article_type
+          max_length: 48
+          options:
+          - '解説記事'
+          - '比較記事'
+          - 'ハウツー記事'
+          - 'まとめ記事'
+          required: true
+          type: select
+          variable: article_type
+        - label: target_length
+          max_length: 48
+          options:
+          - '2000文字'
+          - '4000文字'
+          - '6000文字'
+          required: true
+          type: select
+          variable: target_length
+        - label: additional_instructions
+          max_length: 999999
+          options: []
+          required: false
+          type: paragraph
+          variable: additional_instructions
+      height: 149
+      id: '50100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 2: Input Validation Code ──
+    - data:
+        desc: 'キーワード長チェックとインジェクションパターン検出を行う'
+        selected: false
+        title: 入力バリデーション
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(target_keyword: str) -> dict:
+              keyword = target_keyword.strip()
+
+              # キーワード長チェック（2〜100文字）
+              if len(keyword) < 2:
+                  return {
+                      'is_valid': 'false',
+                      'error_reason': 'キーワードが短すぎます。2文字以上で入力してください。',
+                      'sanitized_keyword': ''
+                  }
+              if len(keyword) > 100:
+                  return {
+                      'is_valid': 'false',
+                      'error_reason': 'キーワードが長すぎます。100文字以内で入力してください。',
+                      'sanitized_keyword': ''
+                  }
+
+              # インジェクションパターン検出
+              injection_patterns = [
+                  r'<script',
+                  r'javascript:',
+                  r'on\w+=',
+                  r'\{\{.*\}\}',
+                  r'\{%.*%\}',
+                  r'__import__',
+                  r'eval\s*\(',
+                  r'exec\s*\(',
+                  r'system\s*\(',
+                  r'DROP\s+TABLE',
+                  r'DELETE\s+FROM',
+                  r'INSERT\s+INTO',
+                  r'UNION\s+SELECT',
+              ]
+              for pattern in injection_patterns:
+                  if re.search(pattern, keyword, re.IGNORECASE):
+                      return {
+                          'is_valid': 'false',
+                          'error_reason': '不正な入力パターンが検出されました。通常のキーワードを入力してください。',
+                          'sanitized_keyword': ''
+                      }
+
+              return {
+                  'is_valid': 'true',
+                  'error_reason': '',
+                  'sanitized_keyword': keyword
+              }
+        variables:
+        - value_selector:
+          - '50100000000001'
+          - target_keyword
+          variable: target_keyword
+        outputs:
+          is_valid:
+            type: string
+          error_reason:
+            type: string
+          sanitized_keyword:
+            type: string
+      height: 97
+      id: '50100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 3: IF-ELSE ──
+    - data:
+        conditions:
+        - id: condition_valid
+          variable_selector:
+          - '50100000000002'
+          - is_valid
+          comparison_operator: is
+          value: "true"
+        desc: 'バリデーション結果で分岐する'
+        logical_operator: and
+        selected: false
+        title: バリデーション判定
+        type: if-else
+      height: 125
+      id: '50100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 4: LLM - 構成案生成 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'SEOキーワードに基づいて記事構成案をJSON形式で生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはSEOコンテンツ戦略の専門家です。指定キーワードで検索上位を狙える記事構成案を作成してください。H2見出しを5-8個、各見出しにH3を2-3個含めた構成を作成。JSON形式で出力: {"sections": [{"h2": "見出し", "h3s": ["小見出し1", "小見出し2"], "keywords": ["関連KW"]}]}
+
+            ## ルール
+            - 検索意図を網羅する構成にする
+            - H2見出しにはターゲットキーワードまたは関連キーワードを含める
+            - 読者の疑問に順序立てて答える流れにする
+            - JSON以外の文字列を出力しないこと（説明文やマークダウン装飾は不要）
+        - role: user
+          text: |
+            ターゲットキーワード: {{#50100000000002.sanitized_keyword#}}
+            記事タイプ: {{#50100000000001.article_type#}}
+            目標文字数: {{#50100000000001.target_length#}}
+            追加指示: {{#50100000000001.additional_instructions#}}
+        selected: false
+        title: 構成案生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50100000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 5: Code - Parse構成 ──
+    - data:
+        desc: 'LLM出力のJSON構成案をパースしセクション配列を生成する'
+        selected: false
+        title: 構成パース
+        type: code
+        code_language: python3
+        code: |
+          import json
+          import re
+
+          def main(llm_output: str, target_keyword: str, article_type: str, target_length: str) -> dict:
+              # LLM出力からJSON部分を抽出
+              text = llm_output.strip()
+
+              # コードブロックで囲まれている場合を処理
+              code_block = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
+              if code_block:
+                  text = code_block.group(1).strip()
+
+              try:
+                  data = json.loads(text)
+              except json.JSONDecodeError:
+                  # JSONパース失敗時のフォールバック構成
+                  data = {
+                      "sections": [
+                          {"h2": f"{target_keyword}とは", "h3s": ["基本概念", "重要性"], "keywords": [target_keyword]},
+                          {"h2": f"{target_keyword}のポイント", "h3s": ["ポイント1", "ポイント2"], "keywords": [target_keyword]},
+                          {"h2": "まとめ", "h3s": ["要点整理"], "keywords": [target_keyword]}
+                      ]
+                  }
+
+              sections = data.get('sections', [])
+
+              # 各セクションに共通メタ情報を付与
+              enriched = []
+              for section in sections:
+                  enriched.append(json.dumps({
+                      "h2": section.get("h2", ""),
+                      "h3s": section.get("h3s", []),
+                      "keywords": section.get("keywords", []),
+                      "target_keyword": target_keyword,
+                      "article_type": article_type,
+                      "target_length": target_length
+                  }, ensure_ascii=False))
+
+              return {
+                  'sections': enriched,
+                  'section_count': len(enriched)
+              }
+        variables:
+        - value_selector:
+          - '50100000000004'
+          - text
+          variable: llm_output
+        - value_selector:
+          - '50100000000002'
+          - sanitized_keyword
+          variable: target_keyword
+        - value_selector:
+          - '50100000000001'
+          - article_type
+          variable: article_type
+        - value_selector:
+          - '50100000000001'
+          - target_length
+          variable: target_length
+        outputs:
+          sections:
+            type: array[string]
+          section_count:
+            type: number
+      height: 97
+      id: '50100000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 6: Iteration ──
+    - data:
+        type: iteration
+        title: セクション執筆イテレーション
+        desc: '各セクションを並列にLLMで執筆する'
+        iterator_selector:
+        - '50100000000005'
+        - sections
+        output_selector:
+        - '50100000000007'
+        - text
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '50100000000007'
+      id: '50100000000006'
+      type: custom
+      position:
+        x: 1580
+        y: 182
+      positionAbsolute:
+        x: 1580
+        y: 182
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    # ── Node 7: Inner LLM (inside Iteration) ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '各セクションのH2/H3見出しに対してSEO最適化コンテンツを執筆する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.7
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはSEOライターです。与えられた見出しに対してSEO最適化された日本語コンテンツを執筆してください。自然な文体で、キーワードを適切に配置し、読者に価値を提供する内容にしてください。
+
+            ## ルール
+            - H2見出しは「## 」で始め、H3見出しは「### 」で始める
+            - 各H3セクションは200〜400文字程度で執筆する
+            - ターゲットキーワードと関連キーワードを自然に含める
+            - 読者にとって有益で具体的な情報を提供する
+            - 箇条書きや表を適宜活用して読みやすくする
+            - 冗長な表現を避け、簡潔で明確な文章にする
+        - role: user
+          text: '{{#50100000000006.item#}}'
+        selected: false
+        title: セクション執筆
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50100000000007'
+      type: custom
+      position:
+        x: 1640
+        y: 240
+      positionAbsolute:
+        x: 1640
+        y: 240
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '50100000000006'
+    # ── Node 8: LLM - 統合・推敲 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '全セクションを統合し導入・結論を追加して記事全体を推敲する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはプロの編集者兼SEOスペシャリストです。複数セクションに分けて執筆された記事パーツを1本の完成記事に統合・推敲してください。
+
+            ## タスク
+            1. 魅力的な導入文（リード文）を冒頭に追加する
+            2. 各セクションの文体・トーンを統一する
+            3. セクション間の流れ・接続を自然にする
+            4. 重複する内容を整理・統合する
+            5. 記事末尾にまとめ（結論）セクションを追加する
+            6. ターゲットキーワードの出現頻度を最適化する（タイトル、H2、本文冒頭に配置）
+
+            ## SEO最適化チェック
+            - タイトル（H1）にターゲットキーワードを含める
+            - メタディスクリプション案（120文字以内）を末尾に付記する
+            - 内部リンク設置の推奨箇所をコメントで示す
+
+            ## 出力フォーマット
+            - Markdown形式で出力する
+            - H1（タイトル）→ 導入文 → H2/H3セクション群 → まとめ → メタディスクリプション案
+        - role: user
+          text: |
+            ターゲットキーワード: {{#50100000000002.sanitized_keyword#}}
+            記事タイプ: {{#50100000000001.article_type#}}
+            目標文字数: {{#50100000000001.target_length#}}
+            追加指示: {{#50100000000001.additional_instructions#}}
+
+            以下が各セクションの執筆結果です。これらを統合して完成記事にしてください:
+
+            {{#50100000000006.output#}}
+        selected: false
+        title: 統合・推敲
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50100000000008'
+      position:
+        x: 2080
+        y: 182
+      positionAbsolute:
+        x: 2080
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 9: Template Transform - Error ──
+    - data:
+        desc: 'バリデーションエラー時のメッセージを生成する'
+        selected: false
+        title: エラーメッセージ
+        type: template-transform
+        template: |
+          ## 入力エラー
+
+          SEO記事の生成を開始できませんでした。
+
+          **エラー理由**: {{ error_reason }}
+
+          ### 入力ガイド
+          - ターゲットキーワードは2〜100文字で入力してください
+          - HTMLタグやスクリプト等の特殊文字列は使用できません
+          - 一般的な検索キーワードを日本語で入力してください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '50100000000002'
+          - error_reason
+          variable: error_reason
+      height: 97
+      id: '50100000000009'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 10: End ──
+    - data:
+        desc: 'SEO記事またはエラーメッセージを出力する'
+        outputs:
+        - value_selector:
+          - '50100000000008'
+          - text
+          variable: article_content
+        - value_selector:
+          - '50100000000009'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50100000000010'
+      position:
+        x: 2380
+        y: 282
+      positionAbsolute:
+        x: 2380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

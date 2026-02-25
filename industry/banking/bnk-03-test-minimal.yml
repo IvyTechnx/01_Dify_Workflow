@@ -1,0 +1,133 @@
+kind: app
+version: '0.1.5'
+app:
+  description: 'BNK-03 最小構成テスト（Start→LLM→Answer のみ）'
+  icon: "\U0001F4DE"
+  icon_background: '#FFF3E0'
+  mode: advanced-chat
+  name: 'BNK-03-TEST: 最小チャットフロー'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: 'テスト用チャットです。何か質問してください。'
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: llm
+      id: e-start-llm
+      source: 'start001'
+      sourceHandle: source
+      target: 'llm001'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+      id: e-llm-answer
+      source: 'llm001'
+      sourceHandle: source
+      target: 'answer001'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 開始
+        type: start
+        variables: []
+      height: 89
+      id: 'start001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: ''
+        model:
+          completion_params:
+            temperature: 0.7
+            max_tokens: 1024
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: 'あなたは銀行の顧客対応担当です。お客様の質問に丁寧に回答してください。'
+        - role: user
+          text: '{{#sys.query#}}'
+        selected: false
+        title: 回答生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: 'llm001'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        selected: false
+        title: 回答
+        type: answer
+        answer: '{{#llm001.text#}}'
+      height: 89
+      id: 'answer001'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

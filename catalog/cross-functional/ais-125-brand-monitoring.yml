@@ -1,0 +1,394 @@
+kind: app
+version: 0.1.5
+app:
+  description: ブランドに関するSNSデータを分析し、言及分析・感情推移・リスク検知レポートを生成する。
+  icon: 📱
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'AIS-125: SNSブランドモニタリング'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-12500000001-12500000002
+      source: '12500000001'
+      sourceHandle: source
+      target: '12500000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-12500000002-12500000003
+      source: '12500000002'
+      sourceHandle: source
+      target: '12500000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-12500000003-12500000004
+      source: '12500000003'
+      sourceHandle: 'true'
+      target: '12500000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-12500000003-12500000006
+      source: '12500000003'
+      sourceHandle: 'false'
+      target: '12500000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-12500000004-12500000005
+      source: '12500000004'
+      sourceHandle: source
+      target: '12500000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12500000005-12500000007
+      source: '12500000005'
+      sourceHandle: source
+      target: '12500000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12500000006-12500000007
+      source: '12500000006'
+      sourceHandle: source
+      target: '12500000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: brand_name
+          variable: brand_name
+          required: true
+          type: text-input
+          options: []
+          max_length: 200
+        - label: monitoring_period
+          variable: monitoring_period
+          required: true
+          type: select
+          options:
+          - 直近1週間
+          - 直近1ヶ月
+          - 直近3ヶ月
+          max_length: 48
+        - label: sns_data
+          variable: sns_data
+          required: true
+          type: paragraph
+          options: []
+          max_length: 999999
+      height: 149
+      id: '12500000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: "import re\n\ndef main(sns_data: str) -> dict:\n    text = sns_data.strip()\n    if len(text) < 10:\n        return {'is_valid': 'false', 'error_message': '入力が短すぎます（10文字以上必要）'}\n    injection_patterns\
+          \ = [\n        r'(?i)ignore\\s+(previous|above|all)\\s+(instructions?|prompts?)',\n        r'(?i)system\\s*prompt', r'(?i)you\\s+are\\s+now',\n        r'(?i)forget\\s+(everything|all|your)',\n\
+          \        r'<script', r'javascript:', r'\\{\\{.*\\}\\}',\n    ]\n    for pattern in injection_patterns:\n        if re.search(pattern, text):\n            return {'is_valid': 'false', 'error_message':\
+          \ '不正な入力パターンが検出されました。'}\n    return {'is_valid': 'true', 'error_message': ''}"
+        variables:
+        - value_selector:
+          - '12500000001'
+          - sns_data
+          variable: sns_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '12500000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '12500000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '12500000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: ブランドに関するSNSデータを分析し、言及分析・感情推移・リスク検知レポートを生成する。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: 'あなたはソーシャルリスニングの専門家です。SNSデータを分析し、ブランドの評判・トレンド・リスクを包括的にレポートしてください。
+
+
+            ## 分析項目
+
+            1. **言及量分析**: 期間内のメンション数・推移トレンド
+
+            2. **感情分析**: ポジティブ/ネガティブ/ニュートラルの比率と推移
+
+            3. **トピック分析**: 頻出キーワード・話題のクラスタリング
+
+            4. **インフルエンサー特定**: 影響力の大きいアカウントの特定
+
+            5. **リスク検知**: 炎上の兆候・ネガティブバズの早期発見
+
+            6. **競合比較**: 業界内でのSOV（Share of Voice）推定
+
+
+            ## 出力フォーマット
+
+            ### エグゼクティブサマリー
+
+            ### 定量データ（表・グラフ推奨値）
+
+            ### リスクアラート（ある場合）
+
+            ### 推奨アクション'
+        - role: user
+          text: 'ブランド名: {{#12500000001.brand_name#}}
+
+            分析期間: {{#12500000001.monitoring_period#}}
+
+
+            SNSデータ:
+
+            {{#12500000001.sns_data#}}'
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '12500000004'
+      type: custom
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: '# ブランドモニタリングレポート
+
+
+          ---
+
+
+          {{ result }}
+
+
+          ---
+
+          *AIが生成したドラフトです。専門家の確認を行ってからご使用ください。*'
+        variables:
+        - value_selector:
+          - '12500000004'
+          - text
+          variable: result
+      height: 97
+      id: '12500000005'
+      type: custom
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: '## 入力エラー
+
+
+          処理を開始できませんでした。
+
+
+          **エラー詳細**: {{ error_message }}
+
+
+          入力内容を修正して再度お試しください。'
+        variables:
+        - value_selector:
+          - '12500000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '12500000006'
+      type: custom
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '12500000005'
+          - output
+          variable: result
+        - value_selector:
+          - '12500000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '12500000007'
+      type: custom
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

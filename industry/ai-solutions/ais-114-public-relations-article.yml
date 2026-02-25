@@ -1,0 +1,449 @@
+kind: app
+version: 0.1.5
+app:
+  description: 自治体の事業・イベント情報を入力すると、広報誌向けの記事を自動生成するワークフロー。
+  icon: 📰
+  icon_background: '#E0F2F1'
+  mode: workflow
+  name: 'AIS-114: 広報誌記事生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61400000000001-61400000000002
+      source: '61400000000001'
+      sourceHandle: source
+      target: '61400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61400000000002-61400000000003
+      source: '61400000000002'
+      sourceHandle: source
+      target: '61400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61400000000003-61400000000004
+      source: '61400000000003'
+      sourceHandle: 'true'
+      target: '61400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61400000000003-61400000000006
+      source: '61400000000003'
+      sourceHandle: 'false'
+      target: '61400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61400000000004-61400000000005
+      source: '61400000000004'
+      sourceHandle: source
+      target: '61400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61400000000005-61400000000007
+      source: '61400000000005'
+      sourceHandle: source
+      target: '61400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61400000000006-61400000000007
+      source: '61400000000006'
+      sourceHandle: source
+      target: '61400000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: event_info
+          variable: event_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: article_type
+          variable: article_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 事業紹介
+          - イベント告知
+          - 首長メッセージ
+          - 住民インタビュー
+          - 施設紹介
+          - 制度解説
+          - 特集記事
+        - label: target_page_count
+          variable: target_page_count
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 1/4ページ（200字）
+          - 1/2ページ（400字）
+          - 1ページ（800字）
+          - 見開き（1600字）
+        - label: photo_description
+          variable: photo_description
+          required: false
+          type: text-input
+          max_length: 500
+          options: []
+      height: 149
+      id: '61400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(event_info: str) -> dict:
+              issues = []
+              if len(event_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = event_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61400000000001'
+          - event_info
+          variable: event_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61400000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 自治体の事業・イベント情報を入力すると、広報誌向けの記事を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは自治体広報誌の編集を専門とする広報ライターです。事業・イベント情報に基づいて、住民に親しみやすく読みやすい広報誌記事を作成してください。
+
+            ## あなたの役割
+            行政情報を住民にわかりやすく伝え、自治体への信頼感と住民参加を促進する広報誌記事を作成する自治体広報の専門家です。
+
+            ## 出力フォーマット
+            ### 記事タイトル
+            読者の目を引くキャッチーなタイトル（20文字以内）
+
+            ### サブタイトル
+            記事の内容を補足する副題
+
+            ### リード文（50〜100文字）
+            記事の要点を簡潔にまとめた導入文
+
+            ### 本文
+            指定文字数に合わせた記事本文
+
+            ### サイドバー情報
+            - 日時・場所・費用等の基本情報
+            - お問い合わせ先
+            - QRコード用URL案
+
+            ### 写真キャプション案（3つ）
+            ### レイアウト提案
+            記事配置のイメージ説明
+
+            ## ルール
+            1. 指定された文字数を遵守する
+            2. 行政用語は平易な表現に置き換える
+            3. 5W1H（いつ・どこで・誰が・何を・なぜ・どのように）を明確にする
+            4. 高齢者にも読みやすいよう、一文を短くする（50文字以内推奨）
+            5. 特定の政党・政治的立場に偏らない中立的な表現を使用する
+            6. 住民参加を促す「呼びかけ」の表現を含める
+            7. 個人情報の取り扱いに注意する
+            8. 写真・図表の配置を想定した構成にする
+        - role: user
+          text: |-
+            event_info:
+            {{#61400000000001.event_info#}}
+
+            article_type: {{#61400000000001.article_type#}}
+
+            target_page_count: {{#61400000000001.target_page_count#}}
+
+            photo_description: {{#61400000000001.photo_description#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61400000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 広報誌記事
+
+          **article_type**: {{ article_type }}
+          **target_page_count**: {{ target_page_count }}
+          **photo_description**: {{ photo_description }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した広報誌記事のドラフトです。事実確認と広報担当課の校正を経てからご使用ください。*
+        variables:
+        - value_selector:
+          - '61400000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61400000000001'
+          - article_type
+          variable: article_type
+        - value_selector:
+          - '61400000000001'
+          - target_page_count
+          variable: target_page_count
+        - value_selector:
+          - '61400000000001'
+          - photo_description
+          variable: photo_description
+      height: 97
+      id: '61400000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          広報誌記事生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61400000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61400000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61400000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61400000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

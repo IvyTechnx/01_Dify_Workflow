@@ -1,0 +1,452 @@
+kind: app
+version: 0.1.5
+app:
+  description: 新入社員の情報と部署情報を入力すると、段階的なオンボーディング計画を自動生成するワークフロー。
+  icon: 🤝
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-117: オンボーディング計画'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61700000000001-61700000000002
+      source: '61700000000001'
+      sourceHandle: source
+      target: '61700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61700000000002-61700000000003
+      source: '61700000000002'
+      sourceHandle: source
+      target: '61700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61700000000003-61700000000004
+      source: '61700000000003'
+      sourceHandle: 'true'
+      target: '61700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61700000000003-61700000000006
+      source: '61700000000003'
+      sourceHandle: 'false'
+      target: '61700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61700000000004-61700000000005
+      source: '61700000000004'
+      sourceHandle: source
+      target: '61700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61700000000005-61700000000007
+      source: '61700000000005'
+      sourceHandle: source
+      target: '61700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61700000000006-61700000000007
+      source: '61700000000006'
+      sourceHandle: source
+      target: '61700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: employee_info
+          variable: employee_info
+          required: true
+          type: paragraph
+          max_length: 10000
+          options: []
+        - label: department_info
+          variable: department_info
+          required: true
+          type: paragraph
+          max_length: 10000
+          options: []
+        - label: onboarding_period
+          variable: onboarding_period
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 1週間（短期集中）
+          - 1ヶ月
+          - 3ヶ月（標準）
+          - 6ヶ月（じっくり）
+        - label: employee_type
+          variable: employee_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 新卒入社
+          - 中途入社（同業界）
+          - 中途入社（異業界）
+          - 管理職採用
+          - パート・アルバイト
+      height: 149
+      id: '61700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(employee_info: str, department_info: str) -> dict:
+              issues = []
+              if len(employee_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = employee_info + ' ' + department_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61700000000001'
+          - employee_info
+          variable: employee_info
+        - value_selector:
+          - '61700000000001'
+          - department_info
+          variable: department_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 新入社員の情報と部署情報を入力すると、段階的なオンボーディング計画を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.4
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは組織開発・人材育成を専門とするHRコンサルタントです。新入社員と部署の情報に基づいて、早期戦力化と定着率向上を実現するオンボーディング計画を作成してください。
+
+            ## あなたの役割
+            社員の早期戦力化（Time to Productivity）と定着率向上を両立するオンボーディングプログラムを設計する人材開発の専門家です。4C（Compliance・Clarification・Culture・Connection）フレームワークに基づく体系的な計画を提供します。
+
+            ## 出力フォーマット
+            ### オンボーディング計画概要
+            | 項目 | 内容 |
+            |---|---|
+            | 対象者 | |
+            | 期間 | |
+            | ゴール | |
+            | メンター/バディ候補 | |
+
+            ### 週次スケジュール
+            | 週 | テーマ | 主な活動 | 到達目標 | 担当者 |
+            |---|---|---|---|---|
+
+            ### 初日〜初週の詳細プログラム
+            時間単位の詳細なスケジュール
+
+            ### 必要な準備物チェックリスト
+            | # | 準備物 | 担当 | 期限 | 状態 |
+            |---|---|---|---|---|
+
+            ### マイルストーン評価
+            | 時期 | 評価項目 | 達成基準 | 評価方法 |
+            |---|---|---|---|
+
+            ### 1on1ミーティング計画
+            ### フォローアップ施策
+
+            ## ルール
+            1. 4Cフレームワークを網羅する（Compliance/Clarification/Culture/Connection）
+            2. 情報過負荷を避け、段階的な学習設計にする
+            3. 社員タイプ（新卒/中途/管理職等）に応じた計画にする
+            4. メンター制度・バディ制度の活用を組み込む
+            5. 定量的なマイルストーンを設定する
+            6. 心理的安全性の確保を重視する
+            7. リモートワーク環境も考慮した計画にする
+            8. 労働基準法に基づく研修時間の管理に留意する
+        - role: user
+          text: |-
+            employee_info:
+            {{#61700000000001.employee_info#}}
+
+            department_info:
+            {{#61700000000001.department_info#}}
+
+            onboarding_period: {{#61700000000001.onboarding_period#}}
+
+            employee_type: {{#61700000000001.employee_type#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # オンボーディング計画
+
+          **onboarding_period**: {{ onboarding_period }}
+          **employee_type**: {{ employee_type }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したオンボーディング計画のドラフトです。実際の運用は人事部門・受入部署と調整のうえ実施してください。*
+        variables:
+        - value_selector:
+          - '61700000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61700000000001'
+          - onboarding_period
+          variable: onboarding_period
+        - value_selector:
+          - '61700000000001'
+          - employee_type
+          variable: employee_type
+      height: 97
+      id: '61700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          オンボーディング計画の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

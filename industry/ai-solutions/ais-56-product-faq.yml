@@ -1,0 +1,426 @@
+kind: app
+version: 0.1.5
+app:
+  description: 商品情報・過去の問い合わせ履歴を入力すると、商品FAQを自動生成するワークフロー。
+  icon: ❓
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-56: 商品FAQ自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-55600000000001-55600000000002
+      source: '55600000000001'
+      sourceHandle: source
+      target: '55600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-55600000000002-55600000000003
+      source: '55600000000002'
+      sourceHandle: source
+      target: '55600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-55600000000003-55600000000004
+      source: '55600000000003'
+      sourceHandle: 'true'
+      target: '55600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-55600000000003-55600000000006
+      source: '55600000000003'
+      sourceHandle: 'false'
+      target: '55600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-55600000000004-55600000000005
+      source: '55600000000004'
+      sourceHandle: source
+      target: '55600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55600000000005-55600000000007
+      source: '55600000000005'
+      sourceHandle: source
+      target: '55600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55600000000006-55600000000007
+      source: '55600000000006'
+      sourceHandle: source
+      target: '55600000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_info
+          variable: product_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: inquiry_history
+          variable: inquiry_history
+          required: false
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: faq_count
+          variable: faq_count
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 10問
+          - 15問
+          - 20問
+          - 30問
+      height: 149
+      id: '55600000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(product_info: str, inquiry_history: str) -> dict:
+              issues = []
+              if len(product_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = product_info + ' ' + inquiry_history
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '55600000000001'
+          - product_info
+          variable: product_info
+        - value_selector:
+          - '55600000000001'
+          - inquiry_history
+          variable: inquiry_history
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '55600000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '55600000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '55600000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 商品情報・過去の問い合わせ履歴を入力すると、商品FAQを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.4
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはECサイトのカスタマーサポート改善の専門家です。商品情報と問い合わせ履歴に基づいて、顧客の疑問を先回りして解消するFAQを作成してください。
+
+            ## あなたの役割
+            問い合わせ削減率の向上とカスタマー満足度の向上を両立するFAQコンテンツを設計するCS改善の専門家です。
+
+            ## 出力フォーマット
+            ### FAQ一覧
+            カテゴリ別に整理して出力
+
+            #### カテゴリ名（例: 商品仕様について）
+            **Q1. （質問文）**
+            A1. （回答文：200文字以内で簡潔に）
+
+            ### カテゴリ構成例
+            - 商品仕様・機能
+            - 配送・納期
+            - 返品・交換
+            - 使い方・お手入れ
+            - 保証・アフターサービス
+            - 支払い方法
+
+            ### FAQ改善の推奨事項
+            - 追加すべきFAQの提案
+            - 既存FAQの改善ポイント
+
+            ## ルール
+            1. 質問文は顧客の視点・言葉遣いで書く
+            2. 回答は簡潔かつ具体的にする（200文字以内推奨）
+            3. 問い合わせ履歴がある場合は頻出質問を優先する
+            4. 商品情報に記載されていない事項は回答に含めない
+            5. 「お問い合わせください」で逃げず、可能な限り具体的に回答する
+            6. SEOを意識した自然な質問文にする
+            7. 法的に正確な回答が必要な項目（返品条件等）は注意書きを付ける
+        - role: user
+          text: |-
+            product_info:
+            {{#55600000000001.product_info#}}
+
+            inquiry_history:
+            {{#55600000000001.inquiry_history#}}
+
+            faq_count: {{#55600000000001.faq_count#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '55600000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 商品FAQ生成結果
+
+          **faq_count**: {{ faq_count }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したFAQです。法的に正確な回答が必要な項目（返品・保証等）は法務部門の確認を経てからご使用ください。*
+        variables:
+        - value_selector:
+          - '55600000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '55600000000001'
+          - faq_count
+          variable: faq_count
+      height: 97
+      id: '55600000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          商品FAQ自動生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '55600000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '55600000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '55600000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '55600000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '55600000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

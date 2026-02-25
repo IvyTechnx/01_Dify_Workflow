@@ -1,0 +1,451 @@
+kind: app
+version: 0.1.5
+app:
+  description: 設備の保全記録を入力すると、予防保全計画とメンテナンススケジュールを自動生成するワークフロー。
+  icon: 🔧
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-28: 設備保全計画レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-52800000000001-52800000000002
+      source: '52800000000001'
+      sourceHandle: source
+      target: '52800000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-52800000000002-52800000000003
+      source: '52800000000002'
+      sourceHandle: source
+      target: '52800000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-52800000000003-52800000000004
+      source: '52800000000003'
+      sourceHandle: 'true'
+      target: '52800000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-52800000000003-52800000000006
+      source: '52800000000003'
+      sourceHandle: 'false'
+      target: '52800000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-52800000000004-52800000000005
+      source: '52800000000004'
+      sourceHandle: source
+      target: '52800000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52800000000005-52800000000007
+      source: '52800000000005'
+      sourceHandle: source
+      target: '52800000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52800000000006-52800000000007
+      source: '52800000000006'
+      sourceHandle: source
+      target: '52800000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: maintenance_records
+          variable: maintenance_records
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: equipment_name
+          variable: equipment_name
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: equipment_type
+          variable: equipment_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 生産設備
+          - 搬送設備
+          - 検査設備
+          - ユーティリティ設備
+          - 情報システム
+        - label: maintenance_strategy
+          variable: maintenance_strategy
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 予防保全（TBM）
+          - 状態監視保全（CBM）
+          - 予知保全
+          - 事後保全改善
+      height: 149
+      id: '52800000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(maintenance_records: str) -> dict:
+              issues = []
+              if len(maintenance_records.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = maintenance_records
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '52800000000001'
+          - maintenance_records
+          variable: maintenance_records
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '52800000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '52800000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '52800000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 設備の保全記録を入力すると、予防保全計画とメンテナンススケジュールを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはTPM（Total Productive Maintenance）と設備保全管理の専門家です。JIS Z 8141に基づく設備保全計画を作成してください。
+
+            ## 出力フォーマット
+            ### 1. 設備概要
+            - 設備名 / 型式 / 設置年 / 稼働時間
+
+            ### 2. 保全実績分析
+            | 故障モード | 発生頻度 | 影響度 | 検知度 | RPN | 対策 |
+            |---|---|---|---|---|---|
+            （FMEA形式での故障解析）
+
+            ### 3. 設備状態評価
+            - 現在の設備健全性スコア（A/B/C/D評価）
+            - 劣化傾向の分析
+            - 寿命予測
+
+            ### 4. 保全計画
+            | 保全項目 | 周期 | 担当 | 所要時間 | 必要部品 | 次回実施予定 |
+            |---|---|---|---|---|---|
+
+            ### 5. 年間メンテナンススケジュール
+            月別の保全作業カレンダー
+
+            ### 6. 予備品管理
+            必要な予備品リストと推奨在庫数
+
+            ### 7. コスト見積
+            年間保全コストの概算
+
+            ### 8. 改善提案
+            設備総合効率（OEE）向上のための提案
+
+            ## ルール
+            - MTBF（平均故障間隔）とMTTR（平均修復時間）を算出すること
+            - 保全戦略に応じた計画を立案すること
+            - 安全に関わる保全項目は最優先とすること
+            - コストと信頼性のバランスを考慮すること
+            - 保全記録のデータが不足する場合は一般的な推奨値を参照し明記すること
+            - 設備の重要度分類（A/B/C）を考慮すること
+            - 法定点検項目がある場合は必ず含めること
+        - role: user
+          text: |-
+            maintenance_records:
+            {{#52800000000001.maintenance_records#}}
+
+            equipment_name: {{#52800000000001.equipment_name#}}
+
+            equipment_type: {{#52800000000001.equipment_type#}}
+
+            maintenance_strategy: {{#52800000000001.maintenance_strategy#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '52800000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 設備保全計画レポート
+
+          **equipment_name**: {{ equipment_name }}
+          **equipment_type**: {{ equipment_type }}
+          **maintenance_strategy**: {{ maintenance_strategy }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した保全計画のドラフトです。設備管理責任者の確認・承認を経てから運用してください。*
+        variables:
+        - value_selector:
+          - '52800000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '52800000000001'
+          - equipment_name
+          variable: equipment_name
+        - value_selector:
+          - '52800000000001'
+          - equipment_type
+          variable: equipment_type
+        - value_selector:
+          - '52800000000001'
+          - maintenance_strategy
+          variable: maintenance_strategy
+      height: 97
+      id: '52800000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          設備保全計画レポートの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '52800000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '52800000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '52800000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '52800000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '52800000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

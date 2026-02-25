@@ -1,0 +1,512 @@
+kind: app
+version: '0.1.5'
+app:
+  description: AUTOHUNT/SmartHRのAI採用支援機能に対抗する求人票自動生成ワークフロー。ポジション情報を入力すると、求人媒体に最適化されたJD（Job Description）を自動生成する。
+  icon: "\U0001F465"
+  icon_background: '#FFF9C4'
+  mode: workflow
+  name: 'AIS-10: AI求人票・JD自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    # Start → Code（入力検証）
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-51000000000001-51000000000002
+      source: '51000000000001'
+      sourceHandle: source
+      target: '51000000000002'
+      targetHandle: target
+      type: custom
+    # Code → IF-ELSE
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-51000000000002-51000000000003
+      source: '51000000000002'
+      sourceHandle: source
+      target: '51000000000003'
+      targetHandle: target
+      type: custom
+    # IF-ELSE true → LLM（JD生成）
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-51000000000003-51000000000004
+      source: '51000000000003'
+      sourceHandle: 'true'
+      target: '51000000000004'
+      targetHandle: target
+      type: custom
+    # IF-ELSE false → TT（エラー応答）
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-51000000000003-51000000000007
+      source: '51000000000003'
+      sourceHandle: 'false'
+      target: '51000000000007'
+      targetHandle: target
+      type: custom
+    # LLM（JD生成） → LLM（媒体最適化）
+    - data:
+        sourceType: llm
+        targetType: llm
+      id: e-51000000000004-51000000000005
+      source: '51000000000004'
+      sourceHandle: source
+      target: '51000000000005'
+      targetHandle: target
+      type: custom
+    # LLM（媒体最適化） → TT（出力整形）
+    - data:
+        sourceType: llm
+        targetType: template-transform
+      id: e-51000000000005-51000000000006
+      source: '51000000000005'
+      sourceHandle: source
+      target: '51000000000006'
+      targetHandle: target
+      type: custom
+    # TT（出力整形） → End
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-51000000000006-51000000000008
+      source: '51000000000006'
+      sourceHandle: source
+      target: '51000000000008'
+      targetHandle: target
+      type: custom
+    # TT（エラー応答） → End
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-51000000000007-51000000000008
+      source: '51000000000007'
+      sourceHandle: source
+      target: '51000000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    # ── Node 1: Start ──
+    - data:
+        desc: '募集ポジション情報・雇用形態・経験レベル・対象媒体を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: position_info
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: position_info
+        - label: employment_type
+          max_length: 48
+          options:
+          - '正社員'
+          - '契約社員'
+          - '業務委託'
+          - 'パート・アルバイト'
+          - 'インターン'
+          required: true
+          type: select
+          variable: employment_type
+        - label: experience_level
+          max_length: 48
+          options:
+          - '新卒・未経験'
+          - 'ジュニア（1-3年）'
+          - 'ミドル（3-7年）'
+          - 'シニア（7年以上）'
+          - 'マネージャー'
+          - 'エグゼクティブ'
+          required: true
+          type: select
+          variable: experience_level
+        - label: target_platform
+          max_length: 48
+          options:
+          - '自社採用ページ'
+          - 'リクナビ/マイナビ'
+          - 'Wantedly'
+          - 'LinkedIn'
+          - 'Indeed'
+          required: true
+          type: select
+          variable: target_platform
+      height: 149
+      id: '51000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 2: Code - 入力検証 ──
+    - data:
+        desc: 'ポジション情報の文字数チェックとインジェクションパターン検出を行う'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(position_info: str) -> dict:
+              issues = []
+
+              if len(position_info.strip()) < 20:
+                  issues.append("ポジション情報が短すぎます（20文字以上必要）")
+              if len(position_info) > 30000:
+                  issues.append("ポジション情報が長すぎます（30,000文字以下にしてください）")
+
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+              ]
+              for pattern in injection_patterns:
+                  if re.search(pattern, position_info):
+                      issues.append("不正な入力パターンが検出されました")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              detail = "入力OK" if is_valid == "true" else "\n".join(issues)
+
+              return {
+                  'is_valid': is_valid,
+                  'detail': detail
+              }
+        variables:
+        - value_selector:
+          - '51000000000001'
+          - position_info
+          variable: position_info
+        outputs:
+          is_valid:
+            type: string
+          detail:
+            type: string
+      height: 97
+      id: '51000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 3: IF-ELSE ──
+    - data:
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51000000000002'
+            - is_valid
+            comparison_operator: is
+            value: "true"
+        desc: '入力検証結果で分岐する'
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+      height: 125
+      id: '51000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 4: LLM - JD生成 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'ポジション情報・雇用形態・経験レベルに基づいて標準JDを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは採用マーケティングの専門家です。与えられたポジション情報に基づいて、魅力的なJob Description（JD）を作成してください。
+
+            ## JD構成
+            1. **ポジションタイトル**: 検索されやすい職種名
+            2. **募集背景**: なぜこのポジションを募集しているか
+            3. **仕事内容**: 具体的な業務内容（5-8項目）
+            4. **必須スキル・経験**: MUST条件（3-5項目）
+            5. **歓迎スキル・経験**: WANT条件（3-5項目）
+            6. **求める人物像**: ソフトスキル・カルチャーフィット
+            7. **働く環境・チーム**: チーム構成・開発環境
+            8. **待遇・福利厚生**: 給与レンジ・福利厚生
+            9. **選考プロセス**: ステップと所要時間
+
+            ## ルール
+            - 経験レベルに応じた適切な要件設定にする
+            - 雇用形態に応じた待遇記載にする
+            - ジェンダーニュートラルな表現を使用する
+            - 差別的な表現は一切使用しない
+            - 具体的で測定可能な要件を記載する
+        - role: user
+          text: |
+            雇用形態: {{#51000000000001.employment_type#}}
+            経験レベル: {{#51000000000001.experience_level#}}
+
+            ポジション情報:
+            {{#51000000000001.position_info#}}
+        selected: false
+        title: JD生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51000000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 5: LLM - 媒体最適化 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '生成したJDを指定求人媒体に最適化する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは求人媒体に精通した採用マーケターです。JDを指定された求人媒体に最適化してください。
+
+            媒体別の最適化ポイント：
+            - 自社採用ページ: SEO最適化、自社カルチャーの詳細記載、写真・動画の配置提案
+            - リクナビ/マイナビ: 文字数制限対応、見やすい箇条書き、給与・勤務地の明記
+            - Wantedly: ストーリー性重視、ミッション・ビジョン・バリューの前面化、カジュアル面談誘導
+            - LinkedIn: 英語キーワード最適化、グローバル水準のJD構成、スキルタグ提案
+            - Indeed: 検索キーワード最適化、シンプルな構成、給与情報の明記
+
+            元のJDの内容を維持しながら、指定媒体に最適化したバージョンを作成してください。
+        - role: user
+          text: "対象媒体: {{#51000000000001.target_platform#}}\n\n元JD:\n{{#51000000000004.text#}}"
+        selected: false
+        title: 媒体最適化
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51000000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 6: TT - 出力整形 ──
+    - data:
+        desc: '標準JDと媒体最適化版を統合して最終出力を整形する'
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |
+          # 求人票・JD自動生成結果
+
+          **雇用形態**: {{ employment_type }}
+          **経験レベル**: {{ experience_level }}
+          **対象媒体**: {{ target_platform }}
+
+          ---
+
+          ## 標準JD
+
+          {{ base_jd }}
+
+          ---
+
+          ## {{ target_platform }}最適化版
+
+          {{ optimized_jd }}
+
+          ---
+          *AIが生成した求人票です。法令遵守・社内規定との整合性を確認してからご使用ください。*
+        variables:
+        - value_selector:
+          - '51000000000001'
+          - employment_type
+          variable: employment_type
+        - value_selector:
+          - '51000000000001'
+          - experience_level
+          variable: experience_level
+        - value_selector:
+          - '51000000000001'
+          - target_platform
+          variable: target_platform
+        - value_selector:
+          - '51000000000004'
+          - text
+          variable: base_jd
+        - value_selector:
+          - '51000000000005'
+          - text
+          variable: optimized_jd
+      height: 97
+      id: '51000000000006'
+      position:
+        x: 1580
+        y: 182
+      positionAbsolute:
+        x: 1580
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 7: TT - エラー応答 ──
+    - data:
+        desc: '入力検証エラー時のエラーメッセージを整形する'
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |
+          ## エラー: 入力検証に失敗しました
+
+          以下の問題が検出されました：
+
+          {{ detail }}
+
+          ---
+          入力内容を修正して再実行してください。
+        variables:
+        - value_selector:
+          - '51000000000002'
+          - detail
+          variable: detail
+      height: 97
+      id: '51000000000007'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 8: End ──
+    - data:
+        desc: '求人票またはエラーメッセージを出力する'
+        outputs:
+        - value_selector:
+          - '51000000000006'
+          - output
+          variable: jd_result
+        - value_selector:
+          - '51000000000007'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '51000000000008'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

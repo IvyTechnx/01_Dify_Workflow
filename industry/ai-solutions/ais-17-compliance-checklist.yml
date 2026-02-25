@@ -1,0 +1,407 @@
+kind: app
+version: 0.1.5
+app:
+  description: 業界・規制情報を入力すると、対応すべきコンプライアンス項目チェックリストを自動生成するワークフロー。
+  icon: ✅
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'AIS-17: コンプライアンスチェックリスト生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-51700000000001-51700000000002
+      source: '51700000000001'
+      sourceHandle: source
+      target: '51700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-51700000000002-51700000000003
+      source: '51700000000002'
+      sourceHandle: source
+      target: '51700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51700000000003-51700000000004
+      source: '51700000000003'
+      sourceHandle: 'true'
+      target: '51700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-51700000000003-51700000000006
+      source: '51700000000003'
+      sourceHandle: 'false'
+      target: '51700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-51700000000004-51700000000005
+      source: '51700000000004'
+      sourceHandle: source
+      target: '51700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51700000000005-51700000000007
+      source: '51700000000005'
+      sourceHandle: source
+      target: '51700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51700000000006-51700000000007
+      source: '51700000000006'
+      sourceHandle: source
+      target: '51700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: business_description
+          max_length: 20000
+          options: []
+          required: true
+          type: paragraph
+          variable: business_description
+        - label: regulation_area
+          max_length: 48
+          options:
+          - 個人情報保護
+          - 景品表示法
+          - 特定商取引法
+          - 労働法
+          - 金融商品取引法
+          - 薬機法
+          - 下請法
+          - 総合チェック
+          required: true
+          type: select
+          variable: regulation_area
+      height: 149
+      id: '51700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの長さチェックとインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(business_description: str) -> dict:
+              issues = []
+              if len(business_description.strip()) < 20:
+                  issues.append("事業内容が短すぎます（20文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = business_description
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '51700000000001'
+          - business_description
+          variable: business_description
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '51700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '51700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 業界・規制情報を入力すると、対応すべきコンプライアンス項目チェックリストを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは日本の企業コンプライアンスの専門家です。事業内容と対象規制に基づいて、包括的なコンプライアンスチェックリストを作成してください。
+
+            ## 出力フォーマット
+            ### チェックリスト
+            | # | チェック項目 | 対象法令 | 重要度 | 対応状況 | 備考 |
+            |---|---|---|---|---|---|
+            | 1 | （具体的なチェック項目） | （法令名） | 高/中/低 | □未確認 | （補足） |
+
+            ### 対応推奨事項
+            優先度の高い項目から順に、具体的な対応手順を記載
+
+            ### 参考法令・ガイドライン
+            関連する法令とガイドラインの一覧
+
+            ## ルール
+            - 最新の法改正を考慮する
+            - 具体的で実行可能なチェック項目にする
+            - 法的助言ではなくチェックリストの提供である旨を明記
+            - 業界固有の規制要件を含める
+        - role: user
+          text: |-
+            事業内容:
+            {{#51700000000001.business_description#}}
+
+            規制分野: {{#51700000000001.regulation_area#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # コンプライアンスチェックリスト
+
+          **規制分野**: {{ regulation_area }}
+
+          ---
+
+          {{ checklist }}
+
+          ---
+          > 本チェックリストはAI生成の参考資料です。正式なコンプライアンス対応は法務部・顧問弁護士にご相談ください。
+        variables:
+        - value_selector:
+          - '51700000000004'
+          - text
+          variable: checklist
+        - value_selector:
+          - '51700000000001'
+          - regulation_area
+          variable: regulation_area
+      height: 97
+      id: '51700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          コンプライアンスチェックリスト生成の生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - 事業内容は20文字以上で入力してください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '51700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '51700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '51700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '51700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '51700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

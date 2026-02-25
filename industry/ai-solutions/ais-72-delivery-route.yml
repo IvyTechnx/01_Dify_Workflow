@@ -1,0 +1,441 @@
+kind: app
+version: 0.1.5
+app:
+  description: 配送先・条件を入力すると、最適な配送ルートの提案を自動生成するワークフロー。
+  icon: 🚚
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: 'AIS-72: 配送ルート最適化提案'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-57200000000001-57200000000002
+      source: '57200000000001'
+      sourceHandle: source
+      target: '57200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-57200000000002-57200000000003
+      source: '57200000000002'
+      sourceHandle: source
+      target: '57200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-57200000000003-57200000000004
+      source: '57200000000003'
+      sourceHandle: 'true'
+      target: '57200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-57200000000003-57200000000006
+      source: '57200000000003'
+      sourceHandle: 'false'
+      target: '57200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-57200000000004-57200000000005
+      source: '57200000000004'
+      sourceHandle: source
+      target: '57200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57200000000005-57200000000007
+      source: '57200000000005'
+      sourceHandle: source
+      target: '57200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57200000000006-57200000000007
+      source: '57200000000006'
+      sourceHandle: source
+      target: '57200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: delivery_destinations
+          variable: delivery_destinations
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: vehicle_info
+          variable: vehicle_info
+          required: false
+          type: paragraph
+          max_length: 5000
+          options: []
+        - label: constraint_type
+          variable: constraint_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 時間優先
+          - コスト優先
+          - 距離最短
+          - 時間指定あり
+          - バランス型
+      height: 149
+      id: '57200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(delivery_destinations: str, vehicle_info: str) -> dict:
+              issues = []
+              if len(delivery_destinations.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = delivery_destinations + ' ' + vehicle_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '57200000000001'
+          - delivery_destinations
+          variable: delivery_destinations
+        - value_selector:
+          - '57200000000001'
+          - vehicle_info
+          variable: vehicle_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '57200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '57200000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '57200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 配送先・条件を入力すると、最適な配送ルートの提案を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは物流・配送ルートの最適化コンサルタントです。配送先情報と制約条件に基づいて、効率的な配送ルートの提案を作成してください。
+
+            ## あなたの役割
+            配送コスト・時間・ドライバー負荷を総合的に最適化する配送計画を立案するロジスティクスの専門家です。
+
+            ## 出力フォーマット
+            ### ルート概要
+            | 項目 | 内容 |
+            |---|---|
+            | 配送先数 | |
+            | 推定総距離 | km |
+            | 推定所要時間 | 時間 |
+            | 必要車両台数 | |
+
+            ### 最適ルート案
+            #### ルート1（車両A）
+            | 順番 | 配送先 | 到着予定 | 滞在時間 | 備考 |
+            |---|---|---|---|---|
+            | 1 | 出発拠点 | | | |
+            | 2 | | | | |
+
+            ### 代替ルート案
+            主要ルートに問題がある場合の代替案
+
+            ### 最適化のポイント
+            - なぜこの順番が効率的か
+            - 時間帯別の渋滞考慮
+            - 積載効率の考慮
+
+            ### コスト試算
+            | 項目 | 金額 |
+            |---|---|
+            | 燃料費 | |
+            | 人件費 | |
+            | 高速道路代 | |
+            | 合計 | |
+
+            ### 改善提案
+
+            ## ルール
+            1. 道路交通法（運転時間・休憩時間の規定）を考慮する
+            2. 労働基準法に基づくドライバーの労働時間制限を遵守する
+            3. 時間指定がある場合は厳守できるルート設計にする
+            4. 荷物の積載順序（先入先出等）を考慮する
+            5. 天候・季節による影響を注記する
+            6. 車両の積載容量・重量制限を考慮する
+            7. 実際のナビゲーションではないため、参考提案であることを明記する
+        - role: user
+          text: |-
+            delivery_destinations:
+            {{#57200000000001.delivery_destinations#}}
+
+            vehicle_info:
+            {{#57200000000001.vehicle_info#}}
+
+            constraint_type: {{#57200000000001.constraint_type#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '57200000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 配送ルート最適化提案
+
+          **constraint_type**: {{ constraint_type }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIによるルート提案の参考資料です。実際の配送は道路状況・天候等を考慮して判断してください。*
+        variables:
+        - value_selector:
+          - '57200000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '57200000000001'
+          - constraint_type
+          variable: constraint_type
+      height: 97
+      id: '57200000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          配送ルート最適化提案の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '57200000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '57200000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '57200000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '57200000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '57200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

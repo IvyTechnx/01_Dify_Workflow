@@ -1,0 +1,394 @@
+kind: app
+version: 0.1.5
+app:
+  description: APIエンドポイントの概要やコードを入力すると、OpenAPI形式のAPI仕様書を自動生成するワークフロー。Readme.com/Mintlifyに対抗。
+  icon: 📖
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-24: API仕様書自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-52400000000001-52400000000002
+      source: '52400000000001'
+      sourceHandle: source
+      target: '52400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-52400000000002-52400000000003
+      source: '52400000000002'
+      sourceHandle: source
+      target: '52400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-52400000000003-52400000000004
+      source: '52400000000003'
+      sourceHandle: 'true'
+      target: '52400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-52400000000003-52400000000006
+      source: '52400000000003'
+      sourceHandle: 'false'
+      target: '52400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-52400000000004-52400000000005
+      source: '52400000000004'
+      sourceHandle: source
+      target: '52400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52400000000005-52400000000007
+      source: '52400000000005'
+      sourceHandle: source
+      target: '52400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52400000000006-52400000000007
+      source: '52400000000006'
+      sourceHandle: source
+      target: '52400000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: api_description
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: api_description
+        - label: output_format
+          max_length: 48
+          options:
+          - OpenAPI 3.0 (YAML)
+          - Markdown
+          - 両方
+          required: true
+          type: select
+          variable: output_format
+        - label: language
+          max_length: 48
+          options:
+          - 日本語
+          - 英語
+          required: true
+          type: select
+          variable: language
+      height: 149
+      id: '52400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの長さチェックとインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(api_description: str) -> dict:
+              issues = []
+              if len(api_description.strip()) < 20:
+                  issues.append("API概要が短すぎます（20文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = api_description
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '52400000000001'
+          - api_description
+          variable: api_description
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '52400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '52400000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '52400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: APIエンドポイントの概要やコードを入力すると、OpenAPI形式のAPI仕様書を自動生成するワークフロー。Readme.com/Mintlifyに対抗。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: "あなたはテクニカルライターです。API情報に基づいて、開発者向けのAPI仕様書を作成してください。\n\n## 出力フォーマット\n### エンドポイント一覧\n| メソッド | パス | 概要 |\n\n### 各エンドポイントの詳細\n#### [メソッド] /path\n**概要**: \n**リクエスト**:\n- Headers\n- Path Parameters\n\
+            - Query Parameters\n- Request Body (JSON Schema)\n\n**レスポンス**:\n- 200: 成功レスポンス（例付き）\n- 400/401/404/500: エラーレスポンス\n\n**コード例**:\n```curl\n（curlコマンド）\n```\n\n### 認証方式\n### エラーコード一覧\n### レートリミット\n\
+            \n## ルール\n- RESTful APIのベストプラクティスに準拠する\n- 具体的なリクエスト/レスポンス例を含める\n- エラーハンドリングを網羅する\n- 出力フォーマットに応じた形式で出力する"
+        - role: user
+          text: |-
+            API概要/コード:
+            {{#52400000000001.api_description#}}
+
+            出力フォーマット: {{#52400000000001.output_format#}}
+            言語: {{#52400000000001.language#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '52400000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # API仕様書
+
+          **フォーマット**: {{ output_format }}
+
+          ---
+
+          {{ api_spec }}
+
+          ---
+          *AIが生成したAPI仕様書です。実際のAPI動作と照合して確認してください。*
+        variables:
+        - value_selector:
+          - '52400000000004'
+          - text
+          variable: api_spec
+        - value_selector:
+          - '52400000000001'
+          - output_format
+          variable: output_format
+      height: 97
+      id: '52400000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          API仕様書自動生成の生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - API概要は20文字以上で入力してください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '52400000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '52400000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '52400000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '52400000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '52400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

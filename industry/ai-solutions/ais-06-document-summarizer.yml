@@ -1,0 +1,568 @@
+app:
+  description: 'ELYZA DIGESTに対抗する長文ドキュメント要約ワークフロー。数万文字の文書をチャンク分割し、段階的に要約を生成する。報告書・論文・契約書・議事録など多用途に対応。'
+  icon: "\U0001F4C4"
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'AIS-06: 長文ドキュメントAI要約'
+  use_icon_as_answer_icon: false
+version: '0.1.5'
+kind: app
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    # Start → Code(入力検証)
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-50600000000001-50600000000002
+      source: '50600000000001'
+      sourceHandle: source
+      target: '50600000000002'
+      targetHandle: target
+      type: custom
+    # Code(入力検証) → IF-ELSE
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-50600000000002-50600000000003
+      source: '50600000000002'
+      sourceHandle: source
+      target: '50600000000003'
+      targetHandle: target
+      type: custom
+    # IF-ELSE true → Code(テキスト分割)
+    - data:
+        sourceType: if-else
+        targetType: code
+        isInIteration: false
+      id: e-50600000000003-50600000000004
+      source: '50600000000003'
+      sourceHandle: 'true'
+      target: '50600000000004'
+      targetHandle: target
+      type: custom
+    # IF-ELSE false → TT(エラー応答)
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-50600000000003-50600000000009
+      source: '50600000000003'
+      sourceHandle: 'false'
+      target: '50600000000009'
+      targetHandle: target
+      type: custom
+    # Code(テキスト分割) → Iteration
+    - data:
+        sourceType: code
+        targetType: iteration
+        isInIteration: false
+      id: e-50600000000004-50600000000005
+      source: '50600000000004'
+      sourceHandle: source
+      target: '50600000000005'
+      targetHandle: target
+      type: custom
+    # Iteration → LLM(統合要約)
+    - data:
+        sourceType: iteration
+        targetType: llm
+        isInIteration: false
+      id: e-50600000000005-50600000000007
+      source: '50600000000005'
+      sourceHandle: source
+      target: '50600000000007'
+      targetHandle: target
+      type: custom
+    # LLM(統合要約) → TT(出力整形)
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-50600000000007-50600000000008
+      source: '50600000000007'
+      sourceHandle: source
+      target: '50600000000008'
+      targetHandle: target
+      type: custom
+    # TT(出力整形) → End
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-50600000000008-50600000000010
+      source: '50600000000008'
+      sourceHandle: source
+      target: '50600000000010'
+      targetHandle: target
+      type: custom
+    # TT(エラー応答) → End
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-50600000000009-50600000000010
+      source: '50600000000009'
+      sourceHandle: source
+      target: '50600000000010'
+      targetHandle: target
+      type: custom
+    nodes:
+    # ── Node 1: Start ──
+    - data:
+        desc: 'ドキュメントテキスト・要約タイプ・目標文字数を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: document_text
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: document_text
+        - label: summary_type
+          max_length: 48
+          options:
+          - '要点要約（箇条書き）'
+          - 'エグゼクティブサマリー'
+          - '詳細要約'
+          - 'キーワード抽出'
+          required: true
+          type: select
+          variable: summary_type
+        - label: target_length
+          max_length: 48
+          options:
+          - '100文字以内'
+          - '300文字以内'
+          - '500文字以内'
+          - '1000文字以内'
+          required: true
+          type: select
+          variable: target_length
+      height: 149
+      id: '50600000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 2: Code - 入力検証 ──
+    - data:
+        desc: 'ドキュメント文字数チェック（50〜500,000文字）とインジェクション検出を行う'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(document_text: str) -> dict:
+              issues = []
+              length = len(document_text)
+
+              if length < 50:
+                  issues.append("ドキュメントが短すぎます（50文字以上必要）")
+              if length > 500000:
+                  issues.append("ドキュメントが長すぎます（500,000文字以下にしてください）")
+
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+              ]
+              for pattern in injection_patterns:
+                  if re.search(pattern, document_text):
+                      issues.append("不正な入力パターンが検出されました")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              detail = "入力OK" if is_valid == "true" else "\n".join(issues)
+
+              return {
+                  'is_valid': is_valid,
+                  'detail': detail
+              }
+        variables:
+        - value_selector:
+          - '50600000000001'
+          - document_text
+          variable: document_text
+        outputs:
+          is_valid:
+            type: string
+          detail:
+            type: string
+      height: 97
+      id: '50600000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 3: IF-ELSE ──
+    - data:
+        conditions:
+        - id: condition_valid
+          variable_selector:
+          - '50600000000002'
+          - is_valid
+          comparison_operator: is
+          value: "true"
+        desc: '入力検証結果で分岐する'
+        logical_operator: and
+        selected: false
+        title: 入力検証判定
+        type: if-else
+      height: 125
+      id: '50600000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 4: Code - テキスト分割 ──
+    - data:
+        desc: 'ドキュメントを約3000文字ごとのチャンクに分割する（200文字オーバーラップ）'
+        selected: false
+        title: テキスト分割
+        type: code
+        code_language: python3
+        code: |
+          def main(document_text: str) -> dict:
+              chunk_size = 3000
+              overlap = 200
+              chunks = []
+              start = 0
+
+              while start < len(document_text):
+                  end = min(start + chunk_size, len(document_text))
+                  chunks.append(document_text[start:end])
+                  start = end - overlap if end < len(document_text) else end
+
+              chunk_count = str(len(chunks))
+
+              return {
+                  'chunks': chunks,
+                  'chunk_count': chunk_count
+              }
+        variables:
+        - value_selector:
+          - '50600000000001'
+          - document_text
+          variable: document_text
+        outputs:
+          chunks:
+            type: array[string]
+          chunk_count:
+            type: string
+      height: 97
+      id: '50600000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 5: Iteration ──
+    - data:
+        type: iteration
+        title: チャンク要約イテレーション
+        desc: '各チャンクを並列にLLMで要約する'
+        iterator_selector:
+        - '50600000000004'
+        - chunks
+        output_selector:
+        - '50600000000006'
+        - text
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '50600000000006'
+      id: '50600000000005'
+      type: custom
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    # ── Node 6: Inner LLM - チャンク要約 (inside Iteration) ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '各チャンクの要点を簡潔に要約する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 1024
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: "与えられたテキストの要点を簡潔に要約してください。重要なポイント、数値、固有名詞を漏らさないようにしてください。"
+        - role: user
+          text: '{{#50600000000005.item#}}'
+        selected: false
+        title: チャンク要約
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50600000000006'
+      type: custom
+      position:
+        x: 1340
+        y: 240
+      positionAbsolute:
+        x: 1340
+        y: 240
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '50600000000005'
+    # ── Node 7: LLM - 統合要約 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'チャンク要約を統合し指定フォーマットで最終要約を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは文書要約の専門家です。複数のチャンク要約を統合し、指定されたフォーマットで最終要約を作成してください。
+
+            要約タイプ: {{#50600000000001.summary_type#}}
+            目標文字数: {{#50600000000001.target_length#}}
+
+            ## 要約タイプ別ルール
+            - 要点要約（箇条書き）: 重要ポイントを箇条書きで列挙
+            - エグゼクティブサマリー: 経営層向けの簡潔なサマリー
+            - 詳細要約: 元文書の構造を保った詳細な要約
+            - キーワード抽出: 重要キーワードとその文脈を抽出
+
+            ## 共通ルール
+            - 目標文字数を厳守すること
+            - 元文書にない情報を追加しないこと
+            - 重要な数値・固有名詞は正確に残すこと
+        - role: user
+          text: |
+            以下のチャンク要約結果を統合して、最終要約を作成してください:
+
+            {{#50600000000005.output#}}
+        selected: false
+        title: 統合要約
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50600000000007'
+      position:
+        x: 1780
+        y: 182
+      positionAbsolute:
+        x: 1780
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 8: TT - 出力整形 ──
+    - data:
+        desc: '要約結果にメタ情報を付与して最終出力を整形する'
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |
+          # ドキュメント要約結果
+
+          **要約タイプ**: {{ summary_type }}
+          **目標文字数**: {{ target_length }}
+          **チャンク数**: {{ chunk_count }}
+
+          ---
+
+          {{ summary_text }}
+
+          ---
+          *本要約はAIにより自動生成されました。重要な判断には原文をご確認ください。*
+        variables:
+        - value_selector:
+          - '50600000000007'
+          - text
+          variable: summary_text
+        - value_selector:
+          - '50600000000001'
+          - summary_type
+          variable: summary_type
+        - value_selector:
+          - '50600000000001'
+          - target_length
+          variable: target_length
+        - value_selector:
+          - '50600000000004'
+          - chunk_count
+          variable: chunk_count
+      height: 97
+      id: '50600000000008'
+      position:
+        x: 2080
+        y: 182
+      positionAbsolute:
+        x: 2080
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 9: TT - エラー応答 ──
+    - data:
+        desc: '入力検証エラー時のメッセージを生成する'
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |
+          ## 入力エラー
+
+          ドキュメント要約を開始できませんでした。
+
+          **エラー詳細**: {{ detail }}
+
+          ### 入力ガイド
+          - ドキュメントは50文字以上、500,000文字以下で入力してください
+          - プロンプトインジェクションと疑われる文字列は使用できません
+          - テキスト形式のドキュメントを貼り付けてください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '50600000000002'
+          - detail
+          variable: detail
+      height: 97
+      id: '50600000000009'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 10: End ──
+    - data:
+        desc: '要約結果またはエラーメッセージを出力する'
+        outputs:
+        - value_selector:
+          - '50600000000008'
+          - output
+          variable: summary_result
+        - value_selector:
+          - '50600000000009'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50600000000010'
+      position:
+        x: 2380
+        y: 282
+      positionAbsolute:
+        x: 2380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,440 @@
+kind: app
+version: 0.1.5
+app:
+  description: 建設見積・積算データを入力すると、積算チェックリストと整合性レビューを自動生成するワークフロー。
+  icon: 💰
+  icon_background: '#EFEBE9'
+  mode: workflow
+  name: 'AIS-95: 積算書チェックリスト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-59500000000001-59500000000002
+      source: '59500000000001'
+      sourceHandle: source
+      target: '59500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-59500000000002-59500000000003
+      source: '59500000000002'
+      sourceHandle: source
+      target: '59500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-59500000000003-59500000000004
+      source: '59500000000003'
+      sourceHandle: 'true'
+      target: '59500000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-59500000000003-59500000000006
+      source: '59500000000003'
+      sourceHandle: 'false'
+      target: '59500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-59500000000004-59500000000005
+      source: '59500000000004'
+      sourceHandle: source
+      target: '59500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59500000000005-59500000000007
+      source: '59500000000005'
+      sourceHandle: source
+      target: '59500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59500000000006-59500000000007
+      source: '59500000000006'
+      sourceHandle: source
+      target: '59500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: estimate_data
+          variable: estimate_data
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: project_type
+          variable: project_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 公共建築工事
+          - 民間建築工事
+          - 公共土木工事
+          - 民間土木工事
+          - 設備工事
+          - プラント工事
+        - label: estimate_stage
+          variable: estimate_stage
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 概算見積
+          - 詳細見積
+          - 最終見積（入札前）
+          - 設計変更見積
+      height: 149
+      id: '59500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(estimate_data: str) -> dict:
+              issues = []
+              if len(estimate_data.strip()) < 50:
+                  issues.append("入力が短すぎます（50文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = estimate_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '59500000000001'
+          - estimate_data
+          variable: estimate_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '59500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '59500000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '59500000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 建設見積・積算データを入力すると、積算チェックリストと整合性レビューを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは建設業の積算・見積専門家です。国土交通省の公共建築工事積算基準、建設物価、および積算資料に精通し、提出された積算データの整合性と妥当性をチェックしてください。
+
+            ## あなたの役割
+            積算担当者が作成した見積の精度向上と見落とし防止を支援する査定・チェックの専門家です。
+
+            ## 出力フォーマット
+            ### 1. チェックサマリー
+            | チェック項目 | 結果 | 指摘事項 |
+            |---|---|---|
+            | 数量拾い出しの整合性 | OK/NG/要確認 | |
+            | 単価の妥当性 | OK/NG/要確認 | |
+            | 歩掛りの適用 | OK/NG/要確認 | |
+            | 諸経費の計上 | OK/NG/要確認 | |
+
+            ### 2. 数量チェック
+            - 図面との整合性
+            - 計算根拠の妥当性
+            - 数量の漏れ・重複
+
+            ### 3. 単価チェック
+            - 市場単価との比較
+            - 特殊条件の反映
+
+            ### 4. 経費チェック
+            - 共通仮設費 / 現場管理費 / 一般管理費等
+
+            ### 5. 指摘事項一覧（重要度順）
+            | # | 重要度 | 項目 | 指摘内容 | 想定影響額 | 推奨対応 |
+            |---|---|---|---|---|---|
+
+            ### 6. 総合コメント
+
+            ## ルール
+            - 国交省積算基準・歩掛りを参照した客観的な評価を行うこと
+            - 単価の妥当性は建設物価・積算資料等の公的データを基準とすること
+            - 指摘事項には重要度（高/中/低）を必ず付与すること
+            - 想定影響額を可能な限り試算すること
+            - 諸経費率は工事種別・規模に応じた標準率と比較すること
+            - 特殊条件（離島・山間部・市街地等）の割増を確認すること
+            - チェック不能な項目は「確認不可」と明記すること
+            - 推測と事実を明確に区別すること
+        - role: user
+          text: |-
+            estimate_data:
+            {{#59500000000001.estimate_data#}}
+
+            project_type: {{#59500000000001.project_type#}}
+
+            estimate_stage: {{#59500000000001.estimate_stage#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '59500000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 積算チェックレポート
+
+          **project_type**: {{ project_type }}
+          **estimate_stage**: {{ estimate_stage }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIによる積算チェックの参考レポートです。最終的な積算の妥当性判断は積算責任者・技術者が行ってください。*
+        variables:
+        - value_selector:
+          - '59500000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '59500000000001'
+          - project_type
+          variable: project_type
+        - value_selector:
+          - '59500000000001'
+          - estimate_stage
+          variable: estimate_stage
+      height: 97
+      id: '59500000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          積算書チェックリストの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '59500000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '59500000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '59500000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '59500000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '59500000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,412 @@
+kind: app
+version: 0.1.5
+app:
+  description: ポジション情報と候補者プロフィールを入力すると、構造化面接用の質問セットを自動生成するワークフロー。
+  icon: 🎤
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'AIS-19: 面接質問自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-51900000000001-51900000000002
+      source: '51900000000001'
+      sourceHandle: source
+      target: '51900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-51900000000002-51900000000003
+      source: '51900000000002'
+      sourceHandle: source
+      target: '51900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51900000000003-51900000000004
+      source: '51900000000003'
+      sourceHandle: 'true'
+      target: '51900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-51900000000003-51900000000006
+      source: '51900000000003'
+      sourceHandle: 'false'
+      target: '51900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-51900000000004-51900000000005
+      source: '51900000000004'
+      sourceHandle: source
+      target: '51900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51900000000005-51900000000007
+      source: '51900000000005'
+      sourceHandle: source
+      target: '51900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51900000000006-51900000000007
+      source: '51900000000006'
+      sourceHandle: source
+      target: '51900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: position_info
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: position_info
+        - label: candidate_profile
+          max_length: 10000
+          options: []
+          required: false
+          type: paragraph
+          variable: candidate_profile
+        - label: interview_type
+          max_length: 48
+          options:
+          - 一次面接（カルチャーフィット）
+          - 二次面接（スキル確認）
+          - 最終面接（役員面接）
+          - 技術面接
+          - ケース面接
+          required: true
+          type: select
+          variable: interview_type
+      height: 149
+      id: '51900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの長さチェックとインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(position_info: str) -> dict:
+              issues = []
+              if len(position_info.strip()) < 20:
+                  issues.append("ポジション情報が短すぎます（20文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = position_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '51900000000001'
+          - position_info
+          variable: position_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '51900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '51900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ポジション情報と候補者プロフィールを入力すると、構造化面接用の質問セットを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは採用面接の専門家です。構造化面接の手法に基づいて、効果的な面接質問セットを作成してください。
+
+            ## 出力フォーマット
+            ### アイスブレイク質問（2問）
+            ### 行動面接質問（STAR法）（5問）
+            各質問にフォローアップ質問と評価ポイントを付記
+            ### 状況判断質問（3問）
+            ### 動機・キャリア質問（3問）
+            ### 逆質問への準備（面接官が回答すべきFAQ 3問）
+
+            ### 評価シート
+            | 評価項目 | 質問# | 評価基準（1-5） | メモ欄 |
+
+            ## ルール
+            - 差別的な質問（家族構成・宗教・出身地等）は絶対に含めない
+            - 面接タイプに応じた質問レベルにする
+            - 候補者プロフィールがあれば、経歴に基づく深掘り質問を含める
+            - 回答の評価基準を明確にする
+        - role: user
+          text: |-
+            ポジション情報:
+            {{#51900000000001.position_info#}}
+
+            面接タイプ: {{#51900000000001.interview_type#}}
+
+            候補者プロフィール:
+            {{#51900000000001.candidate_profile#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 面接質問セット
+
+          **面接タイプ**: {{ interview_type }}
+
+          ---
+
+          {{ interview_questions }}
+
+          ---
+          *AIが生成した質問セットです。法令遵守を確認してからご使用ください。*
+        variables:
+        - value_selector:
+          - '51900000000004'
+          - text
+          variable: interview_questions
+        - value_selector:
+          - '51900000000001'
+          - interview_type
+          variable: interview_type
+      height: 97
+      id: '51900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          面接質問自動生成の生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - ポジション情報は20文字以上で入力してください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '51900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '51900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '51900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '51900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '51900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

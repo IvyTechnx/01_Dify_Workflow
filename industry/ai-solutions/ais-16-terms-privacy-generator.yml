@@ -1,0 +1,421 @@
+kind: app
+version: 0.1.5
+app:
+  description: サービス概要を入力すると、利用規約・プライバシーポリシーのドラフトを自動生成するワークフロー。Termly/iubendaに対抗。
+  icon: 📜
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-16: 利用規約・プライバシーポリシー生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-51600000000001-51600000000002
+      source: '51600000000001'
+      sourceHandle: source
+      target: '51600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-51600000000002-51600000000003
+      source: '51600000000002'
+      sourceHandle: source
+      target: '51600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51600000000003-51600000000004
+      source: '51600000000003'
+      sourceHandle: 'true'
+      target: '51600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-51600000000003-51600000000006
+      source: '51600000000003'
+      sourceHandle: 'false'
+      target: '51600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-51600000000004-51600000000005
+      source: '51600000000004'
+      sourceHandle: source
+      target: '51600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51600000000005-51600000000007
+      source: '51600000000005'
+      sourceHandle: source
+      target: '51600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51600000000006-51600000000007
+      source: '51600000000006'
+      sourceHandle: source
+      target: '51600000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: service_description
+          max_length: 20000
+          options: []
+          required: true
+          type: paragraph
+          variable: service_description
+        - label: document_type
+          max_length: 48
+          options:
+          - 利用規約
+          - プライバシーポリシー
+          - 両方
+          required: true
+          type: select
+          variable: document_type
+        - label: business_type
+          max_length: 48
+          options:
+          - SaaS/Webサービス
+          - ECサイト
+          - モバイルアプリ
+          - コンサルティング
+          - メディア/コンテンツ
+          required: true
+          type: select
+          variable: business_type
+        - label: data_handling
+          max_length: 10000
+          options: []
+          required: false
+          type: paragraph
+          variable: data_handling
+      height: 149
+      id: '51600000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの長さチェックとインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(service_description: str) -> dict:
+              issues = []
+              if len(service_description.strip()) < 30:
+                  issues.append("サービス概要が短すぎます（30文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = service_description
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '51600000000001'
+          - service_description
+          variable: service_description
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '51600000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51600000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '51600000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: サービス概要を入力すると、利用規約・プライバシーポリシーのドラフトを自動生成するワークフロー。Termly/iubendaに対抗。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは企業法務の専門家です。サービス概要に基づいて、日本法に準拠した利用規約またはプライバシーポリシーのドラフトを作成してください。
+
+            ## 利用規約の構成
+            第1条 総則 / 第2条 定義 / 第3条 サービス内容 / 第4条 利用登録 / 第5条 禁止事項 / 第6条 知的財産権 / 第7条 免責事項 / 第8条 利用制限・登録抹消 / 第9条 サービス変更・中止 / 第10条 利用規約の変更 / 第11条 個人情報 / 第12条 準拠法・管轄
+
+            ## プライバシーポリシーの構成
+            1. 基本方針 / 2. 収集する個人情報 / 3. 利用目的 / 4. 第三者提供 / 5. 安全管理措置 / 6. 委託先の監督 / 7. 開示・訂正・削除 / 8. Cookie等の利用 / 9. お問い合わせ窓口 / 10. 改定
+
+            ## ルール
+            - 個人情報保護法（2022年改正）に準拠する
+            - ビジネスタイプに応じた特有の条項を含める
+            - 法的助言ではなくドラフトである旨を明記する
+            - 「本ドラフトは参考用であり、弁護士の確認を推奨します」の注記を含める
+        - role: user
+          text: |-
+            サービス概要:
+            {{#51600000000001.service_description#}}
+
+            文書タイプ: {{#51600000000001.document_type#}}
+            ビジネスタイプ: {{#51600000000001.business_type#}}
+            データ取扱い:
+            {{#51600000000001.data_handling#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51600000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # {{ document_type }} ドラフト
+
+          **ビジネスタイプ**: {{ business_type }}
+
+          ---
+
+          {{ legal_document }}
+
+          ---
+          > **免責事項**: 本文書はAIが生成したドラフトであり、法的助言ではありません。正式な利用にあたっては必ず弁護士の確認を受けてください。
+        variables:
+        - value_selector:
+          - '51600000000004'
+          - text
+          variable: legal_document
+        - value_selector:
+          - '51600000000001'
+          - document_type
+          variable: document_type
+        - value_selector:
+          - '51600000000001'
+          - business_type
+          variable: business_type
+      height: 97
+      id: '51600000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          利用規約・プライバシーポリシー生成の生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - サービス概要は30文字以上で入力してください
+          - 不正な文字列は使用できません
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '51600000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '51600000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '51600000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '51600000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '51600000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

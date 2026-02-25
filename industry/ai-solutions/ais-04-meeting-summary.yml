@@ -1,0 +1,527 @@
+kind: app
+version: '0.1.5'
+app:
+  description: Notta/Rimo Voiceのテキスト要約機能に対抗。会議テキスト（文字起こし済み）を入力すると、要約・決定事項・アクションアイテム・参加者発言を自動抽出する。
+  icon: "\U0001F4DD"
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'AIS-04: 議事録AI要約・アクション抽出'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-50400000000001-50400000000002
+      source: '50400000000001'
+      sourceHandle: source
+      target: '50400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-50400000000002-50400000000003
+      source: '50400000000002'
+      sourceHandle: source
+      target: '50400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50400000000003-50400000000004
+      source: '50400000000003'
+      sourceHandle: 'true'
+      target: '50400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50400000000003-50400000000005
+      source: '50400000000003'
+      sourceHandle: 'true'
+      target: '50400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-50400000000003-50400000000008
+      source: '50400000000003'
+      sourceHandle: 'false'
+      target: '50400000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50400000000004-50400000000006
+      source: '50400000000004'
+      sourceHandle: source
+      target: '50400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50400000000005-50400000000006
+      source: '50400000000005'
+      sourceHandle: source
+      target: '50400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: template-transform
+      id: e-50400000000006-50400000000007
+      source: '50400000000006'
+      sourceHandle: source
+      target: '50400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-50400000000007-50400000000009
+      source: '50400000000007'
+      sourceHandle: source
+      target: '50400000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-50400000000008-50400000000009
+      source: '50400000000008'
+      sourceHandle: source
+      target: '50400000000009'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '会議テキストとメタ情報を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: meeting_text
+          max_length: 500000
+          options: []
+          required: true
+          type: paragraph
+          variable: meeting_text
+        - label: meeting_title
+          max_length: 256
+          options: []
+          required: true
+          type: text-input
+          variable: meeting_title
+        - label: meeting_date
+          max_length: 256
+          options: []
+          required: true
+          type: text-input
+          variable: meeting_date
+        - label: output_format
+          max_length: 48
+          options:
+          - '標準フォーマット'
+          - '簡易フォーマット'
+          - '詳細フォーマット'
+          required: true
+          type: select
+          variable: output_format
+      height: 145
+      id: '50400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '会議テキストの長さ・会議名の空チェック・インジェクション検査を行う'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(meeting_text: str, meeting_title: str) -> dict:
+              errors = []
+
+              # 会議テキスト長チェック（50〜500000文字）
+              text_len = len(meeting_text.strip()) if meeting_text else 0
+              if text_len < 50:
+                  errors.append("会議テキストが短すぎます（最低50文字必要、現在: {}文字）".format(text_len))
+              if text_len > 500000:
+                  errors.append("会議テキストが長すぎます（上限500,000文字、現在: {}文字）".format(text_len))
+
+              # 会議名の空チェック
+              if not meeting_title or not meeting_title.strip():
+                  errors.append("会議名が空です。会議名を入力してください。")
+
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+instructions',
+                  r'(?i)system\s*:\s*you\s+are',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'(?i)<\s*script\b',
+                  r'(?i)\{\{.*\}\}'
+              ]
+              for pattern in injection_patterns:
+                  if re.search(pattern, meeting_text):
+                      errors.append("入力テキストに不正なパターンが検出されました。会議テキストのみを入力してください。")
+                      break
+
+              if errors:
+                  return {
+                      'is_valid': 'false',
+                      'error_message': '\n'.join(errors)
+                  }
+
+              return {
+                  'is_valid': 'true',
+                  'error_message': ''
+              }
+        variables:
+        - value_selector:
+          - '50400000000001'
+          - meeting_text
+          variable: meeting_text
+        - value_selector:
+          - '50400000000001'
+          - meeting_title
+          variable: meeting_title
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '50400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '50400000000002'
+            - is_valid
+            comparison_operator: is
+            value: "true"
+        desc: '入力検証結果で分岐する'
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+      height: 125
+      id: '50400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '会議テキストから要約・議論ポイント・決定事項・未決事項を抽出する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは議事録作成の専門家です。会議テキストから以下を抽出してください：
+            1) 会議の概要（3-5文）
+            2) 主要な議論ポイント
+            3) 決定事項
+            4) 未決事項・懸念点
+
+            Markdown形式で出力してください。
+
+            ## ルール
+            - 発言内容を忠実に反映し、存在しない議論を追加しない
+            - 発言者名が特定できる場合は明記する
+            - 数値やデータは正確に引用する
+            - 出力フォーマット: {{#50400000000001.output_format#}}
+        - role: user
+          text: |
+            会議名: {{#50400000000001.meeting_title#}}
+            開催日: {{#50400000000001.meeting_date#}}
+
+            会議テキスト:
+            {{#50400000000001.meeting_text#}}
+        selected: false
+        title: 要約・決定事項抽出
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50400000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '会議テキストからアクションアイテムを担当者・期限付きで抽出する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは議事録作成の専門家です。会議テキストから具体的なアクションアイテムを抽出してください。
+            各アイテムについて：担当者（発言から推定）、タスク内容、期限（言及があれば）を表形式で出力してください。
+
+            ## 出力フォーマット
+            | # | 担当者 | アクション | 期限 | 優先度 |
+            |---|---|---|---|---|
+            | 1 | （担当者名） | （タスク内容） | （期限） | 高/中/低 |
+
+            ## ルール
+            - 「〜する」「〜までに」「〜を確認」等の行動を伴う発言をアクションアイテムとして抽出する
+            - 担当者が不明な場合は「要確認」と記載する
+            - 期限が不明な場合は「次回会議まで」と記載する
+            - テキストに存在しないアクションアイテムを追加しない
+            - 優先度は文脈から推定し、判断できない場合は「中」とする
+        - role: user
+          text: |
+            会議テキスト:
+            {{#50400000000001.meeting_text#}}
+        selected: false
+        title: アクションアイテム抽出
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50400000000005'
+      position:
+        x: 980
+        y: 382
+      positionAbsolute:
+        x: 980
+        y: 382
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: '要約とアクションアイテムの出力を統合する'
+        output_type: string
+        selected: false
+        title: 結果統合
+        type: variable-aggregator
+        variables:
+        - - '50400000000004'
+          - text
+        - - '50400000000005'
+          - text
+      height: 89
+      id: '50400000000006'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '会議メタ情報とLLM出力を正式議事録フォーマットに整形する'
+        selected: false
+        title: 議事録整形
+        type: template-transform
+        template: |
+          # 議事録: {{ meeting_title }}
+
+          **開催日**: {{ meeting_date }}
+          **作成**: AI自動生成（※内容は参加者による確認が必要です）
+
+          ---
+
+          {{ combined_content }}
+
+          ---
+          *本議事録はAIにより自動生成されました。内容の正確性については参加者にてご確認ください。*
+        variables:
+        - value_selector:
+          - '50400000000006'
+          - output
+          variable: combined_content
+        - value_selector:
+          - '50400000000001'
+          - meeting_title
+          variable: meeting_title
+        - value_selector:
+          - '50400000000001'
+          - meeting_date
+          variable: meeting_date
+      height: 97
+      id: '50400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力検証エラー時のエラーメッセージを整形する'
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |
+          ## エラー: 入力検証に失敗しました
+
+          以下の問題が検出されました：
+
+          {{ error_message }}
+
+          ---
+          入力内容を修正して再実行してください。
+        variables:
+        - value_selector:
+          - '50400000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '50400000000008'
+      position:
+        x: 980
+        y: 532
+      positionAbsolute:
+        x: 980
+        y: 532
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '議事録またはエラーメッセージを出力する'
+        outputs:
+        - value_selector:
+          - '50400000000007'
+          - output
+          variable: minutes_document
+        - value_selector:
+          - '50400000000008'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50400000000009'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

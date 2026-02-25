@@ -1,0 +1,454 @@
+kind: app
+version: 0.1.5
+app:
+  description: サプライヤー情報を入力すると、QCD観点の評価スコアカードを自動生成するワークフロー。
+  icon: 📦
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-29: サプライヤー評価シート生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-52900000000001-52900000000002
+      source: '52900000000001'
+      sourceHandle: source
+      target: '52900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-52900000000002-52900000000003
+      source: '52900000000002'
+      sourceHandle: source
+      target: '52900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-52900000000003-52900000000004
+      source: '52900000000003'
+      sourceHandle: 'true'
+      target: '52900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-52900000000003-52900000000006
+      source: '52900000000003'
+      sourceHandle: 'false'
+      target: '52900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-52900000000004-52900000000005
+      source: '52900000000004'
+      sourceHandle: source
+      target: '52900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52900000000005-52900000000007
+      source: '52900000000005'
+      sourceHandle: source
+      target: '52900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52900000000006-52900000000007
+      source: '52900000000006'
+      sourceHandle: source
+      target: '52900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: supplier_data
+          variable: supplier_data
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: supplier_name
+          variable: supplier_name
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: evaluation_category
+          variable: evaluation_category
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 新規サプライヤー評価
+          - 定期評価
+          - 是正措置後の再評価
+          - リスク評価
+        - label: industry_sector
+          variable: industry_sector
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 自動車部品
+          - 電子部品
+          - 化学原料
+          - 金属加工
+          - 樹脂成形
+          - 食品原料
+          - その他
+      height: 149
+      id: '52900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(supplier_data: str) -> dict:
+              issues = []
+              if len(supplier_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = supplier_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '52900000000001'
+          - supplier_data
+          variable: supplier_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '52900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '52900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '52900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: サプライヤー情報を入力すると、QCD観点の評価スコアカードを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは購買・調達管理の専門家です。ISO 9001の8.4項（外部から提供されるプロセス、製品及びサービスの管理）に基づいて、サプライヤー評価シートを作成してください。
+
+            ## 出力フォーマット
+            ### 1. サプライヤー基本情報
+            - 会社名 / 所在地 / 資本金 / 従業員数 / 主要取引先
+
+            ### 2. QCD総合評価
+            | 評価カテゴリ | 配点 | 得点 | 評価 |
+            |---|---|---|---|
+            | 品質（Quality） | 40点 | X | |
+            | コスト（Cost） | 25点 | X | |
+            | 納期（Delivery） | 25点 | X | |
+            | 経営安定性 | 10点 | X | |
+            | **合計** | **100点** | **X** | **A/B/C/D** |
+
+            ### 3. 品質評価詳細
+            - 品質マネジメントシステム認証状況
+            - 不良率推移 / 品質クレーム実績
+            - 検査体制・測定機器管理
+
+            ### 4. コスト評価詳細
+            - 価格競争力 / コストダウン協力度 / VA/VE提案実績
+
+            ### 5. 納期評価詳細
+            - 納期遵守率 / リードタイム / 緊急対応力
+
+            ### 6. リスク評価
+            - BCP体制 / 財務健全性 / 地政学的リスク
+
+            ### 7. 総合判定と推奨アクション
+            - A（優良）/ B（良好）/ C（要改善）/ D（取引見直し）
+            - 具体的な改善要請事項
+
+            ## ルール
+            - データに基づく客観的な評価を行うこと
+            - 業界セクターに応じた評価基準を適用すること
+            - 情報が不足する項目は「要確認」と明記すること
+            - IATF 16949（自動車）等の業界固有規格を考慮すること
+            - サプライチェーンリスクの観点を含めること
+            - 改善提案は具体的かつ実行可能な内容にすること
+            - 評価の公平性・透明性を確保すること
+        - role: user
+          text: |-
+            supplier_data:
+            {{#52900000000001.supplier_data#}}
+
+            supplier_name: {{#52900000000001.supplier_name#}}
+
+            evaluation_category: {{#52900000000001.evaluation_category#}}
+
+            industry_sector: {{#52900000000001.industry_sector#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '52900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # サプライヤー評価シート
+
+          **supplier_name**: {{ supplier_name }}
+          **evaluation_category**: {{ evaluation_category }}
+          **industry_sector**: {{ industry_sector }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した評価ドラフトです。最終評価は購買部門・品質部門の合議で決定してください。*
+        variables:
+        - value_selector:
+          - '52900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '52900000000001'
+          - supplier_name
+          variable: supplier_name
+        - value_selector:
+          - '52900000000001'
+          - evaluation_category
+          variable: evaluation_category
+        - value_selector:
+          - '52900000000001'
+          - industry_sector
+          variable: industry_sector
+      height: 97
+      id: '52900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          サプライヤー評価シート生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '52900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '52900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '52900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '52900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '52900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

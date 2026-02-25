@@ -1,0 +1,456 @@
+kind: app
+version: 0.1.5
+app:
+  description: 建設現場の情報を入力すると、労働安全衛生法に準拠した安全管理計画書を自動生成するワークフロー。
+  icon: ⛑
+  icon_background: '#EFEBE9'
+  mode: workflow
+  name: 'AIS-93: 安全管理計画書'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-59300000000001-59300000000002
+      source: '59300000000001'
+      sourceHandle: source
+      target: '59300000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-59300000000002-59300000000003
+      source: '59300000000002'
+      sourceHandle: source
+      target: '59300000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-59300000000003-59300000000004
+      source: '59300000000003'
+      sourceHandle: 'true'
+      target: '59300000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-59300000000003-59300000000006
+      source: '59300000000003'
+      sourceHandle: 'false'
+      target: '59300000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-59300000000004-59300000000005
+      source: '59300000000004'
+      sourceHandle: source
+      target: '59300000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59300000000005-59300000000007
+      source: '59300000000005'
+      sourceHandle: source
+      target: '59300000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59300000000006-59300000000007
+      source: '59300000000006'
+      sourceHandle: source
+      target: '59300000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: site_info
+          variable: site_info
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: work_type
+          variable: work_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 高所作業
+          - 掘削・土工事
+          - 鉄骨建方
+          - コンクリート工事
+          - 設備工事
+          - 解体工事
+          - 総合（複数工種）
+        - label: risk_level
+          variable: risk_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 低リスク
+          - 中リスク
+          - 高リスク（特定元方事業者）
+        - label: season
+          variable: season
+          required: false
+          type: select
+          max_length: 48
+          options:
+          - 春季（3〜5月）
+          - 夏季（6〜8月）
+          - 秋季（9〜11月）
+          - 冬季（12〜2月）
+          - 通年
+      height: 149
+      id: '59300000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(site_info: str) -> dict:
+              issues = []
+              if len(site_info.strip()) < 50:
+                  issues.append("入力が短すぎます（50文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = site_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '59300000000001'
+          - site_info
+          variable: site_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '59300000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '59300000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '59300000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 建設現場の情報を入力すると、労働安全衛生法に準拠した安全管理計画書を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは建設業の安全衛生管理の専門家です。厚生労働省の労働安全衛生法・同施行令・安衛則および建設業労働災害防止協会のガイドラインに準拠した安全管理計画書を作成してください。
+
+            ## あなたの役割
+            統括安全衛生責任者・安全管理者として、労働災害ゼロを目指す実効性のある安全管理計画を策定する専門家です。
+
+            ## 出力フォーマット
+            ### 1. 安全衛生方針
+            - 基本方針 / 安全目標 / スローガン
+
+            ### 2. 安全衛生管理体制
+            - 統括安全衛生責任者 / 元方安全衛生管理者
+            - 安全衛生責任者一覧 / 作業主任者一覧
+
+            ### 3. リスクアセスメント
+            | # | 作業内容 | 危険要因 | リスクレベル | 低減措置 | 残留リスク |
+            |---|---|---|---|---|---|
+
+            ### 4. 重点安全対策
+            工種ごとの具体的な安全対策
+
+            ### 5. 安全教育・訓練計画
+            | 教育名 | 対象者 | 実施時期 | 内容 | 講師 |
+            |---|---|---|---|---|
+
+            ### 6. 日常安全管理活動
+            - KY（危険予知）活動 / 安全パトロール / ツールボックスミーティング
+
+            ### 7. 緊急時対応計画
+            ### 8. 季節別安全対策
+
+            ## ルール
+            - 労働安全衛生法および関連規則を正確に引用すること
+            - リスクアセスメントは厚生労働省の指針に基づく手法を使用すること
+            - 特別教育・技能講習が必要な作業を明確に特定すること
+            - 作業主任者の選任が必要な作業を網羅すること
+            - 墜落・転落防止措置はフルハーネス型安全帯を基本とすること
+            - 季節要因（熱中症・凍結等）への対策を含めること
+            - 具体的な保護具・安全設備の仕様を記載すること
+            - 第三者災害の防止対策も含めること
+        - role: user
+          text: |-
+            site_info:
+            {{#59300000000001.site_info#}}
+
+            work_type: {{#59300000000001.work_type#}}
+
+            risk_level: {{#59300000000001.risk_level#}}
+
+            season: {{#59300000000001.season#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '59300000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 安全管理計画書
+
+          **work_type**: {{ work_type }}
+          **risk_level**: {{ risk_level }}
+          **season**: {{ season }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した安全管理計画書のドラフトです。統括安全衛生責任者および安全管理者の確認を必ず受けてください。労働基準監督署への届出が必要な場合があります。*
+        variables:
+        - value_selector:
+          - '59300000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '59300000000001'
+          - work_type
+          variable: work_type
+        - value_selector:
+          - '59300000000001'
+          - risk_level
+          variable: risk_level
+        - value_selector:
+          - '59300000000001'
+          - season
+          variable: season
+      height: 97
+      id: '59300000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          安全管理計画書の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '59300000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '59300000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '59300000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '59300000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '59300000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

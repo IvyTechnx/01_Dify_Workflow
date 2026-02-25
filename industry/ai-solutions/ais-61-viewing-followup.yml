@@ -1,0 +1,424 @@
+kind: app
+version: 0.1.5
+app:
+  description: 内覧情報・お客様反応を入力すると、パーソナライズされたフォローメールを自動生成するワークフロー。
+  icon: 📧
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'AIS-61: 内覧フォローメール生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-56100000000001-56100000000002
+      source: '56100000000001'
+      sourceHandle: source
+      target: '56100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-56100000000002-56100000000003
+      source: '56100000000002'
+      sourceHandle: source
+      target: '56100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-56100000000003-56100000000004
+      source: '56100000000003'
+      sourceHandle: 'true'
+      target: '56100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-56100000000003-56100000000006
+      source: '56100000000003'
+      sourceHandle: 'false'
+      target: '56100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-56100000000004-56100000000005
+      source: '56100000000004'
+      sourceHandle: source
+      target: '56100000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-56100000000005-56100000000007
+      source: '56100000000005'
+      sourceHandle: source
+      target: '56100000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-56100000000006-56100000000007
+      source: '56100000000006'
+      sourceHandle: source
+      target: '56100000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: viewing_info
+          variable: viewing_info
+          required: true
+          type: paragraph
+          max_length: 10000
+          options: []
+        - label: customer_reaction
+          variable: customer_reaction
+          required: true
+          type: paragraph
+          max_length: 5000
+          options: []
+        - label: followup_purpose
+          variable: followup_purpose
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - お礼＋次回提案
+          - 検討促進
+          - 別物件提案
+          - 条件変更提案
+          - 成約お礼
+      height: 149
+      id: '56100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(viewing_info: str, customer_reaction: str) -> dict:
+              issues = []
+              if len(viewing_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = viewing_info + ' ' + customer_reaction
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '56100000000001'
+          - viewing_info
+          variable: viewing_info
+        - value_selector:
+          - '56100000000001'
+          - customer_reaction
+          variable: customer_reaction
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '56100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '56100000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '56100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 内覧情報・お客様反応を入力すると、パーソナライズされたフォローメールを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.6
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは不動産営業の専門家です。内覧後のお客様の反応に基づいて、成約につながるパーソナライズされたフォローメールを作成してください。
+
+            ## あなたの役割
+            お客様の住まい探しをサポートする信頼できるパートナーとして、押し売りにならない誠実なフォローメールを作成します。
+
+            ## 出力フォーマット
+            ### メール案1（推奨）
+            **件名**: （件名）
+
+            **本文**:
+            （挨拶→内覧のお礼→お客様の反応への言及→提案→CTA→署名）
+
+            ### メール案2（別アプローチ）
+            **件名**: （件名）
+
+            **本文**:
+            （別の切り口からのフォロー）
+
+            ### 送信タイミングの推奨
+            ### フォローアップシナリオ
+            返信パターン別の次のアクション
+
+            ## ルール
+            1. お客様の具体的な反応・関心事に言及してパーソナライズする
+            2. 宅建業法に基づく誇大広告の禁止を遵守する
+            3. 押し付けがましい表現は避け、お客様の判断を尊重する
+            4. 物件のデメリットも正直に触れ、信頼感を構築する
+            5. 具体的な次のアクション（再内覧・資料送付等）を提案する
+            6. 個人情報は最小限の記載にとどめる
+            7. フォローの目的に応じた適切なトーンを設定する
+        - role: user
+          text: |-
+            viewing_info:
+            {{#56100000000001.viewing_info#}}
+
+            customer_reaction:
+            {{#56100000000001.customer_reaction#}}
+
+            followup_purpose: {{#56100000000001.followup_purpose#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '56100000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 内覧フォローメール生成結果
+
+          **followup_purpose**: {{ followup_purpose }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したフォローメールです。お客様の状況に合わせて内容を調整してからご送信ください。*
+        variables:
+        - value_selector:
+          - '56100000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '56100000000001'
+          - followup_purpose
+          variable: followup_purpose
+      height: 97
+      id: '56100000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          内覧フォローメール生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '56100000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '56100000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '56100000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '56100000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '56100000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

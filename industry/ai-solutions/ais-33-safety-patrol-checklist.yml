@@ -1,0 +1,452 @@
+kind: app
+version: 0.1.5
+app:
+  description: 職場情報を入力すると、安全衛生パトロール用のチェックリストを自動生成するワークフロー。
+  icon: 🛡
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-33: 安全衛生パトロールチェックリスト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-53300000000001-53300000000002
+      source: '53300000000001'
+      sourceHandle: source
+      target: '53300000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-53300000000002-53300000000003
+      source: '53300000000002'
+      sourceHandle: source
+      target: '53300000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-53300000000003-53300000000004
+      source: '53300000000003'
+      sourceHandle: 'true'
+      target: '53300000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-53300000000003-53300000000006
+      source: '53300000000003'
+      sourceHandle: 'false'
+      target: '53300000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-53300000000004-53300000000005
+      source: '53300000000004'
+      sourceHandle: source
+      target: '53300000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53300000000005-53300000000007
+      source: '53300000000005'
+      sourceHandle: source
+      target: '53300000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53300000000006-53300000000007
+      source: '53300000000006'
+      sourceHandle: source
+      target: '53300000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: workplace_info
+          variable: workplace_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: workplace_type
+          variable: workplace_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 製造現場（機械加工）
+          - 製造現場（組立）
+          - 製造現場（化学プロセス）
+          - 倉庫・物流
+          - 研究開発・試験室
+          - 事務所
+        - label: patrol_type
+          variable: patrol_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 定期パトロール
+          - 特別パトロール（災害後）
+          - 新規設備導入時
+          - 季節対策（夏季/冬季）
+        - label: recent_incidents
+          variable: recent_incidents
+          required: false
+          type: paragraph
+          max_length: 10000
+          options: []
+      height: 149
+      id: '53300000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(workplace_info: str, recent_incidents: str) -> dict:
+              issues = []
+              if len(workplace_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = workplace_info + ' ' + recent_incidents
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '53300000000001'
+          - workplace_info
+          variable: workplace_info
+        - value_selector:
+          - '53300000000001'
+          - recent_incidents
+          variable: recent_incidents
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '53300000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '53300000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '53300000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 職場情報を入力すると、安全衛生パトロール用のチェックリストを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは労働安全衛生の専門家です。労働安全衛生法およびOSHAガイドラインに準拠した安全衛生パトロールチェックリストを作成してください。
+
+            ## 出力フォーマット
+            ### パトロール基本情報
+            - 実施日 / 対象エリア / パトロール種別 / 参加者
+
+            ### チェックリスト
+
+            #### A. 整理・整頓・清掃（5S）
+            | # | チェック項目 | 判定（○/×/NA） | 指摘事項 | 改善期限 |
+            |---|---|---|---|---|
+
+            #### B. 機械・設備の安全
+            | # | チェック項目 | 判定 | 指摘事項 | 改善期限 |
+            - 安全カバー・インターロック
+            - 非常停止装置
+            - 回転体・挟まれ防止
+
+            #### C. 電気安全
+            #### D. 化学物質管理
+            #### E. 保護具（PPE）着用
+            #### F. 通路・避難経路
+            #### G. 消防・防災設備
+            #### H. 作業環境（温度・照度・騒音・粉じん）
+            #### I. 健康管理・メンタルヘルス
+
+            ### 重点確認事項
+            直近のインシデントに関連する特別確認項目
+
+            ### リスク評価マトリクス
+            | リスク項目 | 発生頻度 | 重大性 | リスクレベル | 対策優先度 |
+
+            ## ルール
+            - 職場タイプに応じたチェック項目を重点的に含めること
+            - 労働安全衛生法の該当条文を参照すること
+            - KYT（危険予知トレーニング）の観点を取り入れること
+            - 直近のインシデント情報がある場合は関連項目を重点化すること
+            - リスクアセスメント手法（JIS Q 31000）を適用すること
+            - 季節特有のリスク（熱中症、凍結等）を考慮すること
+            - 改善提案には具体的な対策と期限を含めること
+        - role: user
+          text: |-
+            workplace_info:
+            {{#53300000000001.workplace_info#}}
+
+            workplace_type: {{#53300000000001.workplace_type#}}
+
+            patrol_type: {{#53300000000001.patrol_type#}}
+
+            recent_incidents:
+            {{#53300000000001.recent_incidents#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '53300000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 安全衛生パトロールチェックリスト
+
+          **workplace_type**: {{ workplace_type }}
+          **patrol_type**: {{ patrol_type }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したチェックリストのドラフトです。安全衛生委員会・安全管理者の確認を経てからご使用ください。*
+        variables:
+        - value_selector:
+          - '53300000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '53300000000001'
+          - workplace_type
+          variable: workplace_type
+        - value_selector:
+          - '53300000000001'
+          - patrol_type
+          variable: patrol_type
+      height: 97
+      id: '53300000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          安全衛生パトロールチェックリストの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '53300000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '53300000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '53300000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '53300000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '53300000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

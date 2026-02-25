@@ -358,18 +358,20 @@ data:
   context:
     enabled: false               # ナレッジコンテキストの注入
     variable_selector: []
-  memory:
-    enabled: false               # 会話履歴（Chatflowのみ）
+  memory:                          # 会話履歴（Chatflowのみ）— 下記注意参照
+    enabled: true
     window:
       enabled: true
       size: 10
     role_prefix:
-      user: "Human"
-      assistant: "AI"
+      user: ""
+      assistant: ""
   vision:
     enabled: false               # 画像・ファイル処理
   variables: []
 ```
+
+> **⚠ `memory` は All-or-Nothing**: `memory` キーを含める場合は `window` と `role_prefix` を含む**完全な構造**を記述すること。`memory: { enabled: false }` のように不完全な構造を書くと Dify Cloud でサイレントランタイムエラーが発生する。メモリ不要の場合は **`memory` キー自体を省略する**のが最も安全。
 
 #### 出力変数
 
@@ -413,6 +415,8 @@ data:
       provider: openai
       name: gpt-4
 ```
+
+> **⚠ `dataset_ids` には実在するナレッジベースUUIDのみ指定すること**: プレースホルダー（`placeholder`、`your-dataset-uuid-here` 等）や存在しないIDを指定すると、インポートは成功するがランタイムでサイレントエラーが発生しフローが停止する。ナレッジベース未準備の場合は KR ノード自体を含めず、後から追加する設計にすること。
 
 #### 検索戦略
 
@@ -1006,6 +1010,8 @@ Content-Type: application/json
 14. **`prompt_template` は `role` と `text` のペアのリストであること**
 15. **`temperature` は用途に応じて適切に設定すること**（正確性重視: 0〜0.3、バランス: 0.5〜0.7、創造性: 0.8〜1.0）
 16. **`max_tokens` は十分な値を設定すること**（短すぎると回答が途中で切れる）
+17. **LLM の `memory` は完全な構造で記述するか、キー自体を省略すること** — `memory: { enabled: false }` のように `window`・`role_prefix` を欠いた不完全な構造はサイレントランタイムエラーを引き起こす。メモリ不要なら `memory` キーごと省略するのが最も安全
+18. **Knowledge Retrieval の `dataset_ids` にプレースホルダーや存在しないIDを入れないこと** — インポートは成功するがランタイムでフローが停止する。KB未準備ならノード自体を含めない
 
 ### エッジに関するルール
 
@@ -1030,12 +1036,18 @@ Content-Type: application/json
 31. **API レスポンスの数値フィールドは Code ノードで明示的に型変換すること** — API が文字列 `"12000000"` を返す場合、`float()` で変換しないと後続の数値比較（IF/ELSE の `>` 条件等）が失敗する。変換失敗時は `0` にフォールバックせず即エラー（`FAIL`）を返すこと（`0` 扱いだと後続の閾値チェックをすり抜ける）
 32. **Code ノードで文字列リストのマッチングを行う場合は完全一致を使うこと** — `substring in item`（部分一致）はスキル名 `git` が `digitization` に誤マッチする等の過大評価を引き起こす。`item == keyword` または正規化済みリストの `keyword in list`（完全一致）を使う
 
+### Chatflow (`advanced-chat`) に関するルール
+
+33. **Chatflow の LLM ノードで会話メモリが不要な場合は `memory` キー自体を省略すること** — Workflow モードの LLM には `memory` が存在しないため問題にならないが、Chatflow モードでは不完全な `memory` 構造がランタイムエラーの原因になる
+34. **Chatflow で問題が発生した場合は最小構成（Start → LLM → Answer の3ノード）で切り分けること** — 最小構成が動けばノード/機能の問題、動かなければ環境（モデル設定等）の問題と判別できる
+35. **`sensitive_word_avoidance` は動作確認後に有効化すること** — 初期開発・デバッグ時は `enabled: false` にして、フロー全体が正常動作してから有効化する。Chatflow と Workflow で挙動が異なる場合がある
+
 ### 運用に関するルール
 
-27. **プロンプト、ツール、データセットのバージョン管理を行うこと**
-28. **各ノードの入出力をログに記録し、観測可能性を確保すること**
-29. **テスト用の評価データセットを準備すること**
-30. **ワークフローを再利用可能なツールとして公開することを検討すること**（Workflow as Tool 機能）
+36. **プロンプト、ツール、データセットのバージョン管理を行うこと**
+37. **各ノードの入出力をログに記録し、観測可能性を確保すること**
+38. **テスト用の評価データセットを準備すること**
+39. **ワークフローを再利用可能なツールとして公開することを検討すること**（Workflow as Tool 機能）
 
 ---
 

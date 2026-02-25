@@ -1,0 +1,432 @@
+kind: app
+version: 0.1.5
+app:
+  description: 自社と競合企業の情報を入力すると、SWOT分析・比較マトリクス・差別化戦略を含む構造化された競合分析レポートを自動生成するワークフロー。
+  icon: 📊
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-12: 競合分析レポート生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-51200000000001-51200000000002
+      source: '51200000000001'
+      sourceHandle: source
+      target: '51200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-51200000000002-51200000000003
+      source: '51200000000002'
+      sourceHandle: source
+      target: '51200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51200000000003-51200000000004
+      source: '51200000000003'
+      sourceHandle: 'true'
+      target: '51200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-51200000000003-51200000000006
+      source: '51200000000003'
+      sourceHandle: 'false'
+      target: '51200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-51200000000004-51200000000005
+      source: '51200000000004'
+      sourceHandle: source
+      target: '51200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51200000000005-51200000000007
+      source: '51200000000005'
+      sourceHandle: source
+      target: '51200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51200000000006-51200000000007
+      source: '51200000000006'
+      sourceHandle: source
+      target: '51200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 自社情報・競合企業・分析観点を受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: own_company_info
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: own_company_info
+        - label: competitors
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: competitors
+        - label: analysis_focus
+          max_length: 48
+          options:
+          - 総合分析
+          - 価格戦略
+          - 機能比較
+          - マーケティング戦略
+          - 技術力比較
+          required: true
+          type: select
+          variable: analysis_focus
+        - label: industry
+          max_length: 256
+          options: []
+          required: true
+          type: text-input
+          variable: industry
+      height: 149
+      id: '51200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 自社情報・競合情報の文字数チェックとインジェクション検出
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(own_company_info: str, competitors: str) -> dict:
+              issues = []
+              if len(own_company_info.strip()) < 20:
+                  issues.append("自社情報が短すぎます（20文字以上必要）")
+              if len(competitors.strip()) < 10:
+                  issues.append("競合企業情報が短すぎます（10文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = own_company_info + ' ' + competitors
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '51200000000001'
+          - own_company_info
+          variable: own_company_info
+        - value_selector:
+          - '51200000000001'
+          - competitors
+          variable: competitors
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '51200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51200000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '51200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 競合企業の強み・弱みを多角的に分析する
+        selected: false
+        title: 競合分析
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.4
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは戦略コンサルタントです。自社と競合企業の情報に基づいて、詳細な競合分析レポートを作成してください。
+
+            ## レポート構成
+            1. **エグゼクティブサマリー**（3行以内）
+            2. **市場環境分析**
+            3. **競合比較マトリクス**（表形式）
+               | 項目 | 自社 | 競合A | 競合B | ... |
+            4. **各社SWOT分析**
+            5. **ポジショニングマップ**（テキスト描写）
+            6. **差別化戦略の提案**（3-5つ）
+            7. **リスクと機会**
+            8. **推奨アクション**（優先度順）
+
+            ## ルール
+            - 分析観点に応じて深掘りする項目を変える
+            - 客観的な分析を心がけ、根拠のない推測は「推定」と明記する
+            - 具体的で実行可能な提案を含める
+            - 機密情報の取扱いに注意する
+        - role: user
+          text: |-
+            自社情報:
+            {{#51200000000001.own_company_info#}}
+
+            競合企業:
+            {{#51200000000001.competitors#}}
+
+            業界: {{#51200000000001.industry#}}
+            分析観点: {{#51200000000001.analysis_focus#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51200000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: レポートにメタ情報を付与
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 競合分析レポート
+
+          **業界**: {{ industry }}
+          **分析観点**: {{ analysis_focus }}
+
+          ---
+
+          {{ analysis_report }}
+
+          ---
+          *AIが生成した分析レポートです。戦略的意思決定には追加調査をお勧めします。*
+        variables:
+        - value_selector:
+          - '51200000000004'
+          - text
+          variable: analysis_report
+        - value_selector:
+          - '51200000000001'
+          - industry
+          variable: industry
+        - value_selector:
+          - '51200000000001'
+          - analysis_focus
+          variable: analysis_focus
+      height: 97
+      id: '51200000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          競合分析レポートの生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - 自社情報は20文字以上で入力してください
+          - 競合企業情報は10文字以上で入力してください
+          - 不正な文字列は使用できません
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '51200000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '51200000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '51200000000005'
+          - output
+          variable: analysis_result
+        - value_selector:
+          - '51200000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '51200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,442 @@
+kind: app
+version: 0.1.5
+app:
+  description: 1on1ミーティングのメモを入力すると、建設的なフィードバックコメントとアクションプランを自動生成するワークフロー。
+  icon: 💬
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-118: 1on1フィードバック生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61800000000001-61800000000002
+      source: '61800000000001'
+      sourceHandle: source
+      target: '61800000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61800000000002-61800000000003
+      source: '61800000000002'
+      sourceHandle: source
+      target: '61800000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61800000000003-61800000000004
+      source: '61800000000003'
+      sourceHandle: 'true'
+      target: '61800000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61800000000003-61800000000006
+      source: '61800000000003'
+      sourceHandle: 'false'
+      target: '61800000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61800000000004-61800000000005
+      source: '61800000000004'
+      sourceHandle: source
+      target: '61800000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61800000000005-61800000000007
+      source: '61800000000005'
+      sourceHandle: source
+      target: '61800000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61800000000006-61800000000007
+      source: '61800000000006'
+      sourceHandle: source
+      target: '61800000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: meeting_notes
+          variable: meeting_notes
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: feedback_type
+          variable: feedback_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 定期1on1
+          - 目標設定面談
+          - 中間レビュー
+          - 期末評価面談
+          - キャリア面談
+          - 課題改善面談
+        - label: employee_grade
+          variable: employee_grade
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 新入社員（1年目）
+          - 若手（2〜3年目）
+          - 中堅（4〜7年目）
+          - シニア（8年目以上）
+          - 管理職候補
+          - 管理職
+      height: 149
+      id: '61800000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(meeting_notes: str) -> dict:
+              issues = []
+              if len(meeting_notes.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = meeting_notes
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61800000000001'
+          - meeting_notes
+          variable: meeting_notes
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61800000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61800000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61800000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 1on1ミーティングのメモを入力すると、建設的なフィードバックコメントとアクションプランを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.4
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはピープルマネジメントを専門とする組織開発コンサルタントです。1on1ミーティングのメモに基づいて、部下の成長を促進する建設的なフィードバックコメントとアクションプランを作成してください。
+
+            ## あなたの役割
+            SBI（Situation-Behavior-Impact）モデルに基づく効果的なフィードバックを設計し、部下の自律的成長を支援するコーチングの専門家です。心理的安全性を保ちながら行動変容を促すフィードバック設計に精通しています。
+
+            ## 出力フォーマット
+            ### フィードバックサマリー
+            今回の1on1の総括（3行以内）
+
+            ### 承認・称賛ポイント
+            | # | 行動（SBI形式） | 承認コメント例 |
+            |---|---|---|
+
+            ### 改善フィードバック
+            | # | 状況（S） | 行動（B） | 影響（I） | 改善提案 |
+            |---|---|---|---|---|
+
+            ### アクションプラン
+            | # | アクション項目 | 期限 | 支援内容 | 成功指標 |
+            |---|---|---|---|---|
+
+            ### キャリア開発の方向性
+            中長期的な成長の方向性と必要なスキル
+
+            ### 次回1on1のアジェンダ案
+            - 確認事項
+            - ディスカッションテーマ
+            - フォローアップ項目
+
+            ### マネージャーへのアドバイス
+            効果的なフィードバック伝達のためのコミュニケーションTips
+
+            ## ルール
+            1. SBI（Situation-Behavior-Impact）モデルに基づくフィードバックを設計する
+            2. ネガティブフィードバックとポジティブフィードバックのバランスを取る
+            3. 人格ではなく行動に焦点を当てる
+            4. 具体的かつ実行可能なアクションプランを提示する
+            5. 社員のキャリアステージに応じたフィードバックレベルを調整する
+            6. 心理的安全性を損なう表現は使用しない
+            7. 個人情報・人事評価情報の取り扱いに注意する
+            8. コーチング的アプローチ（問いかけ）を取り入れる
+        - role: user
+          text: |-
+            meeting_notes:
+            {{#61800000000001.meeting_notes#}}
+
+            feedback_type: {{#61800000000001.feedback_type#}}
+
+            employee_grade: {{#61800000000001.employee_grade#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61800000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 1on1フィードバック
+
+          **feedback_type**: {{ feedback_type }}
+          **employee_grade**: {{ employee_grade }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したフィードバックのドラフトです。実際の面談では相手の反応を見ながら柔軟に対応してください。*
+        variables:
+        - value_selector:
+          - '61800000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61800000000001'
+          - feedback_type
+          variable: feedback_type
+        - value_selector:
+          - '61800000000001'
+          - employee_grade
+          variable: employee_grade
+      height: 97
+      id: '61800000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          1on1フィードバック生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61800000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61800000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61800000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61800000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61800000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,474 @@
+kind: app
+version: 0.1.5
+app:
+  description: 評価データを入力すると、個別化されたリハビリテーション計画書を自動生成するワークフロー。
+  icon: 🏃
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'AIS-49: リハビリテーション計画書生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-54900000000001-54900000000002
+      source: '54900000000001'
+      sourceHandle: source
+      target: '54900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-54900000000002-54900000000003
+      source: '54900000000002'
+      sourceHandle: source
+      target: '54900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-54900000000003-54900000000004
+      source: '54900000000003'
+      sourceHandle: 'true'
+      target: '54900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-54900000000003-54900000000006
+      source: '54900000000003'
+      sourceHandle: 'false'
+      target: '54900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-54900000000004-54900000000005
+      source: '54900000000004'
+      sourceHandle: source
+      target: '54900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54900000000005-54900000000007
+      source: '54900000000005'
+      sourceHandle: source
+      target: '54900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54900000000006-54900000000007
+      source: '54900000000006'
+      sourceHandle: source
+      target: '54900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: assessment_data
+          variable: assessment_data
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: rehab_type
+          variable: rehab_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 脳血管疾患リハ
+          - 運動器リハ
+          - 呼吸器リハ
+          - 心大血管リハ
+          - 廃用症候群リハ
+          - がんリハ
+          - 小児リハ
+        - label: rehab_phase
+          variable: rehab_phase
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 急性期
+          - 回復期
+          - 維持期/生活期
+          - 通所リハ
+          - 訪問リハ
+        - label: patient_goals
+          variable: patient_goals
+          required: false
+          type: paragraph
+          max_length: 5000
+          options: []
+      height: 149
+      id: '54900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(assessment_data: str, patient_goals: str) -> dict:
+              issues = []
+              if len(assessment_data.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = assessment_data + ' ' + patient_goals
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '54900000000001'
+          - assessment_data
+          variable: assessment_data
+        - value_selector:
+          - '54900000000001'
+          - patient_goals
+          variable: patient_goals
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '54900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '54900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '54900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 評価データを入力すると、個別化されたリハビリテーション計画書を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはリハビリテーション医療の専門家（理学療法士・作業療法士・言語聴覚士）です。厚生労働省の「リハビリテーション総合実施計画書」の書式および各疾患別リハガイドラインに準拠したリハビリテーション計画書を作成してください。
+
+            ## 出力フォーマット
+            ### 1. 患者情報・基本情報
+            - 疾患名 / 発症日 / リハ開始日 / リハ区分
+
+            ### 2. 評価結果
+            #### 機能評価
+            | 評価項目 | 評価尺度 | 現在値 | 目標値 |
+            |---|---|---|---|
+            | ADL | FIM/Barthel Index | | |
+            | 運動機能 | MMT/ROM | | |
+            | バランス | Berg Balance Scale | | |
+            | 歩行 | FAC/10m歩行 | | |
+            | 認知機能 | MMSE/HDS-R | | |
+            | 嚥下機能 | FILS/RSST | | |
+
+            #### ICF（国際生活機能分類）に基づく整理
+            - 心身機能・身体構造
+            - 活動
+            - 参加
+            - 環境因子
+            - 個人因子
+
+            ### 3. 問題点リスト
+            | # | 問題点 | 要因 | 優先度 |
+
+            ### 4. 目標設定
+            - **短期目標**（2週間〜1ヶ月）:
+            - **長期目標**（3ヶ月〜6ヶ月）:
+            - **退院/終了目標**:
+
+            ### 5. リハビリテーションプログラム
+            | # | プログラム | 頻度 | 時間 | 強度 | 目的 |
+            |---|---|---|---|---|---|
+
+            ### 6. リスク管理
+            - 運動時の注意事項（血圧・心拍数の基準）
+            - 転倒予防策
+            - 中止基準
+
+            ### 7. 多職種連携事項
+            - 医師への報告・相談事項
+            - 看護師との連携事項
+            - MSW（退院支援）との連携
+
+            ### 8. 退院後の計画
+            - 自主トレーニングプログラム
+            - 在宅環境調整の提案
+            - 介護保険サービスの利用提案
+
+            ## ルール
+            - ICF（国際生活機能分類）の枠組みを使用すること
+            - リハビリ区分（疾患別）に応じた計画にすること
+            - SMART目標（具体的・測定可能・達成可能・関連性・期限）を設定すること
+            - エビデンスに基づくリハプログラムを選択すること
+            - 患者・家族の希望を反映すること
+            - リスク管理を必ず含めること
+            - 算定要件（施設基準・実施単位数）を考慮すること
+            - 医師の最終確認が必要な旨を明記すること
+        - role: user
+          text: |-
+            assessment_data:
+            {{#54900000000001.assessment_data#}}
+
+            rehab_type: {{#54900000000001.rehab_type#}}
+
+            rehab_phase: {{#54900000000001.rehab_phase#}}
+
+            patient_goals:
+            {{#54900000000001.patient_goals#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '54900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # リハビリテーション計画書
+
+          **rehab_type**: {{ rehab_type }}
+          **rehab_phase**: {{ rehab_phase }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したリハビリ計画書のドラフトです。リハ医師・担当セラピストの確認を経てから正式文書化してください。医療行為の代替ではありません。*
+        variables:
+        - value_selector:
+          - '54900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '54900000000001'
+          - rehab_type
+          variable: rehab_type
+        - value_selector:
+          - '54900000000001'
+          - rehab_phase
+          variable: rehab_phase
+      height: 97
+      id: '54900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          リハビリテーション計画書生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '54900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '54900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '54900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '54900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '54900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

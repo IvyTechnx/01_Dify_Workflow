@@ -1,0 +1,393 @@
+kind: app
+version: 0.1.5
+app:
+  description: ESGデータからガイドライン準拠のレポートドラフトを生成する。
+  icon: 🌱
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'AIS-128: ESGレポート生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-12800000001-12800000002
+      source: '12800000001'
+      sourceHandle: source
+      target: '12800000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-12800000002-12800000003
+      source: '12800000002'
+      sourceHandle: source
+      target: '12800000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-12800000003-12800000004
+      source: '12800000003'
+      sourceHandle: 'true'
+      target: '12800000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-12800000003-12800000006
+      source: '12800000003'
+      sourceHandle: 'false'
+      target: '12800000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-12800000004-12800000005
+      source: '12800000004'
+      sourceHandle: source
+      target: '12800000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12800000005-12800000007
+      source: '12800000005'
+      sourceHandle: source
+      target: '12800000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12800000006-12800000007
+      source: '12800000006'
+      sourceHandle: source
+      target: '12800000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: esg_data
+          variable: esg_data
+          required: true
+          type: paragraph
+          options: []
+          max_length: 999999
+        - label: reporting_standard
+          variable: reporting_standard
+          required: true
+          type: select
+          options:
+          - GRI
+          - SASB
+          - TCFD
+          - 統合報告
+          max_length: 48
+        - label: fiscal_year
+          variable: fiscal_year
+          required: true
+          type: text-input
+          options: []
+          max_length: 200
+      height: 149
+      id: '12800000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: "import re\n\ndef main(esg_data: str) -> dict:\n    text = esg_data.strip()\n    if len(text) < 10:\n        return {'is_valid': 'false', 'error_message': '入力が短すぎます（10文字以上必要）'}\n    injection_patterns\
+          \ = [\n        r'(?i)ignore\\s+(previous|above|all)\\s+(instructions?|prompts?)',\n        r'(?i)system\\s*prompt', r'(?i)you\\s+are\\s+now',\n        r'(?i)forget\\s+(everything|all|your)',\n\
+          \        r'<script', r'javascript:', r'\\{\\{.*\\}\\}',\n    ]\n    for pattern in injection_patterns:\n        if re.search(pattern, text):\n            return {'is_valid': 'false', 'error_message':\
+          \ '不正な入力パターンが検出されました。'}\n    return {'is_valid': 'true', 'error_message': ''}"
+        variables:
+        - value_selector:
+          - '12800000001'
+          - esg_data
+          variable: esg_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '12800000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '12800000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '12800000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: ESGデータからガイドライン準拠のレポートドラフトを生成する。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: 'あなたはESG・サステナビリティレポートの専門家です。指定されたガイドラインに準拠したレポートドラフトを作成してください。
+
+
+            ## 構成
+
+            ### E（環境）: CO2排出量・エネルギー使用量・廃棄物・水使用量
+
+            ### S（社会）: 従業員数・ダイバーシティ・労災・地域貢献
+
+            ### G（ガバナンス）: 取締役会構成・リスク管理・コンプライアンス
+
+
+            ## 出力フォーマット
+
+            ### ESGハイライト（KPI一覧表）
+
+            ### E（環境）セクション
+
+            ### S（社会）セクション
+
+            ### G（ガバナンス）セクション
+
+            ### 目標と進捗
+
+            ### 第三者意見への示唆'
+        - role: user
+          text: '報告基準: {{#12800000001.reporting_standard#}}
+
+            対象年度: {{#12800000001.fiscal_year#}}
+
+
+            ESGデータ:
+
+            {{#12800000001.esg_data#}}'
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '12800000004'
+      type: custom
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: '# ESGレポートドラフト
+
+
+          ---
+
+
+          {{ result }}
+
+
+          ---
+
+          *AIが生成したドラフトです。専門家の確認を行ってからご使用ください。*'
+        variables:
+        - value_selector:
+          - '12800000004'
+          - text
+          variable: result
+      height: 97
+      id: '12800000005'
+      type: custom
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: '## 入力エラー
+
+
+          処理を開始できませんでした。
+
+
+          **エラー詳細**: {{ error_message }}
+
+
+          入力内容を修正して再度お試しください。'
+        variables:
+        - value_selector:
+          - '12800000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '12800000006'
+      type: custom
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '12800000005'
+          - output
+          variable: result
+        - value_selector:
+          - '12800000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '12800000007'
+      type: custom
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

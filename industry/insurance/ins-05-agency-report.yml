@@ -1,0 +1,372 @@
+kind: app
+version: '0.1.5'
+app:
+  description: 複数代理店の実績データをAPIから一括取得し、LLMで営業分析レポートを生成する営業推進部門向けワークフロー。
+  icon: "\U0001F3E2"
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'INS-05: 代理店実績レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-40500000000001-40500000000002
+      source: '40500000000001'
+      sourceHandle: source
+      target: '40500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-40500000000002-40500000000003
+      source: '40500000000002'
+      sourceHandle: source
+      target: '40500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-40500000000003-40500000000005
+      source: '40500000000003'
+      sourceHandle: source
+      target: '40500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-40500000000005-40500000000006
+      source: '40500000000005'
+      sourceHandle: source
+      target: '40500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-40500000000006-40500000000007
+      source: '40500000000006'
+      sourceHandle: source
+      target: '40500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 'カンマ区切りの代理店コードとレポート期間を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: agency_list
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: agency_list
+        - label: report_period
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: report_period
+      height: 115
+      id: '40500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '代理店コードを配列に変換しレポート期間をURLエンコードする'
+        selected: false
+        title: 代理店配列化
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(agency_list: str, report_period: str) -> dict:
+              items = [a.strip() for a in agency_list.split(',') if a.strip()]
+              report_period_enc = urllib.parse.quote(report_period, safe='')
+              return {'items': items, 'report_period_enc': report_period_enc}
+        variables:
+        - value_selector:
+          - '40500000000001'
+          - agency_list
+          variable: agency_list
+        - value_selector:
+          - '40500000000001'
+          - report_period
+          variable: report_period
+        outputs:
+          items:
+            type: array[string]
+          report_period_enc:
+            type: string
+      height: 97
+      id: '40500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        type: iteration
+        title: 代理店イテレーション
+        desc: '各代理店の実績データを取得'
+        iterator_selector:
+        - '40500000000002'
+        - items
+        output_selector:
+        - '40500000000004'
+        - body
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '40500000000004'
+      id: '40500000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        desc: '代理店の実績データをAPIから取得する'
+        selected: false
+        title: 実績API
+        type: http-request
+        method: get
+        # TODO: 実際の代理店実績APIエンドポイントに置換すること
+        # api.example.com はプレースホルダ — このままではHTTPリクエストが失敗します
+        # authorization も実際の認証方式（api-key / bearer 等）に設定してください
+        url: 'https://api.example.com/agency-performance?agency={{#40500000000003.item#}}&period={{#40500000000002.report_period_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        retry:
+          max_retries: 3
+        mask_authorization_header: false
+      id: '40500000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '40500000000003'
+    - data:
+        desc: 'イテレーション結果を集約し分析用テキストを生成する'
+        selected: false
+        title: 結果集約
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_results: list) -> dict:
+              summary_lines = []
+              for i, result in enumerate(api_results):
+                  try:
+                      data = json.loads(result) if isinstance(result, str) else result
+                      agency_code = data.get('agency_code', f'代理店{i+1}')
+                      agency_name = data.get('agency_name', agency_code)
+                      new_contracts = data.get('new_contracts', 'N/A')
+                      active_contracts = data.get('active_contracts', 'N/A')
+                      lapse_rate = data.get('lapse_rate', 'N/A')
+                      premium_income = data.get('premium_income_million', 'N/A')
+                      claim_ratio = data.get('claim_ratio', 'N/A')
+                      summary_lines.append(
+                          f"代理店: {agency_name}({agency_code}), "
+                          f"新契約: {new_contracts}件, "
+                          f"保有契約: {active_contracts}件, "
+                          f"解約率: {lapse_rate}%, "
+                          f"保険料収入: {premium_income}百万円, "
+                          f"損害率: {claim_ratio}%"
+                      )
+                  except Exception:
+                      summary_lines.append(f"代理店{i+1}: データ取得エラー")
+              summary = '\n'.join(summary_lines)
+              return {'summary': summary}
+        variables:
+        - value_selector:
+          - '40500000000003'
+          - output
+          variable: api_results
+        outputs:
+          summary:
+            type: string
+      height: 97
+      id: '40500000000005'
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '代理店実績データを分析し営業レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の営業推進アナリストです。各代理店の実績データを分析し、営業分析レポートを作成してください。
+
+            ## レポートフォーマット
+            ### 代理店実績サマリ
+            （各代理店の実績を表形式で整理）
+
+            ### 全体トレンド
+            - 新契約・保有契約の推移
+            - 保険料収入の全体傾向
+            - 解約率・損害率の分析
+
+            ### トップパフォーマー
+            （優秀代理店とその要因分析）
+
+            ### 要改善代理店
+            （改善が必要な代理店と具体的な改善提案）
+
+            ### 戦略提言
+            （データに基づく具体的なアクション提案）
+
+            数値に基づく客観的な分析を行い、推測は最小限にしてください。
+        - role: user
+          text: |
+            レポート期間: {{#40500000000001.report_period#}}
+
+            代理店実績データ:
+            {{#40500000000005.summary#}}
+        selected: false
+        title: 営業分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40500000000006'
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '営業分析レポートを出力する'
+        outputs:
+        - value_selector:
+          - '40500000000006'
+          - text
+          variable: report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40500000000007'
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

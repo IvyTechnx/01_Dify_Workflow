@@ -1,0 +1,459 @@
+kind: app
+version: '0.1.5'
+app:
+  description: 保険金請求書テキストからParameter Extractorで請求情報を抽出し、基本要件（請求種別、請求金額、入院日数等）をCodeで判定、合格ならLLMで査定レポート、不合格ならテンプレートで不備通知を生成するワークフロー。
+  icon: "\U0001F3E5"
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'INS-02: 保険金請求審査'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: parameter-extractor
+      id: e-40200000000001-40200000000002
+      source: '40200000000001'
+      sourceHandle: source
+      target: '40200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: parameter-extractor
+        targetType: code
+      id: e-40200000000002-40200000000003
+      source: '40200000000002'
+      sourceHandle: source
+      target: '40200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-40200000000003-40200000000004
+      source: '40200000000003'
+      sourceHandle: source
+      target: '40200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-40200000000004-40200000000005
+      source: '40200000000004'
+      sourceHandle: 'true'
+      target: '40200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-40200000000004-40200000000006
+      source: '40200000000004'
+      sourceHandle: 'false'
+      target: '40200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-40200000000005-40200000000007
+      source: '40200000000005'
+      sourceHandle: source
+      target: '40200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-40200000000006-40200000000007
+      source: '40200000000006'
+      sourceHandle: source
+      target: '40200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-40200000000007-40200000000008
+      source: '40200000000007'
+      sourceHandle: source
+      target: '40200000000008'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '保険金請求書テキストを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: claim_text
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: claim_text
+      height: 89
+      id: '40200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '保険金請求書から査定に必要な情報を抽出'
+        selected: false
+        title: 請求情報抽出
+        type: parameter-extractor
+        query:
+        - '40200000000001'
+        - claim_text
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: policyholder_name
+          type: string
+          description: "契約者氏名"
+          required: true
+        - name: policy_number
+          type: string
+          description: "証券番号"
+          required: true
+        - name: accident_date
+          type: string
+          description: "事故日・発生日"
+          required: true
+        - name: claim_type
+          type: string
+          description: "請求種別（死亡/入院/手術/通院/後遺障害/その他）"
+          required: true
+        - name: claim_amount
+          type: number
+          description: "請求金額（万円）"
+          required: true
+        - name: hospitalization_days
+          type: number
+          description: "入院日数（該当する場合、該当しない場合は0）"
+          required: true
+        instruction: "保険金請求書テキストから上記パラメータを抽出してください。金額は万円単位で抽出してください。"
+        memory: null
+        vision:
+          enabled: false
+        reasoning_mode: prompt
+      height: 97
+      id: '40200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '基本要件（請求種別・請求金額・入院日数）を判定する'
+        selected: false
+        title: 基本要件チェック
+        type: code
+        code_language: python3
+        code: |
+          def main(claim_type: str, claim_amount: int, hospitalization_days: int) -> dict:
+              issues = []
+              # 型安全な変換（パラメータ抽出が文字列/None を返す場合に対応）
+              claim_type = str(claim_type or '').strip()
+              try:
+                  claim_amount = int(claim_amount or 0)
+              except (ValueError, TypeError):
+                  issues.append(f"請求金額が数値ではありません（{claim_amount}）")
+                  claim_amount = 0
+              try:
+                  hospitalization_days = int(hospitalization_days or 0)
+              except (ValueError, TypeError):
+                  issues.append(f"入院日数が数値ではありません（{hospitalization_days}）")
+                  hospitalization_days = 0
+              valid_types = ['死亡', '入院', '手術', '通院', '後遺障害', 'その他']
+              if claim_type not in valid_types:
+                  issues.append(f"請求種別不明（{claim_type}）")
+              if claim_amount <= 0:
+                  issues.append("請求金額が0以下です")
+              if claim_amount > 50000:
+                  issues.append(f"請求金額超過（{claim_amount}万円：上限5億円）")
+              if claim_type == '入院' and hospitalization_days <= 0:
+                  issues.append("入院請求ですが入院日数が未入力です")
+              passed = len(issues) == 0
+              result = "PASS" if passed else "FAIL"
+              detail = "全基本要件を充足" if passed else "\\n".join(issues)
+              return {'result': result, 'detail': detail}
+        variables:
+        - value_selector:
+          - '40200000000002'
+          - claim_type
+          variable: claim_type
+        - value_selector:
+          - '40200000000002'
+          - claim_amount
+          variable: claim_amount
+        - value_selector:
+          - '40200000000002'
+          - hospitalization_days
+          variable: hospitalization_days
+        outputs:
+          result:
+            type: string
+          detail:
+            type: string
+      height: 97
+      id: '40200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_pass
+            variable_selector:
+            - '40200000000003'
+            - result
+            comparison_operator: is
+            value: "PASS"
+        desc: '基本要件チェック結果で分岐する'
+        selected: false
+        title: 要件判定分岐
+        type: if-else
+      height: 125
+      id: '40200000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '要件充足案件の詳細査定レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の保険金査定専門家です。基本要件を充足した保険金請求について、詳細な査定レポートを作成してください。
+
+            ## レポートフォーマット
+            ### 保険金請求 査定レポート
+            ■ 契約者情報
+            （契約者名、証券番号を記載）
+
+            ■ 請求内容
+            （事故日、請求種別、請求金額、入院日数を記載）
+
+            ■ 基本要件チェック結果
+            （全項目PASSであることを確認記載）
+
+            ■ 査定所見
+            （請求種別、請求金額、入院日数等を踏まえた総合的な所見）
+
+            ■ 推奨対応
+            （支払実行にあたっての条件や追加確認事項）
+
+            ## 注意事項
+            - 提供されたデータのみに基づいて判定する
+            - 最終的な支払決定は保険金査定委員会で行う旨を明記する
+            - 個人情報の推測や追加生成は行わない
+        - role: user
+          text: |
+            以下の保険金請求について査定レポートを作成してください。
+
+            契約者名: {{#40200000000002.policyholder_name#}}
+            証券番号: {{#40200000000002.policy_number#}}
+            事故日: {{#40200000000002.accident_date#}}
+            請求種別: {{#40200000000002.claim_type#}}
+            請求金額: {{#40200000000002.claim_amount#}}万円
+            入院日数: {{#40200000000002.hospitalization_days#}}日
+
+            基本要件チェック結果: {{#40200000000003.detail#}}
+        selected: false
+        title: 査定レポート生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40200000000005'
+      position:
+        x: 1280
+        y: 132
+      positionAbsolute:
+        x: 1280
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '要件不充足案件の不備通知を生成する'
+        selected: false
+        title: 不備通知生成
+        type: template-transform
+        template: |
+          ## 保険金請求 基本要件チェック結果
+
+          契約者: {{ policyholder_name }}
+          判定: **不備あり**
+
+          ### 不備項目
+          {{ detail }}
+
+          ### 対応
+          上記要件を充足しないため、現時点での保険金支払は困難です。
+          書類の修正・再提出については保険金サービス部（内線: 7001）までお問い合わせください。
+        variables:
+        - value_selector:
+          - '40200000000002'
+          - policyholder_name
+          variable: policyholder_name
+        - value_selector:
+          - '40200000000003'
+          - detail
+          variable: detail
+      height: 97
+      id: '40200000000006'
+      position:
+        x: 1280
+        y: 432
+      positionAbsolute:
+        x: 1280
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+          groups: []
+        desc: '査定レポートと不備通知を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '40200000000005'
+          - text
+        - - '40200000000006'
+          - output
+      height: 89
+      id: '40200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '査定結果を出力する'
+        outputs:
+        - value_selector:
+          - '40200000000007'
+          - output
+          variable: review_result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40200000000008'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

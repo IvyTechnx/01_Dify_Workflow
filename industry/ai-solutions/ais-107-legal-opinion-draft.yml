@@ -1,0 +1,454 @@
+kind: app
+version: 0.1.5
+app:
+  description: 法律相談の内容を入力すると、争点整理・法的根拠・結論を含む法的意見書のドラフトを自動生成するワークフロー。
+  icon: ⚖️
+  icon_background: '#FBE9E7'
+  mode: workflow
+  name: 'AIS-107: 法的意見書ドラフト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-60700000000001-60700000000002
+      source: '60700000000001'
+      sourceHandle: source
+      target: '60700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-60700000000002-60700000000003
+      source: '60700000000002'
+      sourceHandle: source
+      target: '60700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-60700000000003-60700000000004
+      source: '60700000000003'
+      sourceHandle: 'true'
+      target: '60700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-60700000000003-60700000000006
+      source: '60700000000003'
+      sourceHandle: 'false'
+      target: '60700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-60700000000004-60700000000005
+      source: '60700000000004'
+      sourceHandle: source
+      target: '60700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-60700000000005-60700000000007
+      source: '60700000000005'
+      sourceHandle: source
+      target: '60700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-60700000000006-60700000000007
+      source: '60700000000006'
+      sourceHandle: source
+      target: '60700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: consultation_content
+          variable: consultation_content
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: legal_area
+          variable: legal_area
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 民事一般
+          - 商事・会社法
+          - 労働法
+          - 知的財産法
+          - 不動産法
+          - 消費者法
+          - 個人情報保護法
+          - 行政法
+          - その他
+        - label: client_position
+          variable: client_position
+          required: true
+          type: text-input
+          max_length: 500
+          options: []
+        - label: deadline_urgency
+          variable: deadline_urgency
+          required: false
+          type: select
+          max_length: 48
+          options:
+          - 緊急（即日）
+          - 通常（1週間以内）
+          - 余裕あり（1ヶ月以内）
+      height: 149
+      id: '60700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(consultation_content: str) -> dict:
+              issues = []
+              if len(consultation_content.strip()) < 50:
+                  issues.append("入力が短すぎます（50文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = consultation_content
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '60700000000001'
+          - consultation_content
+          variable: consultation_content
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '60700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '60700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '60700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 法律相談の内容を入力すると、争点整理・法的根拠・結論を含む法的意見書のドラフトを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは法律事務所のリーガルリサーチ担当者です。相談内容に基づき、法的争点の整理・関連法令の分析・結論と提言を含む法的意見書のドラフトを作成してください。
+
+            ## あなたの役割
+            弁護士が最終意見書を作成するための下書きを準備するリーガルリサーチャーとして、正確な法的分析と論理的な構成に基づくドラフトを提供します。
+
+            ## 出力フォーマット
+            ### 法的意見書ドラフト
+
+            #### 1. 事案の概要
+            相談内容の要約と前提事実の整理
+
+            #### 2. 法的争点
+            本件で検討すべき法的争点を列挙
+
+            #### 3. 関連法令・判例
+            | 争点 | 関連法令 | 条文 | 判例・通説 |
+            |---|---|---|---|
+
+            #### 4. 法的分析
+            各争点についての詳細な法的分析
+
+            #### 5. 結論と提言
+            法的見解のまとめと実務上の推奨アクション
+
+            #### 6. リスク評価
+            | リスク項目 | 発生可能性 | 影響度 | 対策 |
+            |---|---|---|---|
+
+            #### 7. 今後の対応フロー
+            時系列での推奨対応ステップ
+
+            ## ルール
+            1. 弁護士法第72条に留意し、法的意見書の「ドラフト」として提供する
+            2. 法令の条文番号を可能な限り具体的に引用する
+            3. 事実と法的評価を明確に区別する
+            4. 相談内容に記載のない事実は推測せず、確認すべき事項として記載する
+            5. 複数の法的解釈がある場合は通説・有力説を併記する
+            6. クライアントの立場に配慮しつつも客観的な分析を行う
+            7. 最新の法改正に関する情報は確認が必要な旨を注記する
+            8. 実務上の対応期限（時効・出訴期間等）がある場合は明示する
+        - role: user
+          text: |-
+            consultation_content:
+            {{#60700000000001.consultation_content#}}
+
+            legal_area: {{#60700000000001.legal_area#}}
+
+            client_position: {{#60700000000001.client_position#}}
+
+            deadline_urgency: {{#60700000000001.deadline_urgency#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '60700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 法的意見書ドラフト
+
+          **legal_area**: {{ legal_area }}
+          **client_position**: {{ client_position }}
+          **deadline_urgency**: {{ deadline_urgency }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した法的意見書のドラフトです。法的助言ではありません。最終的な法的判断は必ず弁護士にご確認ください。*
+        variables:
+        - value_selector:
+          - '60700000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '60700000000001'
+          - legal_area
+          variable: legal_area
+        - value_selector:
+          - '60700000000001'
+          - client_position
+          variable: client_position
+        - value_selector:
+          - '60700000000001'
+          - deadline_urgency
+          variable: deadline_urgency
+      height: 97
+      id: '60700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          法的意見書ドラフトの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '60700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '60700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '60700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '60700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '60700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

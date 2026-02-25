@@ -1,0 +1,433 @@
+kind: app
+version: 0.1.5
+app:
+  description: 輸出入情報を入力すると、通関に必要な書類のチェックリストを自動生成するワークフロー。
+  icon: 🛃
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: 'AIS-74: 通関書類チェックリスト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-57400000000001-57400000000002
+      source: '57400000000001'
+      sourceHandle: source
+      target: '57400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-57400000000002-57400000000003
+      source: '57400000000002'
+      sourceHandle: source
+      target: '57400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-57400000000003-57400000000004
+      source: '57400000000003'
+      sourceHandle: 'true'
+      target: '57400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-57400000000003-57400000000006
+      source: '57400000000003'
+      sourceHandle: 'false'
+      target: '57400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-57400000000004-57400000000005
+      source: '57400000000004'
+      sourceHandle: source
+      target: '57400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57400000000005-57400000000007
+      source: '57400000000005'
+      sourceHandle: source
+      target: '57400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57400000000006-57400000000007
+      source: '57400000000006'
+      sourceHandle: source
+      target: '57400000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: trade_info
+          variable: trade_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: trade_type
+          variable: trade_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 輸出（一般）
+          - 輸入（一般）
+          - 輸出（特定原産地証明）
+          - 輸入（EPA/FTA利用）
+          - 再輸出・再輸入
+        - label: cargo_type
+          variable: cargo_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 一般貨物
+          - 食品・飲料
+          - 医薬品・化粧品
+          - 危険物
+          - 動植物・農産物
+          - 精密機器
+      height: 149
+      id: '57400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(trade_info: str) -> dict:
+              issues = []
+              if len(trade_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = trade_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '57400000000001'
+          - trade_info
+          variable: trade_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '57400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '57400000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '57400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 輸出入情報を入力すると、通関に必要な書類のチェックリストを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは国際貿易・通関手続きの専門家（通関士レベル）です。輸出入情報に基づいて、通関に必要な書類のチェックリストと注意事項を作成してください。
+
+            ## あなたの役割
+            関税法・関税定率法に基づく適正な通関手続きを支援するための書類チェックリストを作成する貿易実務の専門家です。
+
+            ## 出力フォーマット
+            ### 必要書類チェックリスト
+            | # | 書類名 | 英語名 | 必須/任意 | 発行元 | 確認状況 | 備考 |
+            |---|---|---|---|---|---|---|
+            | 1 | インボイス | Commercial Invoice | 必須 | 輸出者 | □ | |
+            | 2 | パッキングリスト | Packing List | 必須 | 輸出者 | □ | |
+            | 3 | 船荷証券/航空運送状 | B/L / AWB | 必須 | 運送会社 | □ | |
+
+            ### 貨物種別固有の追加書類
+            | # | 書類名 | 根拠法令 | 取得先 | 確認状況 |
+            |---|---|---|---|---|
+
+            ### HSコード・関税率の確認ポイント
+            ### 申告時の注意事項
+            ### 規制・法令確認事項
+            該当する可能性のある法令（外為法・食品衛生法・薬機法等）
+
+            ### スケジュール目安
+            通関にかかる標準的なリードタイム
+
+            ## ルール
+            1. 関税法に基づく法定書類を漏れなくリストアップする
+            2. 貨物種別に応じた他法令（食品衛生法・薬機法・植物防疫法等）の許可証を含める
+            3. EPA/FTA利用の場合は原産地証明関連書類を追加する
+            4. 安全保障貿易管理（該非判定）の確認事項を含める
+            5. 法的助言ではなくチェック支援であることを明記する
+            6. AEO制度（認定事業者制度）の簡易手続きにも言及する
+            7. 最新の法令改正を反映した注意事項を含める
+        - role: user
+          text: |-
+            trade_info:
+            {{#57400000000001.trade_info#}}
+
+            trade_type: {{#57400000000001.trade_type#}}
+
+            cargo_type: {{#57400000000001.cargo_type#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '57400000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 通関書類チェックリスト
+
+          **trade_type**: {{ trade_type }}
+          **cargo_type**: {{ cargo_type }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したチェックリストです。実際の通関手続きは通関士・フォワーダーにご確認ください。*
+        variables:
+        - value_selector:
+          - '57400000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '57400000000001'
+          - trade_type
+          variable: trade_type
+        - value_selector:
+          - '57400000000001'
+          - cargo_type
+          variable: cargo_type
+      height: 97
+      id: '57400000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          通関書類チェックリストの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '57400000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '57400000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '57400000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '57400000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '57400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

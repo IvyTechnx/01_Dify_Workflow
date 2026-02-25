@@ -1,0 +1,436 @@
+kind: app
+version: 0.1.5
+app:
+  description: 処方情報を入力すると、患者向けの薬剤情報提供書を自動生成するワークフロー。
+  icon: 💊
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'AIS-45: 薬剤情報提供書生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-54500000000001-54500000000002
+      source: '54500000000001'
+      sourceHandle: source
+      target: '54500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-54500000000002-54500000000003
+      source: '54500000000002'
+      sourceHandle: source
+      target: '54500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-54500000000003-54500000000004
+      source: '54500000000003'
+      sourceHandle: 'true'
+      target: '54500000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-54500000000003-54500000000006
+      source: '54500000000003'
+      sourceHandle: 'false'
+      target: '54500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-54500000000004-54500000000005
+      source: '54500000000004'
+      sourceHandle: source
+      target: '54500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54500000000005-54500000000007
+      source: '54500000000005'
+      sourceHandle: source
+      target: '54500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54500000000006-54500000000007
+      source: '54500000000006'
+      sourceHandle: source
+      target: '54500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: prescription_info
+          variable: prescription_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: patient_type
+          variable: patient_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 成人
+          - 高齢者
+          - 小児
+          - 妊婦・授乳婦
+          - 腎機能低下患者
+          - 肝機能低下患者
+        - label: info_level
+          variable: info_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 簡易版（基本情報のみ）
+          - 標準版
+          - 詳細版（薬学的説明含む）
+      height: 149
+      id: '54500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(prescription_info: str) -> dict:
+              issues = []
+              if len(prescription_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = prescription_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '54500000000001'
+          - prescription_info
+          variable: prescription_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '54500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '54500000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '54500000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 処方情報を入力すると、患者向けの薬剤情報提供書を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは病院薬剤師・薬剤情報提供の専門家です。薬剤師法第25条の2に基づく服薬指導の支援として、患者向け薬剤情報提供書を作成してください。
+
+            ## 出力フォーマット
+            ### お薬の一覧
+            | お薬の名前 | 効能・効果 | 用法・用量 | 注意点 |
+            |---|---|---|---|
+
+            ### 各お薬の詳しい説明
+            #### 薬品名（一般名 / 商品名）
+            - **どんなお薬？**: 平易な説明
+            - **飲み方**: 用法・用量・タイミング
+            - **注意すること**:
+              - 食べ物・飲み物との相互作用
+              - 他のお薬との飲み合わせ
+              - 避けるべき行動
+            - **起こりうる副作用**:
+              - よくあるもの（対処法含む）
+              - 重大な副作用（すぐに受診すべき症状）
+            - **保管方法**: 温度・光・湿度
+
+            ### 飲み忘れた場合の対応
+            ### お薬手帳への記載事項
+
+            ### 相互作用チェック
+            処方薬同士の相互作用の確認結果
+
+            ### 緊急時の連絡先
+            （薬局で記入する欄）
+
+            ## ルール
+            - 添付文書の情報に基づくこと
+            - 患者タイプに応じた注意事項を記載すること
+            - 平易な日本語で記述し、専門用語には説明を添えること
+            - 重大な副作用の初期症状は具体的に記述すること
+            - ハイリスク薬は特に詳しく説明すること
+            - 一包化・粉砕の可否を確認すること
+            - 後発品への変更可否を記載すること
+            - 薬剤師の最終確認が必要な旨を明記すること
+        - role: user
+          text: |-
+            prescription_info:
+            {{#54500000000001.prescription_info#}}
+
+            patient_type: {{#54500000000001.patient_type#}}
+
+            info_level: {{#54500000000001.info_level#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '54500000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 薬剤情報提供書
+
+          **patient_type**: {{ patient_type }}
+          **info_level**: {{ info_level }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した薬剤情報のドラフトです。薬剤師の確認を経てから患者さんに提供してください。医療行為・調剤行為の代替ではありません。*
+        variables:
+        - value_selector:
+          - '54500000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '54500000000001'
+          - patient_type
+          variable: patient_type
+        - value_selector:
+          - '54500000000001'
+          - info_level
+          variable: info_level
+      height: 97
+      id: '54500000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          薬剤情報提供書生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '54500000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '54500000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '54500000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '54500000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '54500000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

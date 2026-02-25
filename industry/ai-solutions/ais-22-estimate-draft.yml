@@ -1,0 +1,427 @@
+kind: app
+version: 0.1.5
+app:
+  description: 顧客要件と商品/サービス情報を入力すると、見積書のドラフトテキストを自動生成するワークフロー。営業事務効率化ツール。
+  icon: 💴
+  icon_background: '#E0F2F1'
+  mode: workflow
+  name: 'AIS-22: 見積書ドラフト生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-52200000000001-52200000000002
+      source: '52200000000001'
+      sourceHandle: source
+      target: '52200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-52200000000002-52200000000003
+      source: '52200000000002'
+      sourceHandle: source
+      target: '52200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-52200000000003-52200000000004
+      source: '52200000000003'
+      sourceHandle: 'true'
+      target: '52200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-52200000000003-52200000000006
+      source: '52200000000003'
+      sourceHandle: 'false'
+      target: '52200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-52200000000004-52200000000005
+      source: '52200000000004'
+      sourceHandle: source
+      target: '52200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52200000000005-52200000000007
+      source: '52200000000005'
+      sourceHandle: source
+      target: '52200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52200000000006-52200000000007
+      source: '52200000000006'
+      sourceHandle: source
+      target: '52200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: client_requirements
+          max_length: 20000
+          options: []
+          required: true
+          type: paragraph
+          variable: client_requirements
+        - label: product_catalog
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: product_catalog
+        - label: pricing_strategy
+          max_length: 48
+          options:
+          - 標準価格
+          - ボリュームディスカウント
+          - キャンペーン価格
+          - カスタム見積
+          required: true
+          type: select
+          variable: pricing_strategy
+      height: 149
+      id: '52200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの長さチェックとインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(client_requirements: str, product_catalog: str) -> dict:
+              issues = []
+              if len(client_requirements.strip()) < 20:
+                  issues.append("顧客要件が短すぎます（20文字以上必要）")
+              if len(product_catalog.strip()) < 20:
+                  issues.append("商品/サービス情報が短すぎます（20文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = client_requirements + ' ' + product_catalog
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '52200000000001'
+          - client_requirements
+          variable: client_requirements
+        - value_selector:
+          - '52200000000001'
+          - product_catalog
+          variable: product_catalog
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '52200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '52200000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '52200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 顧客要件と商品/サービス情報を入力すると、見積書のドラフトテキストを自動生成するワークフロー。営業事務効率化ツール。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは営業事務の専門家です。顧客要件と商品カタログに基づいて、見積書のドラフトを作成してください。
+
+            ## 出力フォーマット
+            ### 見積書
+            **宛先**: （顧客名）
+            **見積番号**: （自動生成の参考番号）
+            **有効期限**: 発行日から30日間
+
+            | # | 品目/サービス名 | 数量 | 単価 | 金額 |
+            |---|---|---|---|---|
+            | 1 | | | | |
+
+            **小計**: ¥XXX
+            **消費税（10%）**: ¥XXX
+            **合計**: ¥XXX
+
+            ### 備考
+            - 納期・支払条件・特記事項
+
+            ### 補足説明
+            - 各項目の選定理由
+            - 代替案がある場合の提案
+
+            ## ルール
+            - 金額は税抜表示を基本とし、消費税を別記する
+            - 顧客要件に最も適した商品を選定する
+            - 価格戦略に沿った価格設定にする
+            - 正式な見積書ではなくドラフトであることを明記する
+        - role: user
+          text: |-
+            顧客要件:
+            {{#52200000000001.client_requirements#}}
+
+            価格戦略: {{#52200000000001.pricing_strategy#}}
+
+            商品/サービスカタログ:
+            {{#52200000000001.product_catalog#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '52200000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 見積書ドラフト
+
+          **価格戦略**: {{ pricing_strategy }}
+
+          ---
+
+          {{ estimate_draft }}
+
+          ---
+          > 本見積は AIが生成したドラフトです。正式な見積書として使用する前に、価格・数量・条件を必ず確認してください。
+        variables:
+        - value_selector:
+          - '52200000000004'
+          - text
+          variable: estimate_draft
+        - value_selector:
+          - '52200000000001'
+          - pricing_strategy
+          variable: pricing_strategy
+      height: 97
+      id: '52200000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          見積書ドラフト生成の生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - 顧客要件・商品情報はそれぞれ20文字以上で入力してください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '52200000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '52200000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '52200000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '52200000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '52200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

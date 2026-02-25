@@ -1,0 +1,443 @@
+kind: app
+version: 0.1.5
+app:
+  description: コードの差分やプルリクエスト情報を入力すると、レビューコメント・改善提案を自動生成するワークフロー。
+  icon: 🔍
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-80: コードレビューコメント生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-58000000000001-58000000000002
+      source: '58000000000001'
+      sourceHandle: source
+      target: '58000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-58000000000002-58000000000003
+      source: '58000000000002'
+      sourceHandle: source
+      target: '58000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-58000000000003-58000000000004
+      source: '58000000000003'
+      sourceHandle: 'true'
+      target: '58000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-58000000000003-58000000000006
+      source: '58000000000003'
+      sourceHandle: 'false'
+      target: '58000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-58000000000004-58000000000005
+      source: '58000000000004'
+      sourceHandle: source
+      target: '58000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58000000000005-58000000000007
+      source: '58000000000005'
+      sourceHandle: source
+      target: '58000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58000000000006-58000000000007
+      source: '58000000000006'
+      sourceHandle: source
+      target: '58000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: code_diff
+          variable: code_diff
+          required: true
+          type: paragraph
+          max_length: 100000
+          options: []
+        - label: language
+          variable: language
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - Python
+          - JavaScript/TypeScript
+          - Java
+          - Go
+          - Rust
+          - C/C++
+          - Ruby
+          - PHP
+          - Swift/Kotlin
+          - その他
+        - label: review_focus
+          variable: review_focus
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 総合レビュー
+          - セキュリティ重視
+          - パフォーマンス重視
+          - 可読性・保守性重視
+          - テストカバレッジ重視
+      height: 149
+      id: '58000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(code_diff: str) -> dict:
+              issues = []
+              if len(code_diff.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = code_diff
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '58000000000001'
+          - code_diff
+          variable: code_diff
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '58000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '58000000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '58000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: コードの差分やプルリクエスト情報を入力すると、レビューコメント・改善提案を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはシニアソフトウェアエンジニアとしてコードレビューを行う専門家です。提出されたコード差分に対して、建設的かつ具体的なレビューコメントを生成してください。
+
+            ## あなたの役割
+            チームの技術力向上とコード品質の維持を目的とした、教育的かつ実践的なコードレビューを実施します。
+
+            ## 出力フォーマット
+            ### レビューサマリー
+            - 全体評価: Approve / Request Changes / Comment
+            - 変更の概要（3行以内）
+
+            ### クリティカル（必須修正）
+            | # | 箇所 | 問題点 | 修正提案 |
+            |---|---|---|---|
+
+            ### 改善推奨
+            | # | 箇所 | 現状 | 改善案 | 理由 |
+            |---|---|---|---|---|
+
+            ### 良い点（Praise）
+            - 優れた設計・実装のハイライト
+
+            ### セキュリティチェック
+            - SQLインジェクション / XSS / CSRF / 認証認可の確認
+
+            ### パフォーマンス考慮
+            - 計算量 / メモリ使用 / N+1クエリ / キャッシュ戦略
+
+            ### テスト観点
+            - テストカバレッジ / エッジケース / テスタビリティ
+
+            ## ルール
+            - レビューフォーカスに応じて重点を調整すること
+            - 問題を指摘する際は必ず具体的な修正案をコード例付きで提示すること
+            - 言語固有のベストプラクティスとイディオムに基づくこと
+            - SOLID原則・DRY原則・KISS原則の観点で評価すること
+            - セキュリティ脆弱性（OWASP Top 10）の観点を必ず含めること
+            - 建設的で敬意のあるトーンを維持すること（例:「〜するとより良くなります」）
+            - Nitpick（些細な指摘）と重要な指摘を明確に区別すること
+            - 既存コードベースとの一貫性も考慮すること
+        - role: user
+          text: |-
+            code_diff:
+            {{#58000000000001.code_diff#}}
+
+            language: {{#58000000000001.language#}}
+
+            review_focus: {{#58000000000001.review_focus#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '58000000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # コードレビューコメント
+
+          **language**: {{ language }}
+          **review_focus**: {{ review_focus }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したコードレビューのドラフトです。実際のレビューはチームのシニアエンジニアが最終判断してください。*
+        variables:
+        - value_selector:
+          - '58000000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '58000000000001'
+          - language
+          variable: language
+        - value_selector:
+          - '58000000000001'
+          - review_focus
+          variable: review_focus
+      height: 97
+      id: '58000000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          コードレビューコメント生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '58000000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '58000000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '58000000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '58000000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '58000000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,451 @@
+kind: app
+version: 0.1.5
+app:
+  description: 政策課題と背景データを入力すると、エビデンスに基づく政策提案書を自動生成するワークフロー。
+  icon: 📋
+  icon_background: '#E0F2F1'
+  mode: workflow
+  name: 'AIS-113: 政策提案書AI生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61300000000001-61300000000002
+      source: '61300000000001'
+      sourceHandle: source
+      target: '61300000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61300000000002-61300000000003
+      source: '61300000000002'
+      sourceHandle: source
+      target: '61300000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61300000000003-61300000000004
+      source: '61300000000003'
+      sourceHandle: 'true'
+      target: '61300000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61300000000003-61300000000006
+      source: '61300000000003'
+      sourceHandle: 'false'
+      target: '61300000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61300000000004-61300000000005
+      source: '61300000000004'
+      sourceHandle: source
+      target: '61300000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61300000000005-61300000000007
+      source: '61300000000005'
+      sourceHandle: source
+      target: '61300000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61300000000006-61300000000007
+      source: '61300000000006'
+      sourceHandle: source
+      target: '61300000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: policy_issue
+          variable: policy_issue
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: policy_domain
+          variable: policy_domain
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 少子高齢化対策
+          - 地域経済活性化
+          - デジタル化推進
+          - 環境・脱炭素
+          - 防災・減災
+          - 教育改革
+          - 医療・福祉充実
+          - 観光振興
+          - インフラ整備
+          - 行財政改革
+        - label: target_period
+          variable: target_period
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 短期（1年以内）
+          - 中期（3年計画）
+          - 長期（5〜10年計画）
+        - label: budget_scale
+          variable: budget_scale
+          required: false
+          type: text-input
+          max_length: 256
+          options: []
+      height: 149
+      id: '61300000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(policy_issue: str) -> dict:
+              issues = []
+              if len(policy_issue.strip()) < 50:
+                  issues.append("入力が短すぎます（50文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = policy_issue
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61300000000001'
+          - policy_issue
+          variable: policy_issue
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61300000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61300000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61300000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 政策課題と背景データを入力すると、エビデンスに基づく政策提案書を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは地方行政の政策立案を支援するシンクタンクの政策アナリストです。政策課題に基づき、EBPMの手法でエビデンスに基づく政策提案書を作成してください。
+
+            ## あなたの役割
+            EBPM（エビデンスに基づく政策立案）の手法を用いて、論理的かつ実行可能な政策提案書を作成する政策分析の専門家です。ロジックモデルの構築とKPI設計に精通しています。
+
+            ## 出力フォーマット
+            ### 政策提案書
+
+            #### 1. 現状分析と課題設定
+            データに基づく現状の定量的分析
+
+            #### 2. 政策目標
+            | 目標 | KPI | 現状値 | 目標値 | 達成期限 |
+            |---|---|---|---|---|
+
+            #### 3. ロジックモデル
+            インプット → 活動 → アウトプット → アウトカム → インパクト
+
+            #### 4. 具体的施策
+            | # | 施策名 | 内容 | 予算概算 | 実施主体 | スケジュール |
+            |---|---|---|---|---|---|
+
+            #### 5. 費用対効果分析
+            #### 6. リスクと対策
+            #### 7. 先進事例（ベンチマーク）
+            #### 8. 実施ロードマップ
+
+            ## ルール
+            1. EBPMの手法に基づき、可能な限りデータ・エビデンスを引用する
+            2. ロジックモデルを用いて施策と成果の因果関係を明示する
+            3. 費用対効果の分析を含め、財政への影響を明確にする
+            4. 先進自治体の事例をベンチマークとして参照する
+            5. 住民・議会への説明責任を果たせる論理構成にする
+            6. 短期・中期・長期の段階的な実施計画を提示する
+            7. SDGsとの関連性を明示する
+            8. データがない部分は推測である旨を明記する
+        - role: user
+          text: |-
+            policy_issue:
+            {{#61300000000001.policy_issue#}}
+
+            policy_domain: {{#61300000000001.policy_domain#}}
+
+            target_period: {{#61300000000001.target_period#}}
+
+            budget_scale: {{#61300000000001.budget_scale#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61300000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 政策提案書
+
+          **policy_domain**: {{ policy_domain }}
+          **target_period**: {{ target_period }}
+          **budget_scale**: {{ budget_scale }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した政策提案書のドラフトです。正式な政策決定には庁内での検討・パブリックコメント等の手続きが必要です。*
+        variables:
+        - value_selector:
+          - '61300000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61300000000001'
+          - policy_domain
+          variable: policy_domain
+        - value_selector:
+          - '61300000000001'
+          - target_period
+          variable: target_period
+        - value_selector:
+          - '61300000000001'
+          - budget_scale
+          variable: budget_scale
+      height: 97
+      id: '61300000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          政策提案書AI生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61300000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61300000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61300000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61300000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61300000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

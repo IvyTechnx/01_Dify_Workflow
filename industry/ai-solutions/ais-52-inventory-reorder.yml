@@ -1,0 +1,429 @@
+kind: app
+version: 0.1.5
+app:
+  description: 販売実績・在庫データを入力すると、適正在庫分析と発注推奨を自動生成するワークフロー。
+  icon: 📦
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-52: 在庫分析・発注推奨レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-55200000000001-55200000000002
+      source: '55200000000001'
+      sourceHandle: source
+      target: '55200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-55200000000002-55200000000003
+      source: '55200000000002'
+      sourceHandle: source
+      target: '55200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-55200000000003-55200000000004
+      source: '55200000000003'
+      sourceHandle: 'true'
+      target: '55200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-55200000000003-55200000000006
+      source: '55200000000003'
+      sourceHandle: 'false'
+      target: '55200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-55200000000004-55200000000005
+      source: '55200000000004'
+      sourceHandle: source
+      target: '55200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55200000000005-55200000000007
+      source: '55200000000005'
+      sourceHandle: source
+      target: '55200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55200000000006-55200000000007
+      source: '55200000000006'
+      sourceHandle: source
+      target: '55200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: sales_inventory_data
+          variable: sales_inventory_data
+          required: true
+          type: paragraph
+          max_length: 100000
+          options: []
+        - label: analysis_period
+          variable: analysis_period
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 直近1ヶ月
+          - 直近3ヶ月
+          - 直近6ヶ月
+          - 直近1年
+        - label: business_context
+          variable: business_context
+          required: false
+          type: paragraph
+          max_length: 5000
+          options: []
+      height: 149
+      id: '55200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(sales_inventory_data: str, business_context: str) -> dict:
+              issues = []
+              if len(sales_inventory_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = sales_inventory_data + ' ' + business_context
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '55200000000001'
+          - sales_inventory_data
+          variable: sales_inventory_data
+        - value_selector:
+          - '55200000000001'
+          - business_context
+          variable: business_context
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '55200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '55200000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '55200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 販売実績・在庫データを入力すると、適正在庫分析と発注推奨を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは小売業の在庫管理・SCMの専門コンサルタントです。販売実績と在庫データに基づいて、適正在庫の分析と発注推奨レポートを作成してください。
+
+            ## あなたの役割
+            欠品リスクと過剰在庫コストのバランスを最適化するための分析・提案を行う在庫管理の専門家です。
+
+            ## 出力フォーマット
+            ### サマリー
+            現在の在庫状況の概況（3行以内）
+
+            ### ABC分析
+            | ランク | SKU数 | 売上構成比 | 在庫回転率 | 推奨施策 |
+            |---|---|---|---|---|
+            | A（重点管理） | | | | |
+            | B（通常管理） | | | | |
+            | C（簡易管理） | | | | |
+
+            ### 発注推奨リスト
+            | # | 商品名/SKU | 現在庫 | 安全在庫 | 推奨発注数 | 発注優先度 | 理由 |
+            |---|---|---|---|---|---|---|
+
+            ### 過剰在庫アラート
+            | 商品名/SKU | 現在庫 | 月間販売数 | 在庫月数 | 推奨アクション |
+            |---|---|---|---|---|
+
+            ### 欠品リスクアラート
+            ### 季節性・トレンド分析
+            ### 在庫最適化の改善提案
+
+            ## ルール
+            1. 安全在庫はリードタイムと需要変動を考慮して算出する
+            2. EOQ（経済的発注量）の考え方に基づく推奨を行う
+            3. 季節性やトレンドがある場合は明記する
+            4. データが不十分な場合は仮定を明示する
+            5. 金額ベースと数量ベースの両方で分析する
+            6. デッドストックの処分提案も含める
+            7. 具体的な発注タイミングの推奨を含める
+        - role: user
+          text: |-
+            sales_inventory_data:
+            {{#55200000000001.sales_inventory_data#}}
+
+            analysis_period: {{#55200000000001.analysis_period#}}
+
+            business_context:
+            {{#55200000000001.business_context#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '55200000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 在庫分析・発注推奨レポート
+
+          **analysis_period**: {{ analysis_period }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIによる在庫分析の参考レポートです。実際の発注は需要予測・リードタイム等を総合的に判断してください。*
+        variables:
+        - value_selector:
+          - '55200000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '55200000000001'
+          - analysis_period
+          variable: analysis_period
+      height: 97
+      id: '55200000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          在庫分析・発注推奨レポートの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '55200000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '55200000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '55200000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '55200000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '55200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

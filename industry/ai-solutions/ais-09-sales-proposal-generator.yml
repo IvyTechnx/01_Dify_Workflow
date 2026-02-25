@@ -1,0 +1,607 @@
+kind: app
+version: '0.1.5'
+app:
+  description: Sales Markerの営業支援機能に対抗する営業提案書AI生成ワークフロー。顧客企業情報と提案内容を入力すると、パーソナライズされた営業提案書を自動生成する。
+  icon: "\U0001F4BC"
+  icon_background: '#E0F2F1'
+  mode: workflow
+  name: 'AIS-09: AI営業提案書ジェネレーター'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    # Start → Code(入力検証)
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-50900000000001-50900000000002
+      source: '50900000000001'
+      sourceHandle: source
+      target: '50900000000002'
+      targetHandle: target
+      type: custom
+    # Code(入力検証) → IF-ELSE
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-50900000000002-50900000000003
+      source: '50900000000002'
+      sourceHandle: source
+      target: '50900000000003'
+      targetHandle: target
+      type: custom
+    # IF-ELSE true → Parameter Extractor(企業情報抽出)
+    - data:
+        sourceType: if-else
+        targetType: parameter-extractor
+        isInIteration: false
+      id: e-50900000000003-50900000000004
+      source: '50900000000003'
+      sourceHandle: 'true'
+      target: '50900000000004'
+      targetHandle: target
+      type: custom
+    # IF-ELSE false → TT(エラー応答)
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-50900000000003-50900000000008
+      source: '50900000000003'
+      sourceHandle: 'false'
+      target: '50900000000008'
+      targetHandle: target
+      type: custom
+    # Parameter Extractor → Code(提案データ構築)
+    - data:
+        sourceType: parameter-extractor
+        targetType: code
+        isInIteration: false
+      id: e-50900000000004-50900000000005
+      source: '50900000000004'
+      sourceHandle: source
+      target: '50900000000005'
+      targetHandle: target
+      type: custom
+    # Code(提案データ構築) → LLM(提案書生成)
+    - data:
+        sourceType: code
+        targetType: llm
+        isInIteration: false
+      id: e-50900000000005-50900000000006
+      source: '50900000000005'
+      sourceHandle: source
+      target: '50900000000006'
+      targetHandle: target
+      type: custom
+    # LLM(提案書生成) → TT(出力整形)
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-50900000000006-50900000000007
+      source: '50900000000006'
+      sourceHandle: source
+      target: '50900000000007'
+      targetHandle: target
+      type: custom
+    # TT(出力整形) → End
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-50900000000007-50900000000009
+      source: '50900000000007'
+      sourceHandle: source
+      target: '50900000000009'
+      targetHandle: target
+      type: custom
+    # TT(エラー応答) → End
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-50900000000008-50900000000009
+      source: '50900000000008'
+      sourceHandle: source
+      target: '50900000000009'
+      targetHandle: target
+      type: custom
+    nodes:
+    # ── Node 1: Start ──
+    - data:
+        desc: '顧客企業情報・提案商品・提案書タイプ・予算レンジを受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: client_info
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: client_info
+        - label: product_service
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: product_service
+        - label: proposal_type
+          max_length: 48
+          options:
+          - '初回提案書'
+          - '詳細提案書'
+          - '見積付き提案書'
+          - '更新提案書'
+          required: true
+          type: select
+          variable: proposal_type
+        - label: budget_range
+          max_length: 256
+          options: []
+          required: false
+          type: text-input
+          variable: budget_range
+      height: 149
+      id: '50900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 2: Code - 入力検証 ──
+    - data:
+        desc: '顧客企業情報・提案商品の文字数チェックとインジェクションパターン検出を行う'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(client_info: str, product_service: str) -> dict:
+              issues = []
+
+              # client_info 文字数チェック（20〜50,000文字）
+              ci_len = len(client_info)
+              if ci_len < 20:
+                  issues.append("顧客企業情報が短すぎます（20文字以上必要、現在: " + str(ci_len) + "文字）")
+              if ci_len > 50000:
+                  issues.append("顧客企業情報が長すぎます（50,000文字以下にしてください、現在: " + str(ci_len) + "文字）")
+
+              # product_service 文字数チェック（20〜50,000文字）
+              ps_len = len(product_service)
+              if ps_len < 20:
+                  issues.append("商品・サービス概要が短すぎます（20文字以上必要、現在: " + str(ps_len) + "文字）")
+              if ps_len > 50000:
+                  issues.append("商品・サービス概要が長すぎます（50,000文字以下にしてください、現在: " + str(ps_len) + "文字）")
+
+              # インジェクションパターン検出
+              combined = client_info + " " + product_service
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'(?i)disregard\s+(all|previous|above)',
+                  r'(?i)override\s+(instructions?|rules?)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+                  r'\{%.*%\}',
+                  r'__import__',
+                  r'eval\s*\(',
+                  r'exec\s*\(',
+              ]
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_detail = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_detail': error_detail}
+        variables:
+        - value_selector:
+          - '50900000000001'
+          - client_info
+          variable: client_info
+        - value_selector:
+          - '50900000000001'
+          - product_service
+          variable: product_service
+        outputs:
+          is_valid:
+            type: string
+          error_detail:
+            type: string
+      height: 97
+      id: '50900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 3: IF-ELSE ──
+    - data:
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '50900000000002'
+            - is_valid
+            comparison_operator: is
+            value: "true"
+        desc: '入力検証結果で分岐する'
+        selected: false
+        title: 入力判定
+        type: if-else
+      height: 125
+      id: '50900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 4: Parameter Extractor - 企業情報抽出 ──
+    - data:
+        desc: '顧客企業の自由テキストから企業名・業界・規模・課題・現在のソリューションを構造化抽出する'
+        selected: false
+        title: 企業情報抽出
+        type: parameter-extractor
+        query_variable_selector:
+        - '50900000000001'
+        - client_info
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+            max_tokens: 1024
+        parameters:
+        - name: company_name
+          type: string
+          description: "企業名"
+          required: true
+        - name: industry
+          type: string
+          description: "業界"
+          required: true
+        - name: company_size
+          type: string
+          description: "企業規模"
+          required: false
+        - name: main_challenges
+          type: string
+          description: "主な課題"
+          required: true
+        - name: current_solutions
+          type: string
+          description: "現在利用中のソリューション"
+          required: false
+        instruction: "顧客企業の情報テキストから構造化データを抽出してください。"
+        reasoning_mode: prompt
+      height: 97
+      id: '50900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 5: Code - 提案データ構築 ──
+    - data:
+        desc: '抽出した企業情報と提案商品情報を統合して構造化された提案データJSONを構築する'
+        selected: false
+        title: 提案データ構築
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(company_name: str, industry: str, company_size: str, main_challenges: str, current_solutions: str, product_service: str, proposal_type: str, budget_range: str) -> dict:
+              proposal_data = {
+                  "client": {
+                      "company": company_name,
+                      "industry": industry,
+                      "size": company_size or "不明",
+                      "challenges": main_challenges,
+                      "current": current_solutions or "不明"
+                  },
+                  "proposal": {
+                      "type": proposal_type,
+                      "product": product_service,
+                      "budget": budget_range or "要相談"
+                  }
+              }
+              structured = json.dumps(proposal_data, ensure_ascii=False, indent=2)
+              return {'structured_data': structured}
+        variables:
+        - value_selector:
+          - '50900000000004'
+          - company_name
+          variable: company_name
+        - value_selector:
+          - '50900000000004'
+          - industry
+          variable: industry
+        - value_selector:
+          - '50900000000004'
+          - company_size
+          variable: company_size
+        - value_selector:
+          - '50900000000004'
+          - main_challenges
+          variable: main_challenges
+        - value_selector:
+          - '50900000000004'
+          - current_solutions
+          variable: current_solutions
+        - value_selector:
+          - '50900000000001'
+          - product_service
+          variable: product_service
+        - value_selector:
+          - '50900000000001'
+          - proposal_type
+          variable: proposal_type
+        - value_selector:
+          - '50900000000001'
+          - budget_range
+          variable: budget_range
+        outputs:
+          structured_data:
+            type: string
+      height: 97
+      id: '50900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 6: LLM - 提案書生成 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '構造化された顧客・提案データに基づきパーソナライズされた営業提案書を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは営業提案書作成の専門家です。顧客企業の情報と提案商品・サービスに基づいて、パーソナライズされた営業提案書を作成してください。
+
+            ## 提案書構成
+            1. **表紙情報**: タイトル、顧客企業名、提案日
+            2. **エグゼクティブサマリー**: 提案の要点（3行以内）
+            3. **顧客課題の理解**: 顧客が抱える課題の分析
+            4. **ソリューション提案**: 商品・サービスがどう課題を解決するか
+            5. **導入メリット**: 定量的・定性的メリット
+            6. **導入ステップ**: フェーズ分けした導入計画
+            7. **価格・条件**: 予算レンジに応じた料金体系
+            8. **導入実績・事例**: 同業界での導入事例（AI生成）
+            9. **FAQ**: よくある質問と回答
+            10. **次のステップ**: 具体的なネクストアクション
+
+            ## ルール
+            - 顧客企業名と業界を正確に反映する
+            - 課題に直結したベネフィットを強調する
+            - 具体的な数値（ROI、削減率等）を可能な限り含める
+            - ビジネス敬語で統一する
+        - role: user
+          text: |
+            以下の構造化データに基づいて営業提案書を作成してください。
+
+            {{#50900000000005.structured_data#}}
+        selected: false
+        title: 提案書生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50900000000006'
+      position:
+        x: 1580
+        y: 182
+      positionAbsolute:
+        x: 1580
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 7: Template Transform - 出力整形 ──
+    - data:
+        desc: '提案書にヘッダー・フッター・免責事項を付与して最終出力を整形する'
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |
+          ---
+          **営業提案書** | {{ proposal_type }} | 自動生成
+          ---
+
+          {{ proposal_body }}
+
+          ---
+
+          ## 注意事項
+
+          > 本提案書はAIにより自動生成されたドラフトです。
+          > 記載されている数値・事例はAIによる推定値を含みます。
+          > 正式な提案書として使用する前に、内容の確認・修正を行ってください。
+          > 価格・条件は参考値であり、正式な見積は別途ご相談ください。
+
+          ---
+          *Generated by AIS-09: AI営業提案書ジェネレーター*
+        variables:
+        - value_selector:
+          - '50900000000001'
+          - proposal_type
+          variable: proposal_type
+        - value_selector:
+          - '50900000000006'
+          - text
+          variable: proposal_body
+      height: 97
+      id: '50900000000007'
+      position:
+        x: 1880
+        y: 182
+      positionAbsolute:
+        x: 1880
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 8: Template Transform - エラー応答 ──
+    - data:
+        desc: '入力検証エラー時の定型応答を出力する'
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |
+          ## 営業提案書 - 生成エラー
+
+          申し訳ございませんが、入力内容に問題があり提案書を生成できませんでした。
+
+          ### エラー詳細
+          {{ error_detail }}
+
+          ### 入力ガイド
+          - **顧客企業情報**: 企業名・業界・課題等を20文字以上で記載してください
+          - **商品・サービス概要**: 提案する商品・サービスの説明を20文字以上で記載してください
+          - HTMLタグやスクリプト等の特殊文字列は使用できません
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '50900000000002'
+          - error_detail
+          variable: error_detail
+      height: 97
+      id: '50900000000008'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 9: End ──
+    - data:
+        desc: '営業提案書またはエラーメッセージを出力する'
+        outputs:
+        - value_selector:
+          - '50900000000007'
+          - output
+          variable: proposal_document
+        - value_selector:
+          - '50900000000008'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50900000000009'
+      position:
+        x: 2180
+        y: 282
+      positionAbsolute:
+        x: 2180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

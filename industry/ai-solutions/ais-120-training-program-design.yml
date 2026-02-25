@@ -1,0 +1,475 @@
+kind: app
+version: 0.1.5
+app:
+  description: 研修ニーズと対象者情報を入力すると、体系的な社内研修プログラムを自動設計するワークフロー。
+  icon: 🎓
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-120: 研修プログラム設計'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-62000000000001-62000000000002
+      source: '62000000000001'
+      sourceHandle: source
+      target: '62000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-62000000000002-62000000000003
+      source: '62000000000002'
+      sourceHandle: source
+      target: '62000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-62000000000003-62000000000004
+      source: '62000000000003'
+      sourceHandle: 'true'
+      target: '62000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-62000000000003-62000000000006
+      source: '62000000000003'
+      sourceHandle: 'false'
+      target: '62000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-62000000000004-62000000000005
+      source: '62000000000004'
+      sourceHandle: source
+      target: '62000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-62000000000005-62000000000007
+      source: '62000000000005'
+      sourceHandle: source
+      target: '62000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-62000000000006-62000000000007
+      source: '62000000000006'
+      sourceHandle: source
+      target: '62000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: training_needs
+          variable: training_needs
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: training_theme
+          variable: training_theme
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 新入社員研修
+          - リーダーシップ研修
+          - マネジメント研修
+          - コミュニケーション研修
+          - DX・IT研修
+          - コンプライアンス研修
+          - ハラスメント防止研修
+          - 営業力強化研修
+          - 専門スキル研修
+        - label: target_participants
+          variable: target_participants
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 新入社員
+          - 若手社員（2〜5年目）
+          - 中堅社員
+          - 管理職候補
+          - 新任管理職
+          - 全社員
+          - 特定部署
+        - label: training_duration
+          variable: training_duration
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 半日（3〜4時間）
+          - 1日（6〜7時間）
+          - 2日間
+          - 3日間以上
+          - eラーニング（自己学習）
+          - 複数回シリーズ
+      height: 149
+      id: '62000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(training_needs: str) -> dict:
+              issues = []
+              if len(training_needs.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = training_needs
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '62000000000001'
+          - training_needs
+          variable: training_needs
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '62000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '62000000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '62000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 研修ニーズと対象者情報を入力すると、体系的な社内研修プログラムを自動設計するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.4
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは企業研修・人材開発を専門とするインストラクショナルデザイナーです。研修ニーズに基づいて、学習効果を最大化する体系的な研修プログラムを設計してください。
+
+            ## あなたの役割
+            ADDIEモデル（分析・設計・開発・実施・評価）とカークパトリックの4段階評価モデルに基づく体系的な研修プログラムを設計する人材開発の専門家です。成人学習理論を踏まえた実践的な研修設計に精通しています。
+
+            ## 出力フォーマット
+            ### 研修概要
+            | 項目 | 内容 |
+            |---|---|
+            | 研修名 | |
+            | 目的 | |
+            | 対象者 | |
+            | 定員 | |
+            | 所要時間 | |
+            | 形式 | |
+
+            ### 学習目標（到達目標）
+            | # | 学習目標 | ブルームのレベル | 評価方法 |
+            |---|---|---|---|
+
+            ### 研修プログラム（タイムテーブル）
+            | 時間 | セッション | 内容 | 手法 | 教材 |
+            |---|---|---|---|---|
+
+            ### セッション別詳細設計
+            各セッションのねらい・進行手順・使用教材の詳細
+
+            ### ワーク・演習設計
+            | # | 演習名 | 形式 | 所要時間 | 学習効果 |
+            |---|---|---|---|---|
+
+            ### 評価設計（カークパトリックモデル）
+            | レベル | 評価内容 | 方法 | タイミング |
+            |---|---|---|---|
+            | Level 1: 反応 | | | |
+            | Level 2: 学習 | | | |
+            | Level 3: 行動 | | | |
+            | Level 4: 成果 | | | |
+
+            ### 事前課題・事後フォロー
+            ### 必要な準備物・教材リスト
+
+            ## ルール
+            1. ADDIEモデルに基づく体系的な設計を行う
+            2. 成人学習理論（アンドラゴジー）の原則を反映する
+            3. 講義だけでなく参加型・体験型の手法を組み込む（講義比率は全体の30%以下推奨）
+            4. カークパトリックの4段階評価を組み込む
+            5. 研修後の行動変容を促すフォローアップ施策を含める
+            6. 対象者のレベルに合わせた難易度設定にする
+            7. オンライン・ハイブリッド実施の場合の留意点も含める
+            8. 研修効果の可視化・ROI測定方法を提案する
+        - role: user
+          text: |-
+            training_needs:
+            {{#62000000000001.training_needs#}}
+
+            training_theme: {{#62000000000001.training_theme#}}
+
+            target_participants: {{#62000000000001.target_participants#}}
+
+            training_duration: {{#62000000000001.training_duration#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '62000000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 研修プログラム設計
+
+          **training_theme**: {{ training_theme }}
+          **target_participants**: {{ target_participants }}
+          **training_duration**: {{ training_duration }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した研修プログラムのドラフトです。実施前に人事部門・経営層の承認と講師の確認を経てください。*
+        variables:
+        - value_selector:
+          - '62000000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '62000000000001'
+          - training_theme
+          variable: training_theme
+        - value_selector:
+          - '62000000000001'
+          - target_participants
+          variable: target_participants
+        - value_selector:
+          - '62000000000001'
+          - training_duration
+          variable: training_duration
+      height: 97
+      id: '62000000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          研修プログラム設計の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '62000000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '62000000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '62000000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '62000000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '62000000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

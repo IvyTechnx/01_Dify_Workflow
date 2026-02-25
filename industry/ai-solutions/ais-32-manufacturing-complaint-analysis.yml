@@ -1,0 +1,449 @@
+kind: app
+version: 0.1.5
+app:
+  description: クレームデータを入力すると、根本原因分析と再発防止策を含む分析レポートを自動生成するワークフロー。
+  icon: ⚠
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-32: 製造クレーム分析レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-53200000000001-53200000000002
+      source: '53200000000001'
+      sourceHandle: source
+      target: '53200000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-53200000000002-53200000000003
+      source: '53200000000002'
+      sourceHandle: source
+      target: '53200000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-53200000000003-53200000000004
+      source: '53200000000003'
+      sourceHandle: 'true'
+      target: '53200000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-53200000000003-53200000000006
+      source: '53200000000003'
+      sourceHandle: 'false'
+      target: '53200000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-53200000000004-53200000000005
+      source: '53200000000004'
+      sourceHandle: source
+      target: '53200000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53200000000005-53200000000007
+      source: '53200000000005'
+      sourceHandle: source
+      target: '53200000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53200000000006-53200000000007
+      source: '53200000000006'
+      sourceHandle: source
+      target: '53200000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: complaint_data
+          variable: complaint_data
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: product_info
+          variable: product_info
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: severity_level
+          variable: severity_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 重大（安全性・法規制関連）
+          - 重要（機能不良）
+          - 軽微（外観・付帯機能）
+          - 情報提供
+        - label: occurrence_count
+          variable: occurrence_count
+          required: false
+          type: text-input
+          max_length: 64
+          options: []
+      height: 149
+      id: '53200000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(complaint_data: str) -> dict:
+              issues = []
+              if len(complaint_data.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = complaint_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '53200000000001'
+          - complaint_data
+          variable: complaint_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '53200000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '53200000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '53200000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: クレームデータを入力すると、根本原因分析と再発防止策を含む分析レポートを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは品質保証・クレーム対応の専門家です。8D（Eight Disciplines）手法に基づいた製造クレーム分析レポートを作成してください。
+
+            ## 出力フォーマット（8Dレポート形式）
+            ### D0. 準備・緊急対応
+            - クレーム概要と影響範囲の確認
+
+            ### D1. チーム編成
+            - 推奨される対策チーム構成
+
+            ### D2. 問題の定義
+            - 5W2H（何が・いつ・どこで・誰が・なぜ・どのように・どれだけ）
+            - Is / Is Not 分析
+
+            ### D3. 暫定対策
+            - 市場・顧客への即時対応策
+            - 流出防止策
+
+            ### D4. 根本原因分析
+            - 特性要因図（4M: Man, Machine, Material, Method）
+            - なぜなぜ分析（5Why）
+            - FTA（故障の木解析）の概要
+
+            ### D5. 恒久対策の選定
+            | 対策案 | 効果 | コスト | 実施期間 | 優先度 |
+
+            ### D6. 恒久対策の実施と検証
+            - 実施計画とスケジュール
+            - 効果検証方法
+
+            ### D7. 再発防止・水平展開
+            - 類似製品・工程への水平展開項目
+            - FMEA・管理計画の見直し事項
+
+            ### D8. チーム評価・完了
+
+            ## ルール
+            - 重大度に応じた対応レベルを設定すること
+            - 根本原因と直接原因を明確に区別すること
+            - 対策の有効性を定量的に評価する基準を設けること
+            - 顧客への報告書としても使用可能な形式にすること
+            - 推測と事実を明確に区別し、仮説は検証方法を提案すること
+            - 類似事例との比較分析を行うこと
+            - リコール・回収の要否判断基準を示すこと
+        - role: user
+          text: |-
+            complaint_data:
+            {{#53200000000001.complaint_data#}}
+
+            product_info: {{#53200000000001.product_info#}}
+
+            severity_level: {{#53200000000001.severity_level#}}
+
+            occurrence_count: {{#53200000000001.occurrence_count#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '53200000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 製造クレーム分析レポート（8D）
+
+          **product_info**: {{ product_info }}
+          **severity_level**: {{ severity_level }}
+          **occurrence_count**: {{ occurrence_count }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した分析レポートドラフトです。最終的な原因特定・対策決定は品質保証部門が行ってください。*
+        variables:
+        - value_selector:
+          - '53200000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '53200000000001'
+          - product_info
+          variable: product_info
+        - value_selector:
+          - '53200000000001'
+          - severity_level
+          variable: severity_level
+        - value_selector:
+          - '53200000000001'
+          - occurrence_count
+          variable: occurrence_count
+      height: 97
+      id: '53200000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          製造クレーム分析レポートの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '53200000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '53200000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '53200000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '53200000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '53200000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

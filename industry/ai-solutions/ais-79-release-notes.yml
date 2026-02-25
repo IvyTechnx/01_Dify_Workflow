@@ -1,0 +1,445 @@
+kind: app
+version: 0.1.5
+app:
+  description: 変更履歴やコミットログを入力すると、ユーザー向けリリースノートを自動生成するワークフロー。
+  icon: 📦
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-79: リリースノート自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-57900000000001-57900000000002
+      source: '57900000000001'
+      sourceHandle: source
+      target: '57900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-57900000000002-57900000000003
+      source: '57900000000002'
+      sourceHandle: source
+      target: '57900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-57900000000003-57900000000004
+      source: '57900000000003'
+      sourceHandle: 'true'
+      target: '57900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-57900000000003-57900000000006
+      source: '57900000000003'
+      sourceHandle: 'false'
+      target: '57900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-57900000000004-57900000000005
+      source: '57900000000004'
+      sourceHandle: source
+      target: '57900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57900000000005-57900000000007
+      source: '57900000000005'
+      sourceHandle: source
+      target: '57900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57900000000006-57900000000007
+      source: '57900000000006'
+      sourceHandle: source
+      target: '57900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: changelog
+          variable: changelog
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: product_name
+          variable: product_name
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: version
+          variable: version
+          required: true
+          type: text-input
+          max_length: 64
+          options: []
+        - label: audience
+          variable: audience
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - エンドユーザー向け
+          - 開発者向け
+          - 管理者向け
+          - 社内向け
+      height: 149
+      id: '57900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(changelog: str) -> dict:
+              issues = []
+              if len(changelog.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = changelog
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '57900000000001'
+          - changelog
+          variable: changelog
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '57900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '57900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '57900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 変更履歴やコミットログを入力すると、ユーザー向けリリースノートを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはテクニカルライティングの専門家です。開発チームの変更履歴・コミットログを、対象読者にとって分かりやすいリリースノートに変換してください。
+
+            ## あなたの役割
+            技術的な変更内容をユーザー視点のベネフィットに翻訳し、Keep a Changelog形式に準拠した読みやすいリリースノートを作成します。
+
+            ## 出力フォーマット
+            ### リリース情報
+            - 製品名 / バージョン / リリース日
+
+            ### ハイライト（3行以内）
+            今回のリリースで最も重要な変更点のサマリー
+
+            ### 新機能（Added）
+            - 機能名: 説明（ユーザーベネフィットを中心に）
+
+            ### 改善（Changed）
+            - 改善内容: 変更前→変更後の違い
+
+            ### バグ修正（Fixed）
+            - 修正内容: 影響を受けていた操作と修正後の動作
+
+            ### 非推奨（Deprecated）/ 削除（Removed）
+            該当する場合のみ記載。移行ガイドを含める
+
+            ### セキュリティ（Security）
+            該当する場合のみ記載。CVE番号がある場合は明記
+
+            ### 既知の問題
+            ワークアラウンドがある場合は併記
+
+            ## ルール
+            - 対象読者に応じた技術レベルで記述すること
+            - Semantic Versioning（SemVer）の変更種別に基づいて分類すること
+            - ユーザーへの影響度が高い順に並べること
+            - Breaking Changesは冒頭で目立つように警告すること
+            - 内部リファクタリングなどユーザーに影響しない変更は省略してよい
+            - 各変更に関連するチケット番号・PR番号があれば付記すること
+            - 移行手順が必要な変更には具体的な手順を添えること
+            - 技術用語は対象読者に合わせて適切に使い分けること
+        - role: user
+          text: |-
+            changelog:
+            {{#57900000000001.changelog#}}
+
+            product_name: {{#57900000000001.product_name#}}
+
+            version: {{#57900000000001.version#}}
+
+            audience: {{#57900000000001.audience#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '57900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # リリースノート
+
+          **product_name**: {{ product_name }}
+          **version**: {{ version }}
+          **audience**: {{ audience }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したリリースノートのドラフトです。プロダクトマネージャーの確認・承認を経てから公開してください。*
+        variables:
+        - value_selector:
+          - '57900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '57900000000001'
+          - product_name
+          variable: product_name
+        - value_selector:
+          - '57900000000001'
+          - version
+          variable: version
+        - value_selector:
+          - '57900000000001'
+          - audience
+          variable: audience
+      height: 97
+      id: '57900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          リリースノート自動生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '57900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '57900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '57900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '57900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '57900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

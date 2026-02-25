@@ -1,0 +1,435 @@
+kind: app
+version: 0.1.5
+app:
+  description: 資産データを入力すると、ポートフォリオ分析と最適化提案を自動生成するワークフロー。
+  icon: 📊
+  icon_background: '#FFF9C4'
+  mode: workflow
+  name: 'AIS-39: 顧客ポートフォリオ分析'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-53900000000001-53900000000002
+      source: '53900000000001'
+      sourceHandle: source
+      target: '53900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-53900000000002-53900000000003
+      source: '53900000000002'
+      sourceHandle: source
+      target: '53900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-53900000000003-53900000000004
+      source: '53900000000003'
+      sourceHandle: 'true'
+      target: '53900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-53900000000003-53900000000006
+      source: '53900000000003'
+      sourceHandle: 'false'
+      target: '53900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-53900000000004-53900000000005
+      source: '53900000000004'
+      sourceHandle: source
+      target: '53900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53900000000005-53900000000007
+      source: '53900000000005'
+      sourceHandle: source
+      target: '53900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53900000000006-53900000000007
+      source: '53900000000006'
+      sourceHandle: source
+      target: '53900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: asset_data
+          variable: asset_data
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: investor_profile
+          variable: investor_profile
+          required: true
+          type: paragraph
+          max_length: 5000
+          options: []
+        - label: analysis_purpose
+          variable: analysis_purpose
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 定期レビュー
+          - リバランス提案
+          - リスク診断
+          - 退職後の運用設計
+          - 相続対策
+      height: 149
+      id: '53900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(asset_data: str, investor_profile: str) -> dict:
+              issues = []
+              if len(asset_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = asset_data + ' ' + investor_profile
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '53900000000001'
+          - asset_data
+          variable: asset_data
+        - value_selector:
+          - '53900000000001'
+          - investor_profile
+          variable: investor_profile
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '53900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '53900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '53900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 資産データを入力すると、ポートフォリオ分析と最適化提案を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはウェルスマネジメントの専門家（CFP相当）です。現代ポートフォリオ理論（MPT）に基づいて、顧客の資産ポートフォリオを分析してください。
+
+            ## 出力フォーマット
+            ### 1. ポートフォリオ概要
+            | 資産クラス | 金額 | 構成比 | ベンチマーク比 |
+            |---|---|---|---|
+            | 国内株式 | | | |
+            | 外国株式 | | | |
+            | 国内債券 | | | |
+            | 外国債券 | | | |
+            | 不動産 | | | |
+            | 現金・預金 | | | |
+
+            ### 2. リスク・リターン分析
+            - 期待リターン / リスク（標準偏差）
+            - シャープレシオ
+            - 最大ドローダウン推定
+
+            ### 3. 資産配分評価
+            - 分散投資の十分性
+            - 為替リスクの評価
+            - 流動性の評価
+
+            ### 4. 最適化提案
+            | 資産クラス | 現在配分 | 推奨配分 | 変更額 |
+
+            ### 5. リバランス手順
+            具体的な売買順序とタイミング
+
+            ### 6. 税務上の考慮
+            - NISA/iDeCo活用の提案
+            - 税金最適化の方法
+
+            ## ルール
+            - 顧客のリスク許容度と投資目的に整合した提案を行うこと
+            - 特定の金融商品の推奨は行わないこと
+            - 手数料・コストを考慮した提案にすること
+            - 分散投資の原則に基づくこと
+            - 日本の税制を考慮すること
+            - 投資助言業登録が必要な内容ではなく一般的な分析であることを明記すること
+            - 推測と事実を明確に区別すること
+        - role: user
+          text: |-
+            asset_data:
+            {{#53900000000001.asset_data#}}
+
+            investor_profile:
+            {{#53900000000001.investor_profile#}}
+
+            analysis_purpose: {{#53900000000001.analysis_purpose#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '53900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # ポートフォリオ分析レポート
+
+          **analysis_purpose**: {{ analysis_purpose }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した分析レポートであり、投資助言ではありません。具体的な運用は金融アドバイザーにご相談ください。*
+        variables:
+        - value_selector:
+          - '53900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '53900000000001'
+          - analysis_purpose
+          variable: analysis_purpose
+      height: 97
+      id: '53900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          顧客ポートフォリオ分析の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '53900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '53900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '53900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '53900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '53900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

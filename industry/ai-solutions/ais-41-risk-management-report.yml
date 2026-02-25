@@ -1,0 +1,455 @@
+kind: app
+version: 0.1.5
+app:
+  description: リスク指標を入力すると、統合的リスク管理レポートを自動生成するワークフロー。
+  icon: 📊
+  icon_background: '#FFF9C4'
+  mode: workflow
+  name: 'AIS-41: リスク管理レポート生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-54100000000001-54100000000002
+      source: '54100000000001'
+      sourceHandle: source
+      target: '54100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-54100000000002-54100000000003
+      source: '54100000000002'
+      sourceHandle: source
+      target: '54100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-54100000000003-54100000000004
+      source: '54100000000003'
+      sourceHandle: 'true'
+      target: '54100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-54100000000003-54100000000006
+      source: '54100000000003'
+      sourceHandle: 'false'
+      target: '54100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-54100000000004-54100000000005
+      source: '54100000000004'
+      sourceHandle: source
+      target: '54100000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54100000000005-54100000000007
+      source: '54100000000005'
+      sourceHandle: source
+      target: '54100000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54100000000006-54100000000007
+      source: '54100000000006'
+      sourceHandle: source
+      target: '54100000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: risk_indicators
+          variable: risk_indicators
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: report_scope
+          variable: report_scope
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 信用リスク
+          - 市場リスク
+          - オペレーショナルリスク
+          - 流動性リスク
+          - 統合リスク管理
+        - label: reporting_period
+          variable: reporting_period
+          required: true
+          type: text-input
+          max_length: 64
+          options: []
+        - label: regulatory_framework
+          variable: regulatory_framework
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - バーゼルIII
+          - ソルベンシーII
+          - J-SOX
+          - 金融庁ガイドライン
+          - 社内基準
+      height: 149
+      id: '54100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(risk_indicators: str) -> dict:
+              issues = []
+              if len(risk_indicators.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = risk_indicators
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '54100000000001'
+          - risk_indicators
+          variable: risk_indicators
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '54100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '54100000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '54100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: リスク指標を入力すると、統合的リスク管理レポートを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは金融機関のリスク管理（ERM: Enterprise Risk Management）の専門家です。バーゼル規制および金融庁の「金融機関のリスク管理」ガイドラインに準拠したリスク管理レポートを作成してください。
+
+            ## 出力フォーマット
+            ### 1. エグゼクティブサマリー
+            リスク状況の総括（3行以内）
+
+            ### 2. リスクダッシュボード
+            | リスクカテゴリ | リスク量 | 限度額 | 使用率 | 前期比 | 信号 |
+            |---|---|---|---|---|---|
+
+            ### 3. 信用リスク分析
+            - 与信ポートフォリオの構成
+            - 信用格付け別分布
+            - 不良債権比率の推移
+            - 予想損失（EL）と非予想損失（UL）
+
+            ### 4. 市場リスク分析
+            - VaR（Value at Risk）の推移
+            - ストレステスト結果
+            - 金利感応度分析
+
+            ### 5. オペレーショナルリスク
+            - 損失事象の分析
+            - KRI（主要リスク指標）のモニタリング
+
+            ### 6. 流動性リスク
+            - LCR（流動性カバレッジ比率）
+            - 資金繰りの状況
+
+            ### 7. ストレスシナリオ分析
+            | シナリオ | 影響額 | 自己資本比率への影響 |
+
+            ### 8. 対応策・提言
+            優先度の高い対応事項
+
+            ## ルール
+            - 規制フレームワークに準拠した指標を使用すること
+            - 定量的な分析を中心にすること
+            - リスクの相関関係を考慮すること
+            - 閾値・限度額との比較を行うこと
+            - 前期比較でトレンドを示すこと
+            - 経営陣向けの簡潔な報告を心がけること
+            - データが不足する場合は仮定を明記すること
+        - role: user
+          text: |-
+            risk_indicators:
+            {{#54100000000001.risk_indicators#}}
+
+            report_scope: {{#54100000000001.report_scope#}}
+
+            reporting_period: {{#54100000000001.reporting_period#}}
+
+            regulatory_framework: {{#54100000000001.regulatory_framework#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '54100000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # リスク管理レポート
+
+          **report_scope**: {{ report_scope }}
+          **reporting_period**: {{ reporting_period }}
+          **regulatory_framework**: {{ regulatory_framework }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したリスク管理レポートのドラフトです。最終的なリスク判断はリスク管理部門の責任者が行ってください。*
+        variables:
+        - value_selector:
+          - '54100000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '54100000000001'
+          - report_scope
+          variable: report_scope
+        - value_selector:
+          - '54100000000001'
+          - reporting_period
+          variable: reporting_period
+        - value_selector:
+          - '54100000000001'
+          - regulatory_framework
+          variable: regulatory_framework
+      height: 97
+      id: '54100000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          リスク管理レポート生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '54100000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '54100000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '54100000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '54100000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '54100000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,392 @@
+kind: app
+version: 0.1.5
+app:
+  description: RFP質問項目に対し自社情報に基づいた根拠付き回答ドラフトを生成する。
+  icon: 📋
+  icon_background: '#E0F2F1'
+  mode: workflow
+  name: 'AIS-127: RFP自動回答ジェネレーター'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-12700000001-12700000002
+      source: '12700000001'
+      sourceHandle: source
+      target: '12700000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-12700000002-12700000003
+      source: '12700000002'
+      sourceHandle: source
+      target: '12700000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-12700000003-12700000004
+      source: '12700000003'
+      sourceHandle: 'true'
+      target: '12700000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-12700000003-12700000006
+      source: '12700000003'
+      sourceHandle: 'false'
+      target: '12700000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-12700000004-12700000005
+      source: '12700000004'
+      sourceHandle: source
+      target: '12700000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12700000005-12700000007
+      source: '12700000005'
+      sourceHandle: source
+      target: '12700000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12700000006-12700000007
+      source: '12700000006'
+      sourceHandle: source
+      target: '12700000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: rfp_questions
+          variable: rfp_questions
+          required: true
+          type: paragraph
+          options: []
+          max_length: 999999
+        - label: company_info
+          variable: company_info
+          required: true
+          type: paragraph
+          options: []
+          max_length: 999999
+        - label: product_info
+          variable: product_info
+          required: true
+          type: paragraph
+          options: []
+          max_length: 999999
+      height: 149
+      id: '12700000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: "import re\n\ndef main(rfp_questions: str) -> dict:\n    text = rfp_questions.strip()\n    if len(text) < 10:\n        return {'is_valid': 'false', 'error_message': '入力が短すぎます（10文字以上必要）'}\n\
+          \    injection_patterns = [\n        r'(?i)ignore\\s+(previous|above|all)\\s+(instructions?|prompts?)',\n        r'(?i)system\\s*prompt', r'(?i)you\\s+are\\s+now',\n        r'(?i)forget\\s+(everything|all|your)',\n\
+          \        r'<script', r'javascript:', r'\\{\\{.*\\}\\}',\n    ]\n    for pattern in injection_patterns:\n        if re.search(pattern, text):\n            return {'is_valid': 'false', 'error_message':\
+          \ '不正な入力パターンが検出されました。'}\n    return {'is_valid': 'true', 'error_message': ''}"
+        variables:
+        - value_selector:
+          - '12700000001'
+          - rfp_questions
+          variable: rfp_questions
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '12700000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '12700000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '12700000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: RFP質問項目に対し自社情報に基づいた根拠付き回答ドラフトを生成する。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: 'あなたはRFP（提案依頼書）回答の専門家です。提供された自社・製品情報に基づき、各質問に対して説得力のある回答を作成してください。
+
+
+            ## ルール
+
+            1. 各質問に対し、根拠を明示した具体的な回答を作成
+
+            2. 自社の強みを自然にアピールする
+
+            3. 回答できない質問は正直に「要確認」と記載
+
+            4. 差別化ポイントを明確に打ち出す
+
+
+            ## 出力フォーマット
+
+            ### 回答一覧
+
+            | Q# | 質問概要 | 回答 | 根拠・エビデンス | 差別化ポイント |
+
+            ### 総合アピールポイント
+
+            ### 要確認事項リスト'
+        - role: user
+          text: 'RFP質問:
+
+            {{#12700000001.rfp_questions#}}
+
+
+            自社情報:
+
+            {{#12700000001.company_info#}}
+
+
+            製品情報:
+
+            {{#12700000001.product_info#}}'
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '12700000004'
+      type: custom
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: '# RFP回答ドラフト
+
+
+          ---
+
+
+          {{ result }}
+
+
+          ---
+
+          *AIが生成したドラフトです。専門家の確認を行ってからご使用ください。*'
+        variables:
+        - value_selector:
+          - '12700000004'
+          - text
+          variable: result
+      height: 97
+      id: '12700000005'
+      type: custom
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: '## 入力エラー
+
+
+          処理を開始できませんでした。
+
+
+          **エラー詳細**: {{ error_message }}
+
+
+          入力内容を修正して再度お試しください。'
+        variables:
+        - value_selector:
+          - '12700000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '12700000006'
+      type: custom
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '12700000005'
+          - output
+          variable: result
+        - value_selector:
+          - '12700000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '12700000007'
+      type: custom
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

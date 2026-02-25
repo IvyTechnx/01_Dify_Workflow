@@ -1,0 +1,458 @@
+kind: app
+version: 0.1.5
+app:
+  description: システム構成やアプリケーション情報を入力すると、セキュリティ脆弱性チェックと対策レポートを自動生成するワークフロー。
+  icon: 🛡
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-84: セキュリティ診断レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-58400000000001-58400000000002
+      source: '58400000000001'
+      sourceHandle: source
+      target: '58400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-58400000000002-58400000000003
+      source: '58400000000002'
+      sourceHandle: source
+      target: '58400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-58400000000003-58400000000004
+      source: '58400000000003'
+      sourceHandle: 'true'
+      target: '58400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-58400000000003-58400000000006
+      source: '58400000000003'
+      sourceHandle: 'false'
+      target: '58400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-58400000000004-58400000000005
+      source: '58400000000004'
+      sourceHandle: source
+      target: '58400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58400000000005-58400000000007
+      source: '58400000000005'
+      sourceHandle: source
+      target: '58400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58400000000006-58400000000007
+      source: '58400000000006'
+      sourceHandle: source
+      target: '58400000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: system_description
+          variable: system_description
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: assessment_scope
+          variable: assessment_scope
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - Webアプリケーション
+          - API/バックエンド
+          - クラウドインフラ
+          - ネットワーク
+          - モバイルアプリ
+          - 総合診断
+        - label: compliance_framework
+          variable: compliance_framework
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - OWASP Top 10
+          - CIS Controls
+          - NIST CSF
+          - ISO 27001
+          - PCI DSS
+          - SOC 2
+          - 特に指定なし
+        - label: environment
+          variable: environment
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 本番環境
+          - ステージング環境
+          - 開発環境
+          - 設計レビュー
+      height: 149
+      id: '58400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(system_description: str) -> dict:
+              issues = []
+              if len(system_description.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = system_description
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '58400000000001'
+          - system_description
+          variable: system_description
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '58400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '58400000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '58400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: システム構成やアプリケーション情報を入力すると、セキュリティ脆弱性チェックと対策レポートを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは情報セキュリティの専門家（セキュリティアナリスト/ペネトレーションテスター）です。指定されたフレームワークに基づいたセキュリティ診断レポートを作成してください。
+
+            ## あなたの役割
+            システムのセキュリティ態勢を包括的に評価し、リスクベースの優先度付きで具体的な改善策を提示します。
+
+            ## 出力フォーマット
+            ### 1. エグゼクティブサマリー
+            - 総合リスクレベル（Critical / High / Medium / Low）
+            - 検出された脆弱性の統計
+            - 最優先対応事項（Top 3）
+
+            ### 2. 診断範囲
+            - 対象システム / 診断スコープ / 適用フレームワーク
+
+            ### 3. 脆弱性一覧
+            | # | 脆弱性名 | 深刻度 | CVSS | 影響 | 対策 | ステータス |
+            |---|---|---|---|---|---|---|
+
+            ### 4. 脆弱性詳細
+            各脆弱性について:
+            - 説明 / 再現手順 / 影響範囲 / 推奨対策 / 参考文献（CWE/CVE）
+
+            ### 5. コンプライアンス評価
+            | 要件 | 準拠状況 | Gap | 推奨アクション |
+            |---|---|---|---|
+
+            ### 6. 改善ロードマップ
+            | 優先度 | 施策 | 期間 | コスト目安 | 効果 |
+            |---|---|---|---|---|
+
+            ## ルール
+            - CVSSスコアを用いて脆弱性の深刻度を評価すること
+            - 指定されたコンプライアンスフレームワークの要件に沿って評価すること
+            - 検出された脆弱性には具体的な再現手順と修正コード例を含めること
+            - 誤検知（False Positive）の可能性がある場合はその旨を明記すること
+            - Defense in Depth（多層防御）の観点で対策を提案すること
+            - ゼロデイ脆弱性やサプライチェーンリスクも考慮すること
+            - 対策の実装難易度と効果のバランスを考慮すること
+            - 実際の攻撃ツール名や攻撃手法の詳細は記載しないこと
+        - role: user
+          text: |-
+            system_description:
+            {{#58400000000001.system_description#}}
+
+            assessment_scope: {{#58400000000001.assessment_scope#}}
+
+            compliance_framework: {{#58400000000001.compliance_framework#}}
+
+            environment: {{#58400000000001.environment#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '58400000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # セキュリティ診断レポート
+
+          **assessment_scope**: {{ assessment_scope }}
+          **compliance_framework**: {{ compliance_framework }}
+          **environment**: {{ environment }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したセキュリティ診断レポートのドラフトです。正式な脆弱性診断は認定セキュリティ専門家が実施してください。本レポートは参考情報であり、実際のペネトレーションテストの代替にはなりません。*
+        variables:
+        - value_selector:
+          - '58400000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '58400000000001'
+          - assessment_scope
+          variable: assessment_scope
+        - value_selector:
+          - '58400000000001'
+          - compliance_framework
+          variable: compliance_framework
+        - value_selector:
+          - '58400000000001'
+          - environment
+          variable: environment
+      height: 97
+      id: '58400000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          セキュリティ診断レポートの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '58400000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '58400000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '58400000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '58400000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '58400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

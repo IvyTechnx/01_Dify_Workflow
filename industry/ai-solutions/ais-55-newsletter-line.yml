@@ -1,0 +1,444 @@
+kind: app
+version: 0.1.5
+app:
+  description: キャンペーン情報を入力すると、メルマガ・LINE配信用のコンテンツを自動生成するワークフロー。
+  icon: 📩
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-55: メルマガ・LINE配信文生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-55500000000001-55500000000002
+      source: '55500000000001'
+      sourceHandle: source
+      target: '55500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-55500000000002-55500000000003
+      source: '55500000000002'
+      sourceHandle: source
+      target: '55500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-55500000000003-55500000000004
+      source: '55500000000003'
+      sourceHandle: 'true'
+      target: '55500000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-55500000000003-55500000000006
+      source: '55500000000003'
+      sourceHandle: 'false'
+      target: '55500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-55500000000004-55500000000005
+      source: '55500000000004'
+      sourceHandle: source
+      target: '55500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55500000000005-55500000000007
+      source: '55500000000005'
+      sourceHandle: source
+      target: '55500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55500000000006-55500000000007
+      source: '55500000000006'
+      sourceHandle: source
+      target: '55500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: campaign_info
+          variable: campaign_info
+          required: true
+          type: paragraph
+          max_length: 10000
+          options: []
+        - label: channel
+          variable: channel
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - メールマガジン
+          - LINE公式アカウント
+          - 両方
+        - label: target_segment
+          variable: target_segment
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: campaign_type
+          variable: campaign_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - セール告知
+          - 新商品案内
+          - 季節キャンペーン
+          - リピート促進
+          - カート放棄リマインド
+          - 誕生日・記念日
+      height: 149
+      id: '55500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(campaign_info: str) -> dict:
+              issues = []
+              if len(campaign_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = campaign_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '55500000000001'
+          - campaign_info
+          variable: campaign_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '55500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '55500000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '55500000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: キャンペーン情報を入力すると、メルマガ・LINE配信用のコンテンツを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.7
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはEC・小売のCRMマーケティング専門のコピーライターです。キャンペーン情報に基づいて、メルマガ・LINE配信用のコンテンツを作成してください。
+
+            ## あなたの役割
+            開封率・クリック率・コンバージョン率を最大化する配信コンテンツを作成するダイレクトマーケティングの専門家です。
+
+            ## 出力フォーマット（メールマガジンの場合）
+            ### 件名案（3パターン）
+            開封率を最大化する件名（30文字以内）
+
+            ### プリヘッダーテキスト
+            ### メール本文
+            - ヘッダー画像のaltテキスト案
+            - リード文（3行以内）
+            - メインコンテンツ
+            - CTA（行動喚起ボタン文言）
+            - フッター情報
+
+            ## 出力フォーマット（LINEの場合）
+            ### メッセージ案（3パターン）
+            各パターンについて:
+            - テキストメッセージ（500文字以内）
+            - リッチメッセージのaltテキスト
+            - CTA文言
+
+            ## ルール
+            1. 特定電子メール法を遵守した内容にする
+            2. LINE配信は500文字以内のコンパクトな文面にする
+            3. 絵文字・記号を効果的に使用する（LINEは特に）
+            4. ターゲットセグメントに合わせたパーソナライゼーション要素を含める
+            5. 緊急性・限定感を適切に演出する（虚偽の緊急性は不可）
+            6. 配信タイミングの推奨も含める
+            7. 景品表示法に抵触する表現は避ける
+            8. A/Bテスト用に複数パターンを提供する
+        - role: user
+          text: |-
+            campaign_info:
+            {{#55500000000001.campaign_info#}}
+
+            channel: {{#55500000000001.channel#}}
+
+            target_segment: {{#55500000000001.target_segment#}}
+
+            campaign_type: {{#55500000000001.campaign_type#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '55500000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 配信コンテンツ生成結果
+
+          **channel**: {{ channel }}
+          **target_segment**: {{ target_segment }}
+          **campaign_type**: {{ campaign_type }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した配信コンテンツです。特定電子メール法・景品表示法の遵守を確認してからご使用ください。*
+        variables:
+        - value_selector:
+          - '55500000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '55500000000001'
+          - channel
+          variable: channel
+        - value_selector:
+          - '55500000000001'
+          - target_segment
+          variable: target_segment
+        - value_selector:
+          - '55500000000001'
+          - campaign_type
+          variable: campaign_type
+      height: 97
+      id: '55500000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          メルマガ・LINE配信文生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '55500000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '55500000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '55500000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '55500000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '55500000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

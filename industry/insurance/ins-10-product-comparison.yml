@@ -1,0 +1,373 @@
+kind: app
+version: '0.1.5'
+app:
+  description: 比較したい保険商品名を改行区切りで入力し、Iteration内のLLMが各商品を個別分析、その後LLMが比較観点に基づく総括レポートを生成するワークフロー。
+  icon: "\U0001F4CA"
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'INS-10: 保険商品比較レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-40A00000000001-40A00000000002
+      source: '40A00000000001'
+      sourceHandle: source
+      target: '40A00000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: iteration
+      id: e-40A00000000002-40A00000000003
+      source: '40A00000000002'
+      sourceHandle: source
+      target: '40A00000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: iteration
+        targetType: code
+      id: e-40A00000000003-40A00000000005
+      source: '40A00000000003'
+      sourceHandle: source
+      target: '40A00000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-40A00000000005-40A00000000006
+      source: '40A00000000005'
+      sourceHandle: source
+      target: '40A00000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: end
+      id: e-40A00000000006-40A00000000007
+      source: '40A00000000006'
+      sourceHandle: source
+      target: '40A00000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '比較したい保険商品名リストと比較観点を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_list
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: product_list
+        - label: comparison_focus
+          max_length: 48
+          options:
+          - '保障内容比較'
+          - '保険料比較'
+          - 'ターゲット顧客'
+          - '総合比較'
+          required: true
+          type: select
+          variable: comparison_focus
+      height: 115
+      id: '40A00000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '改行区切りの保険商品名リストを配列に変換する'
+        selected: false
+        title: 商品配列化
+        type: code
+        code_language: python3
+        code: |
+          def main(product_list: str) -> dict:
+              items = [p.strip() for p in product_list.split('\n') if p.strip()]
+              return {'items': items}
+        variables:
+        - value_selector:
+          - '40A00000000001'
+          - product_list
+          variable: product_list
+        outputs:
+          items:
+            type: array[string]
+      height: 97
+      id: '40A00000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        type: iteration
+        title: 商品分析イテレーション
+        desc: '各保険商品を個別にLLMで分析'
+        iterator_selector:
+        - '40A00000000002'
+        - items
+        output_selector:
+        - '40A00000000004'
+        - text
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '40A00000000004'
+      id: '40A00000000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      height: 200
+      width: 400
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '個別の保険商品を分析する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険商品アナリストです。指定された保険商品について簡潔な分析を行ってください。
+
+            ## 重要な注意事項
+            - 確実に把握している情報のみ記述してください。不明な項目は「要確認」と明記してください。
+            - 具体的な保険料金額・保障額は、公式資料で確認できない場合は記載せず「公式パンフレット参照」としてください。
+            - 本分析はAIによる一般的な情報整理であり、正式な商品説明資料（契約概要・注意喚起情報）に代わるものではありません。
+
+            ## 分析フォーマット（1商品あたり）
+            商品名: （商品名）
+            カテゴリ: （生命保険/損害保険/医療保険/がん保険/年金保険/学資保険 等）
+            主な保障内容: （保障の概要）
+            保険料水準: （低/中/高 + 概要）
+            主な特約: （付加可能な特約）
+            ターゲット顧客: （適合する顧客層・ライフステージ）
+            特記事項: （告知義務、免責期間、クーリングオフ等）
+
+            簡潔に、各項目2行以内で記述してください。
+        - role: user
+          text: '{{#40A00000000003.item#}}'
+        selected: false
+        title: 商品個別分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40A00000000004'
+      type: custom
+      position:
+        x: 740
+        y: 340
+      positionAbsolute:
+        x: 740
+        y: 340
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      width: 243
+      parentId: '40A00000000003'
+    - data:
+        desc: 'イテレーション結果を集約し分析用テキストを生成する'
+        selected: false
+        title: 結果集約
+        type: code
+        code_language: python3
+        code: |
+          def main(analysis_results: list) -> dict:
+              lines = []
+              for i, result in enumerate(analysis_results):
+                  lines.append(f"=== 商品{i+1} ===")
+                  lines.append(str(result))
+                  lines.append("")
+              combined = '\n'.join(lines)
+              return {'combined_analysis': combined}
+        variables:
+        - value_selector:
+          - '40A00000000003'
+          - output
+          variable: analysis_results
+        outputs:
+          combined_analysis:
+            type: string
+      height: 97
+      id: '40A00000000005'
+      position:
+        x: 1180
+        y: 282
+      positionAbsolute:
+        x: 1180
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '個別分析結果を基に保険商品の比較総括レポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険商品企画の専門家です。複数の保険商品の個別分析結果を基に、比較総括レポートを作成してください。
+
+            ## レポートフォーマット
+
+            ### 商品比較サマリ
+            （各商品の主要指標を表形式で比較）
+
+            ### 保障内容の比較
+            （各商品の保障範囲・保障額・保障期間を比較）
+
+            ### 保険料水準の比較
+            （各商品の保険料を比較、コストパフォーマンスの観点を含む）
+
+            ### ターゲット顧客の違い
+            （各商品が適合する顧客層・ライフステージの比較）
+
+            ### 総合評価・提言
+            （比較観点に基づく総合評価と、販売推進上の提言）
+
+            ## ルール
+            - 客観的なデータに基づく分析を行う
+            - 特定商品への偏った推奨は行わない
+            - 保険業法300条（募集行為の規制・適合性原則）を考慮した提言を行う
+            - コンプライアンス上の留意点を明記する
+            - 不確実な情報は「要確認」と明示し、断定的な記述を避ける
+            - レポート末尾に「本レポートはAIによる分析であり、正式な商品比較資料に代わるものではありません。最終判断には各商品の契約概要・注意喚起情報をご確認ください。」の免責文を付記する
+        - role: user
+          text: |
+            比較観点: {{#40A00000000001.comparison_focus#}}
+
+            以下は各保険商品の個別分析結果です。これらを基に比較総括レポートを作成してください。
+
+            {{#40A00000000005.combined_analysis#}}
+        selected: false
+        title: 比較総括
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40A00000000006'
+      position:
+        x: 1480
+        y: 282
+      positionAbsolute:
+        x: 1480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '比較総括レポートを出力する'
+        outputs:
+        - value_selector:
+          - '40A00000000006'
+          - text
+          variable: comparison_report
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40A00000000007'
+      position:
+        x: 1780
+        y: 282
+      positionAbsolute:
+        x: 1780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

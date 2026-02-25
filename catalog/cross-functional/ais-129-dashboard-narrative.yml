@@ -1,0 +1,395 @@
+kind: app
+version: 0.1.5
+app:
+  description: KPIデータから経営層向けの「数字が語るストーリー」ナラティブレポートを生成する。
+  icon: 📊
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: 'AIS-129: 経営ダッシュボードナラティブ'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: '爆弾
+
+          殺害
+
+          違法薬物
+
+          ハッキング手法'
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-12900000001-12900000002
+      source: '12900000001'
+      sourceHandle: source
+      target: '12900000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-12900000002-12900000003
+      source: '12900000002'
+      sourceHandle: source
+      target: '12900000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-12900000003-12900000004
+      source: '12900000003'
+      sourceHandle: 'true'
+      target: '12900000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-12900000003-12900000006
+      source: '12900000003'
+      sourceHandle: 'false'
+      target: '12900000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-12900000004-12900000005
+      source: '12900000004'
+      sourceHandle: source
+      target: '12900000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12900000005-12900000007
+      source: '12900000005'
+      sourceHandle: source
+      target: '12900000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-12900000006-12900000007
+      source: '12900000006'
+      sourceHandle: source
+      target: '12900000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: kpi_data
+          variable: kpi_data
+          required: true
+          type: paragraph
+          options: []
+          max_length: 999999
+        - label: report_period
+          variable: report_period
+          required: true
+          type: select
+          options:
+          - 月次
+          - 四半期
+          - 年次
+          max_length: 48
+        - label: audience
+          variable: audience
+          required: true
+          type: select
+          options:
+          - 経営会議
+          - 取締役会
+          - 全社
+          max_length: 48
+      height: 149
+      id: '12900000001'
+      type: custom
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: "import re\n\ndef main(kpi_data: str) -> dict:\n    text = kpi_data.strip()\n    if len(text) < 10:\n        return {'is_valid': 'false', 'error_message': '入力が短すぎます（10文字以上必要）'}\n    injection_patterns\
+          \ = [\n        r'(?i)ignore\\s+(previous|above|all)\\s+(instructions?|prompts?)',\n        r'(?i)system\\s*prompt', r'(?i)you\\s+are\\s+now',\n        r'(?i)forget\\s+(everything|all|your)',\n\
+          \        r'<script', r'javascript:', r'\\{\\{.*\\}\\}',\n    ]\n    for pattern in injection_patterns:\n        if re.search(pattern, text):\n            return {'is_valid': 'false', 'error_message':\
+          \ '不正な入力パターンが検出されました。'}\n    return {'is_valid': 'true', 'error_message': ''}"
+        variables:
+        - value_selector:
+          - '12900000001'
+          - kpi_data
+          variable: kpi_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '12900000002'
+      type: custom
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '12900000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '12900000003'
+      type: custom
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: KPIデータから経営層向けの「数字が語るストーリー」ナラティブレポートを生成する。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: 'あなたは経営分析の専門家です。KPIデータを「数字が語るストーリー」として経営層に伝わるナラティブレポートに変換してください。
+
+
+            ## ルール
+
+            1. 数字の羅列ではなく、ストーリーとして読める文章にする
+
+            2. 前期比・目標比の増減を明確に示す
+
+            3. 良いニュースと悪いニュースをバランスよく伝える
+
+            4. 原因分析と対策提案を含める
+
+
+            ## 出力フォーマット
+
+            ### エグゼクティブサマリー（3行以内）
+
+            ### KPIダッシュボード（表形式）
+
+            ### ナラティブ分析（ストーリー形式）
+
+            ### 注目ポイント・リスク
+
+            ### 推奨アクション'
+        - role: user
+          text: 'レポート期間: {{#12900000001.report_period#}}
+
+            対象: {{#12900000001.audience#}}
+
+
+            KPIデータ:
+
+            {{#12900000001.kpi_data#}}'
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '12900000004'
+      type: custom
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: '# 経営ナラティブレポート
+
+
+          ---
+
+
+          {{ result }}
+
+
+          ---
+
+          *AIが生成したドラフトです。専門家の確認を行ってからご使用ください。*'
+        variables:
+        - value_selector:
+          - '12900000004'
+          - text
+          variable: result
+      height: 97
+      id: '12900000005'
+      type: custom
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: '## 入力エラー
+
+
+          処理を開始できませんでした。
+
+
+          **エラー詳細**: {{ error_message }}
+
+
+          入力内容を修正して再度お試しください。'
+        variables:
+        - value_selector:
+          - '12900000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '12900000006'
+      type: custom
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '12900000005'
+          - output
+          variable: result
+        - value_selector:
+          - '12900000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '12900000007'
+      type: custom
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

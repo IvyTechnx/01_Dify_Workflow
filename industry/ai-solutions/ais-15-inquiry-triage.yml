@@ -1,0 +1,410 @@
+kind: app
+version: 0.1.5
+app:
+  description: 問い合わせテキストを入力すると、カテゴリ分類・優先度判定・推奨対応を自動生成するワークフロー。Zendesk AI/ServiceNowに対抗。
+  icon: 📋
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-15: 問い合わせ自動分類・優先度判定'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-51500000000001-51500000000002
+      source: '51500000000001'
+      sourceHandle: source
+      target: '51500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-51500000000002-51500000000003
+      source: '51500000000002'
+      sourceHandle: source
+      target: '51500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51500000000003-51500000000004
+      source: '51500000000003'
+      sourceHandle: 'true'
+      target: '51500000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-51500000000003-51500000000006
+      source: '51500000000003'
+      sourceHandle: 'false'
+      target: '51500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-51500000000004-51500000000005
+      source: '51500000000004'
+      sourceHandle: source
+      target: '51500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51500000000005-51500000000007
+      source: '51500000000005'
+      sourceHandle: source
+      target: '51500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51500000000006-51500000000007
+      source: '51500000000006'
+      sourceHandle: source
+      target: '51500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: inquiry_text
+          max_length: 50000
+          options: []
+          required: true
+          type: paragraph
+          variable: inquiry_text
+        - label: channel
+          max_length: 48
+          options:
+          - メール
+          - チャット
+          - 電話メモ
+          - Webフォーム
+          - SNS
+          required: true
+          type: select
+          variable: channel
+      height: 149
+      id: '51500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの長さチェックとインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(inquiry_text: str) -> dict:
+              issues = []
+              if len(inquiry_text.strip()) < 10:
+                  issues.append("問い合わせテキストが短すぎます（10文字以上必要）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = inquiry_text
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '51500000000001'
+          - inquiry_text
+          variable: inquiry_text
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '51500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51500000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '51500000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 問い合わせテキストを入力すると、カテゴリ分類・優先度判定・推奨対応を自動生成するワークフロー。Zendesk AI/ServiceNowに対抗。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはカスタマーサポートのトリアージ専門AIです。問い合わせ内容を分析し、以下を判定してください。
+
+            ## 出力フォーマット
+            ### 分類結果
+            | 項目 | 判定 |
+            |---|---|
+            | カテゴリ | 技術的問題/料金・請求/アカウント/配送/その他 |
+            | サブカテゴリ | （詳細分類） |
+            | 優先度 | 緊急/高/中/低 |
+            | 感情 | 怒り/不満/普通/満足 |
+            | エスカレーション | 必要/不要 |
+
+            ### 推奨対応
+            - 初動対応案（テンプレート回答のドラフト）
+            - 対応時の注意点
+            - 参照すべきナレッジ記事のキーワード
+
+            ### 判定根拠
+            - なぜこの優先度と判断したか
+
+            ## ルール
+            - 顧客の感情に配慮した対応案を作成する
+            - 個人情報は出力しない
+            - エスカレーション基準: クレーム・法的言及・繰り返し問い合わせ・VIP顧客
+        - role: user
+          text: |-
+            チャネル: {{#51500000000001.channel#}}
+
+            問い合わせ内容:
+            {{#51500000000001.inquiry_text#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51500000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 問い合わせ分類・優先度判定結果
+
+          **チャネル**: {{ channel }}
+
+          ---
+
+          {{ classification_result }}
+
+          ---
+          *AIによる自動分類です。最終判断はサポート担当者が行ってください。*
+        variables:
+        - value_selector:
+          - '51500000000004'
+          - text
+          variable: classification_result
+        - value_selector:
+          - '51500000000001'
+          - channel
+          variable: channel
+      height: 97
+      id: '51500000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          問い合わせ自動分類・優先度判定の生成を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - 問い合わせテキストは10文字以上で入力してください
+          - 不正な文字列は使用できません
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '51500000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '51500000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '51500000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '51500000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '51500000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

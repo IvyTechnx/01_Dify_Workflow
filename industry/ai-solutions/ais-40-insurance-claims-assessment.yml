@@ -1,0 +1,450 @@
+kind: app
+version: 0.1.5
+app:
+  description: 事故報告を入力すると、保険金査定コメントのドラフトを自動生成するワークフロー。
+  icon: 📝
+  icon_background: '#FFF9C4'
+  mode: workflow
+  name: 'AIS-40: 保険クレーム査定コメント'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-54000000000001-54000000000002
+      source: '54000000000001'
+      sourceHandle: source
+      target: '54000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-54000000000002-54000000000003
+      source: '54000000000002'
+      sourceHandle: source
+      target: '54000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-54000000000003-54000000000004
+      source: '54000000000003'
+      sourceHandle: 'true'
+      target: '54000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-54000000000003-54000000000006
+      source: '54000000000003'
+      sourceHandle: 'false'
+      target: '54000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-54000000000004-54000000000005
+      source: '54000000000004'
+      sourceHandle: source
+      target: '54000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54000000000005-54000000000007
+      source: '54000000000005'
+      sourceHandle: source
+      target: '54000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-54000000000006-54000000000007
+      source: '54000000000006'
+      sourceHandle: source
+      target: '54000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: accident_report
+          variable: accident_report
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: insurance_type
+          variable: insurance_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 自動車保険（対人）
+          - 自動車保険（対物）
+          - 自動車保険（車両）
+          - 火災保険
+          - 傷害保険
+          - 賠償責任保険
+        - label: claim_amount
+          variable: claim_amount
+          required: true
+          type: text-input
+          max_length: 64
+          options: []
+        - label: policy_info
+          variable: policy_info
+          required: false
+          type: paragraph
+          max_length: 10000
+          options: []
+      height: 149
+      id: '54000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(accident_report: str, policy_info: str) -> dict:
+              issues = []
+              if len(accident_report.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = accident_report + ' ' + policy_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '54000000000001'
+          - accident_report
+          variable: accident_report
+        - value_selector:
+          - '54000000000001'
+          - policy_info
+          variable: policy_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '54000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '54000000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '54000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 事故報告を入力すると、保険金査定コメントのドラフトを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは損害保険の査定専門家です。保険法および約款に基づいた保険金査定コメントを作成してください。
+
+            ## 出力フォーマット
+            ### 1. 事故概要
+            - 事故日時 / 場所 / 当事者 / 事故状況
+
+            ### 2. 契約確認
+            | 確認項目 | 結果 | 備考 |
+            |---|---|---|
+            | 保険期間内 | 該当/非該当 | |
+            | 被保険者資格 | 該当/非該当 | |
+            | 免責事項 | 該当なし/要確認 | |
+            | 告知義務違反 | なし/要確認 | |
+
+            ### 3. 損害査定
+            | 損害項目 | 請求額 | 査定額 | 認否 | 根拠 |
+            |---|---|---|---|---|
+
+            ### 4. 過失割合の検討
+            - 判例タイムズの類型に基づく過失割合
+            - 修正要素の検討
+
+            ### 5. 支払保険金の算定
+            - 認定損害額
+            - 過失相殺
+            - 免責金額控除
+            - 支払保険金額
+
+            ### 6. 査定コメント
+            査定判断の理由と根拠
+
+            ### 7. 要確認事項
+            追加調査が必要な項目
+
+            ## ルール
+            - 保険法・約款に基づく適正な査定を行うこと
+            - 過失割合は判例タイムズ等の基準を参考にすること
+            - 不正請求の兆候を確認すること
+            - 個人情報は最小限の記載にとどめること
+            - 査定根拠を明確に記録すること
+            - 推測と事実を明確に区別すること
+            - 代位求償の可否を検討すること
+        - role: user
+          text: |-
+            accident_report:
+            {{#54000000000001.accident_report#}}
+
+            insurance_type: {{#54000000000001.insurance_type#}}
+
+            claim_amount: {{#54000000000001.claim_amount#}}
+
+            policy_info:
+            {{#54000000000001.policy_info#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '54000000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 保険クレーム査定コメント
+
+          **insurance_type**: {{ insurance_type }}
+          **claim_amount**: {{ claim_amount }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した査定コメントのドラフトです。最終的な保険金支払判断は査定部門の責任者が行ってください。*
+        variables:
+        - value_selector:
+          - '54000000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '54000000000001'
+          - insurance_type
+          variable: insurance_type
+        - value_selector:
+          - '54000000000001'
+          - claim_amount
+          variable: claim_amount
+      height: 97
+      id: '54000000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          保険クレーム査定コメントの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '54000000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '54000000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '54000000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '54000000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '54000000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,442 @@
+kind: app
+version: 0.1.5
+app:
+  description: キーワードとテーマを入力すると、SEO対応のブログ記事を自動生成するワークフロー。
+  icon: 📝
+  icon_background: '#F3E5F5'
+  mode: workflow
+  name: 'AIS-99: ブログ記事AI生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-59900000000001-59900000000002
+      source: '59900000000001'
+      sourceHandle: source
+      target: '59900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-59900000000002-59900000000003
+      source: '59900000000002'
+      sourceHandle: source
+      target: '59900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-59900000000003-59900000000004
+      source: '59900000000003'
+      sourceHandle: 'true'
+      target: '59900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-59900000000003-59900000000006
+      source: '59900000000003'
+      sourceHandle: 'false'
+      target: '59900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-59900000000004-59900000000005
+      source: '59900000000004'
+      sourceHandle: source
+      target: '59900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59900000000005-59900000000007
+      source: '59900000000005'
+      sourceHandle: source
+      target: '59900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59900000000006-59900000000007
+      source: '59900000000006'
+      sourceHandle: source
+      target: '59900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: article_brief
+          variable: article_brief
+          required: true
+          type: paragraph
+          max_length: 10000
+          options: []
+        - label: target_keyword
+          variable: target_keyword
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: article_length
+          variable: article_length
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 短め（1,500〜2,000文字）
+          - 標準（2,500〜3,500文字）
+          - 長め（4,000〜5,000文字）
+          - ロングフォーム（6,000文字以上）
+        - label: tone
+          variable: tone
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - カジュアル・親しみやすい
+          - 専門的・信頼感
+          - ビジネス・フォーマル
+          - 対話形式・Q&A風
+          - ストーリーテリング
+      height: 149
+      id: '59900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(article_brief: str) -> dict:
+              issues = []
+              if len(article_brief.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = article_brief
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '59900000000001'
+          - article_brief
+          variable: article_brief
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '59900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '59900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '59900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: キーワードとテーマを入力すると、SEO対応のブログ記事を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.6
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはSEOとコンテンツマーケティングに精通したプロのブログライターです。Google検索上位表示を狙えるSEO対応のブログ記事を作成してください。
+
+            ## あなたの役割
+            検索意図（Search Intent）を正確に把握し、E-E-A-T（Experience, Expertise, Authoritativeness, Trustworthiness）を考慮した高品質なコンテンツを作成する専門家です。
+
+            ## 出力フォーマット
+            ### SEOメタ情報
+            - タイトルタグ（30〜35文字）
+            - メタディスクリプション（120文字前後）
+            - URL slug（英語）
+
+            ### 記事本文
+            - リード文（読者の課題に共感し、記事の価値を伝える導入）
+            - H2/H3見出し構成（キーワードを自然に含む）
+            - 各セクションの本文
+            - まとめ（CTA誘導を含む）
+
+            ### 内部リンク候補キーワード（5つ）
+            ### 共起語・関連キーワード（10個）
+            ### 構造化データ（FAQ schema候補）
+            Q&A形式で3〜5問
+
+            ## ルール
+            1. ターゲットキーワードをタイトル・H2・冒頭100文字に自然に含めること
+            2. 見出しは読者にとってスキャンしやすい構成にすること
+            3. 一文は60文字以内を目安とし、読みやすさを重視すること
+            4. 具体的な数値・事例・データを含めて信頼性を高めること
+            5. 著作権侵害を避け、オリジナルの表現を使用すること
+            6. 薬機法・景品表示法に抵触する表現は避けること
+            7. 画像の挿入推奨箇所を[画像：説明]形式で指示すること
+            8. 読者の次のアクションを促すCTAを含めること
+        - role: user
+          text: |-
+            article_brief:
+            {{#59900000000001.article_brief#}}
+
+            target_keyword: {{#59900000000001.target_keyword#}}
+
+            article_length: {{#59900000000001.article_length#}}
+
+            tone: {{#59900000000001.tone#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '59900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # ブログ記事
+
+          **target_keyword**: {{ target_keyword }}
+          **article_length**: {{ article_length }}
+          **tone**: {{ tone }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したブログ記事のドラフトです。事実確認・独自情報の追加・法令遵守のチェックを行ってから公開してください。*
+        variables:
+        - value_selector:
+          - '59900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '59900000000001'
+          - target_keyword
+          variable: target_keyword
+        - value_selector:
+          - '59900000000001'
+          - article_length
+          variable: article_length
+        - value_selector:
+          - '59900000000001'
+          - tone
+          variable: tone
+      height: 97
+      id: '59900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          ブログ記事AI生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '59900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '59900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '59900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '59900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '59900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

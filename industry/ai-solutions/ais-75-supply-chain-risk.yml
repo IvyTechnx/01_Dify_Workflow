@@ -1,0 +1,432 @@
+kind: app
+version: 0.1.5
+app:
+  description: 調達情報を入力すると、サプライチェーンのリスク分析と対策提案を自動生成するワークフロー。
+  icon: ⚠️
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: 'AIS-75: サプライチェーンリスク分析'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-57500000000001-57500000000002
+      source: '57500000000001'
+      sourceHandle: source
+      target: '57500000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-57500000000002-57500000000003
+      source: '57500000000002'
+      sourceHandle: source
+      target: '57500000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-57500000000003-57500000000004
+      source: '57500000000003'
+      sourceHandle: 'true'
+      target: '57500000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-57500000000003-57500000000006
+      source: '57500000000003'
+      sourceHandle: 'false'
+      target: '57500000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-57500000000004-57500000000005
+      source: '57500000000004'
+      sourceHandle: source
+      target: '57500000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57500000000005-57500000000007
+      source: '57500000000005'
+      sourceHandle: source
+      target: '57500000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-57500000000006-57500000000007
+      source: '57500000000006'
+      sourceHandle: source
+      target: '57500000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: procurement_info
+          variable: procurement_info
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: risk_focus
+          variable: risk_focus
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 総合リスク分析
+          - 地政学リスク
+          - 自然災害リスク
+          - サプライヤーリスク
+          - 需要変動リスク
+          - コンプライアンスリスク
+        - label: industry_sector
+          variable: industry_sector
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+      height: 149
+      id: '57500000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(procurement_info: str) -> dict:
+              issues = []
+              if len(procurement_info.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = procurement_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '57500000000001'
+          - procurement_info
+          variable: procurement_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '57500000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '57500000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '57500000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 調達情報を入力すると、サプライチェーンのリスク分析と対策提案を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはサプライチェーンリスクマネジメント（SCRM）の専門コンサルタントです。調達情報に基づいて、サプライチェーンのリスク分析と対策を提案してください。
+
+            ## あなたの役割
+            ISO 31000（リスクマネジメント）およびISO 28000（サプライチェーンセキュリティ）に準拠したリスク分析を行う専門家です。
+
+            ## 出力フォーマット
+            ### エグゼクティブサマリー（3行以内）
+            全体的なリスクレベル評価
+
+            ### リスクマトリクス
+            | # | リスク要因 | 影響度(1-5) | 発生確率(1-5) | リスクスコア | 評価 |
+            |---|---|---|---|---|---|
+            | 1 | | | | | 高/中/低 |
+
+            ### リスク詳細分析
+            各リスクについて:
+            - リスクの説明
+            - 想定シナリオ
+            - 影響範囲
+            - 早期警戒指標（KRI）
+
+            ### BCP（事業継続計画）の提案
+            | 優先度 | 対策 | コスト感 | 実施期間 | 担当 |
+            |---|---|---|---|---|
+
+            ### サプライヤー分散の提案
+            ### 在庫バッファ戦略
+            ### モニタリング体制の提案
+
+            ## ルール
+            1. ISO 31000のリスクマネジメントプロセスに準拠する
+            2. 定量的な評価（影響度×発生確率）を必ず含める
+            3. 対策は具体的かつ実行可能なものにする
+            4. 業界固有のリスク要因を考慮する
+            5. 地政学・為替・自然災害等のマクロリスクも含める
+            6. Tier1だけでなくTier2以降のサプライヤーリスクにも言及する
+            7. 推測と事実を明確に区別し、情報源を可能な限り示す
+        - role: user
+          text: |-
+            procurement_info:
+            {{#57500000000001.procurement_info#}}
+
+            risk_focus: {{#57500000000001.risk_focus#}}
+
+            industry_sector: {{#57500000000001.industry_sector#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '57500000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # サプライチェーンリスク分析レポート
+
+          **risk_focus**: {{ risk_focus }}
+          **industry_sector**: {{ industry_sector }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIによるリスク分析の参考レポートです。重要な経営判断には専門家のアドバイスを併せてご利用ください。*
+        variables:
+        - value_selector:
+          - '57500000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '57500000000001'
+          - risk_focus
+          variable: risk_focus
+        - value_selector:
+          - '57500000000001'
+          - industry_sector
+          variable: industry_sector
+      height: 97
+      id: '57500000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          サプライチェーンリスク分析の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '57500000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '57500000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '57500000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '57500000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '57500000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

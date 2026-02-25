@@ -1,0 +1,452 @@
+kind: app
+version: 0.1.5
+app:
+  description: 融資申込データを入力すると、審査コメントのドラフトを自動生成するワークフロー。
+  icon: 🏦
+  icon_background: '#FFF9C4'
+  mode: workflow
+  name: 'AIS-34: 融資審査コメント生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-53400000000001-53400000000002
+      source: '53400000000001'
+      sourceHandle: source
+      target: '53400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-53400000000002-53400000000003
+      source: '53400000000002'
+      sourceHandle: source
+      target: '53400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-53400000000003-53400000000004
+      source: '53400000000003'
+      sourceHandle: 'true'
+      target: '53400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-53400000000003-53400000000006
+      source: '53400000000003'
+      sourceHandle: 'false'
+      target: '53400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-53400000000004-53400000000005
+      source: '53400000000004'
+      sourceHandle: source
+      target: '53400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53400000000005-53400000000007
+      source: '53400000000005'
+      sourceHandle: source
+      target: '53400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53400000000006-53400000000007
+      source: '53400000000006'
+      sourceHandle: source
+      target: '53400000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: application_data
+          variable: application_data
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: loan_type
+          variable: loan_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 事業資金融資
+          - 住宅ローン
+          - 自動車ローン
+          - 教育ローン
+          - カードローン
+          - 不動産投資ローン
+        - label: loan_amount
+          variable: loan_amount
+          required: true
+          type: text-input
+          max_length: 64
+          options: []
+        - label: applicant_type
+          variable: applicant_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 個人
+          - 個人事業主
+          - 法人（中小企業）
+          - 法人（大企業）
+      height: 149
+      id: '53400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(application_data: str) -> dict:
+              issues = []
+              if len(application_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = application_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '53400000000001'
+          - application_data
+          variable: application_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '53400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '53400000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '53400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 融資申込データを入力すると、審査コメントのドラフトを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは金融機関の融資審査担当者です。金融庁の「金融検査マニュアル」および「監督指針」に準拠した融資審査コメントを作成してください。
+
+            ## 出力フォーマット
+            ### 1. 申込概要
+            - 申込者 / 融資種別 / 申込金額 / 資金使途 / 希望返済期間
+
+            ### 2. 信用力評価
+            | 評価項目 | 評価 | 根拠 |
+            |---|---|---|
+            | 返済能力 | A/B/C/D | |
+            | 資産背景 | A/B/C/D | |
+            | 事業性（法人の場合） | A/B/C/D | |
+            | 過去の取引実績 | A/B/C/D | |
+
+            ### 3. 財務分析（法人・個人事業主の場合）
+            - 収益性指標 / 安全性指標 / 成長性指標
+            - 債務償還年数の試算
+
+            ### 4. 返済シミュレーション
+            - 年間返済額 / 返済比率 / 返済余力
+
+            ### 5. 担保・保証評価
+            - 担保評価額 / 掛目 / 保全率
+
+            ### 6. リスク要因
+            - 識別されたリスクと軽減策
+
+            ### 7. 審査意見
+            - 推奨判定：承認 / 条件付き承認 / 謝絶
+            - 条件がある場合の付帯条件
+            - 審査コメント本文
+
+            ## ルール
+            - 定量的な根拠に基づく客観的な評価を行うこと
+            - 貸出条件緩和債権に該当しないか確認すること
+            - 反社会的勢力との関係排除を前提とすること
+            - 個人情報保護法に配慮し、必要最小限の情報で記述すること
+            - 融資後のモニタリング項目を提案すること
+            - バーゼル規制の信用リスク区分を考慮すること
+            - 推測と事実を明確に区別すること
+        - role: user
+          text: |-
+            application_data:
+            {{#53400000000001.application_data#}}
+
+            loan_type: {{#53400000000001.loan_type#}}
+
+            loan_amount: {{#53400000000001.loan_amount#}}
+
+            applicant_type: {{#53400000000001.applicant_type#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '53400000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 融資審査コメント
+
+          **loan_type**: {{ loan_type }}
+          **loan_amount**: {{ loan_amount }}
+          **applicant_type**: {{ applicant_type }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した審査コメントのドラフトです。最終的な融資判断は審査部門の責任者が行ってください。*
+        variables:
+        - value_selector:
+          - '53400000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '53400000000001'
+          - loan_type
+          variable: loan_type
+        - value_selector:
+          - '53400000000001'
+          - loan_amount
+          variable: loan_amount
+        - value_selector:
+          - '53400000000001'
+          - applicant_type
+          variable: applicant_type
+      height: 97
+      id: '53400000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          融資審査コメント生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '53400000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '53400000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '53400000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '53400000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '53400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

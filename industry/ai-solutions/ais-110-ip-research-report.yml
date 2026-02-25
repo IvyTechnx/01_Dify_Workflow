@@ -1,0 +1,457 @@
+kind: app
+version: 0.1.5
+app:
+  description: 調査対象の技術・商標情報を入力すると、特許・商標の先行技術調査レポートを自動生成するワークフロー。
+  icon: 💡
+  icon_background: '#FBE9E7'
+  mode: workflow
+  name: 'AIS-110: 知的財産権調査レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-61000000000001-61000000000002
+      source: '61000000000001'
+      sourceHandle: source
+      target: '61000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-61000000000002-61000000000003
+      source: '61000000000002'
+      sourceHandle: source
+      target: '61000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-61000000000003-61000000000004
+      source: '61000000000003'
+      sourceHandle: 'true'
+      target: '61000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-61000000000003-61000000000006
+      source: '61000000000003'
+      sourceHandle: 'false'
+      target: '61000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-61000000000004-61000000000005
+      source: '61000000000004'
+      sourceHandle: source
+      target: '61000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61000000000005-61000000000007
+      source: '61000000000005'
+      sourceHandle: source
+      target: '61000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-61000000000006-61000000000007
+      source: '61000000000006'
+      sourceHandle: source
+      target: '61000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: research_subject
+          variable: research_subject
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: ip_type
+          variable: ip_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 特許（発明）
+          - 実用新案
+          - 商標
+          - 意匠
+          - 著作権
+          - 総合調査
+        - label: research_purpose
+          variable: research_purpose
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 出願前調査
+          - 侵害予防調査
+          - 無効資料調査
+          - 技術動向調査
+          - 商標採択調査
+        - label: industry_field
+          variable: industry_field
+          required: false
+          type: text-input
+          max_length: 256
+          options: []
+      height: 149
+      id: '61000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(research_subject: str) -> dict:
+              issues = []
+              if len(research_subject.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = research_subject
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '61000000000001'
+          - research_subject
+          variable: research_subject
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '61000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '61000000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '61000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 調査対象の技術・商標情報を入力すると、特許・商標の先行技術調査レポートを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは知的財産権の調査・分析を専門とするIPリサーチャーです。調査対象の技術・商標情報に基づき、先行技術・先行商標の調査レポートを作成してください。
+
+            ## あなたの役割
+            特許法・商標法・意匠法・著作権法に精通し、知的財産権の権利化可能性や侵害リスクを評価するための調査レポートを提供するIP専門家です。
+
+            ## 出力フォーマット
+            ### 調査概要
+            | 項目 | 内容 |
+            |---|---|
+            | 調査対象 | |
+            | 調査種別 | |
+            | 対象知的財産権 | |
+            | 調査目的 | |
+
+            ### 先行技術・先行権利の分析
+            | # | 文献番号/登録番号 | 権利者/出願人 | 概要 | 関連度 |
+            |---|---|---|---|---|
+
+            ### 新規性・進歩性の評価（特許の場合）
+            | 請求項要素 | 先行技術との差異 | 評価 |
+            |---|---|---|
+
+            ### 類似性評価（商標の場合）
+            外観・称呼・観念の三要素での類似性分析
+
+            ### リスク評価
+            | リスク項目 | レベル | 詳細 | 対策案 |
+            |---|---|---|---|
+
+            ### 推奨戦略
+            権利化戦略・回避設計・ライセンス交渉等の提案
+
+            ### 追加調査の推奨
+            本調査でカバーできていない範囲と追加調査の必要性
+
+            ## ルール
+            1. 特許法・商標法・意匠法・著作権法に基づいた分析を行う
+            2. 先行技術文献は可能な限り具体的に特定する
+            3. 新規性・進歩性の判断基準は特許庁審査基準に準拠する
+            4. 権利範囲の解釈は均等論も考慮する
+            5. 調査の限界（データベース範囲・時期等）を明記する
+            6. 海外出願の可能性がある場合はPCT出願等も言及する
+            7. 知的財産権に関する専門用語は正確に使用する
+            8. 最終的な出願・権利化判断は弁理士に相談すべき旨を明記する
+        - role: user
+          text: |-
+            research_subject:
+            {{#61000000000001.research_subject#}}
+
+            ip_type: {{#61000000000001.ip_type#}}
+
+            research_purpose: {{#61000000000001.research_purpose#}}
+
+            industry_field: {{#61000000000001.industry_field#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '61000000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 知的財産権調査レポート
+
+          **ip_type**: {{ ip_type }}
+          **research_purpose**: {{ research_purpose }}
+          **industry_field**: {{ industry_field }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した調査レポートのドラフトです。正式な知的財産権の出願・権利化判断は弁理士にご相談ください。*
+        variables:
+        - value_selector:
+          - '61000000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '61000000000001'
+          - ip_type
+          variable: ip_type
+        - value_selector:
+          - '61000000000001'
+          - research_purpose
+          variable: research_purpose
+        - value_selector:
+          - '61000000000001'
+          - industry_field
+          variable: industry_field
+      height: 97
+      id: '61000000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          知的財産権調査レポートの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '61000000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '61000000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '61000000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '61000000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '61000000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

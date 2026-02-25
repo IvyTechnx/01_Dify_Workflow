@@ -1,0 +1,433 @@
+kind: app
+version: 0.1.5
+app:
+  description: 物件情報を入力すると、重要事項説明書の記載漏れチェックリストを自動生成するワークフロー。
+  icon: 📋
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'AIS-59: 重要事項説明書チェックリスト'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-55900000000001-55900000000002
+      source: '55900000000001'
+      sourceHandle: source
+      target: '55900000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-55900000000002-55900000000003
+      source: '55900000000002'
+      sourceHandle: source
+      target: '55900000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-55900000000003-55900000000004
+      source: '55900000000003'
+      sourceHandle: 'true'
+      target: '55900000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-55900000000003-55900000000006
+      source: '55900000000003'
+      sourceHandle: 'false'
+      target: '55900000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-55900000000004-55900000000005
+      source: '55900000000004'
+      sourceHandle: source
+      target: '55900000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55900000000005-55900000000007
+      source: '55900000000005'
+      sourceHandle: source
+      target: '55900000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55900000000006-55900000000007
+      source: '55900000000006'
+      sourceHandle: source
+      target: '55900000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: property_info
+          variable: property_info
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: transaction_type
+          variable: transaction_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 売買（自ら売主）
+          - 売買（媒介）
+          - 賃貸（媒介）
+          - 賃貸（自ら貸主）
+        - label: property_category
+          variable: property_category
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 区分マンション
+          - 一戸建て
+          - 土地
+          - 事業用
+      height: 149
+      id: '55900000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(property_info: str) -> dict:
+              issues = []
+              if len(property_info.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = property_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '55900000000001'
+          - property_info
+          variable: property_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '55900000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '55900000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '55900000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 物件情報を入力すると、重要事項説明書の記載漏れチェックリストを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは宅地建物取引業法に精通した不動産取引の専門家です。物件情報に基づいて、重要事項説明書の記載漏れを防ぐチェックリストを作成してください。
+
+            ## あなたの役割
+            宅建業法第35条に基づく重要事項説明の完全性を確保するためのチェックリストを作成する法令遵守の専門家です。
+
+            ## 出力フォーマット
+            ### 重要事項説明書チェックリスト
+
+            #### I. 取引物件に関する事項
+            | # | チェック項目 | 根拠条文 | 確認状況 | 備考 |
+            |---|---|---|---|---|
+            | 1 | 登記簿記載事項 | 法35条1項1号 | □ | |
+            | 2 | 都市計画法・建築基準法の制限 | 法35条1項2号 | □ | |
+
+            #### II. 取引条件に関する事項
+            | # | チェック項目 | 根拠条文 | 確認状況 | 備考 |
+            |---|---|---|---|---|
+
+            #### III. その他の事項
+            | # | チェック項目 | 根拠条文 | 確認状況 | 備考 |
+            |---|---|---|---|---|
+
+            ### 物件固有の注意事項
+            入力された物件情報から特に注意が必要な点
+
+            ### 追加確認推奨事項
+            チェックリスト以外に確認すべき事項
+
+            ## ルール
+            1. 宅建業法第35条の記載事項を網羅する
+            2. 取引形態（売買/賃貸）に応じた項目を出力する
+            3. 物件種別に応じた固有の説明事項を含める
+            4. 国土交通省の標準様式に準拠した項目構成にする
+            5. 法的助言ではなくチェック支援であることを明記する
+            6. 区分マンションの場合は管理規約関連項目を追加する
+            7. 最新の法改正事項（デジタル化対応等）を反映する
+        - role: user
+          text: |-
+            property_info:
+            {{#55900000000001.property_info#}}
+
+            transaction_type: {{#55900000000001.transaction_type#}}
+
+            property_category: {{#55900000000001.property_category#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '55900000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 重要事項説明書チェックリスト
+
+          **transaction_type**: {{ transaction_type }}
+          **property_category**: {{ property_category }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したチェックリストです。法的助言ではありません。宅地建物取引士の確認を必ず受けてください。*
+        variables:
+        - value_selector:
+          - '55900000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '55900000000001'
+          - transaction_type
+          variable: transaction_type
+        - value_selector:
+          - '55900000000001'
+          - property_category
+          variable: property_category
+      height: 97
+      id: '55900000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          重要事項説明書チェックリストの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '55900000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '55900000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '55900000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '55900000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '55900000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

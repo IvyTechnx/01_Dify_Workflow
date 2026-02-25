@@ -1,0 +1,701 @@
+kind: app
+version: '0.1.5'
+app:
+  description: 'JAPAN AI Marketingに対抗するマーケティングコピー一括生成ワークフロー。商品・サービス情報を入力するとSNS投稿・LP・メルマガ・広告文を同時に生成する。'
+  icon: "\U0001F4E3"
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-08: マーケティングコピー一括AI生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-50800000000001-50800000000002
+      source: '50800000000001'
+      sourceHandle: source
+      target: '50800000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-50800000000002-50800000000003
+      source: '50800000000002'
+      sourceHandle: source
+      target: '50800000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50800000000003-50800000000004
+      source: '50800000000003'
+      sourceHandle: 'true'
+      target: '50800000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50800000000003-50800000000005
+      source: '50800000000003'
+      sourceHandle: 'true'
+      target: '50800000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50800000000003-50800000000006
+      source: '50800000000003'
+      sourceHandle: 'true'
+      target: '50800000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+      id: e-50800000000003-50800000000007
+      source: '50800000000003'
+      sourceHandle: 'true'
+      target: '50800000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-50800000000003-50800000000010
+      source: '50800000000003'
+      sourceHandle: 'false'
+      target: '50800000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000004-50800000000008
+      source: '50800000000004'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000005-50800000000008
+      source: '50800000000005'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000006-50800000000008
+      source: '50800000000006'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+      id: e-50800000000007-50800000000008
+      source: '50800000000007'
+      sourceHandle: source
+      target: '50800000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: template-transform
+      id: e-50800000000008-50800000000009
+      source: '50800000000008'
+      sourceHandle: source
+      target: '50800000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-50800000000009-50800000000011
+      source: '50800000000009'
+      sourceHandle: source
+      target: '50800000000011'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+      id: e-50800000000010-50800000000011
+      source: '50800000000010'
+      sourceHandle: source
+      target: '50800000000011'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '商品情報・ターゲット・トーン・目的を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_info
+          max_length: 10000
+          options: []
+          required: true
+          type: paragraph
+          variable: product_info
+        - label: target_audience
+          max_length: 256
+          options: []
+          required: true
+          type: text-input
+          variable: target_audience
+        - label: brand_tone
+          max_length: 48
+          options:
+          - 'カジュアル・親しみやすい'
+          - 'プロフェッショナル・信頼感'
+          - 'エレガント・高級感'
+          - 'エネルギッシュ・若々しい'
+          required: true
+          type: select
+          variable: brand_tone
+        - label: campaign_goal
+          max_length: 48
+          options:
+          - '認知拡大'
+          - 'リード獲得'
+          - '購入促進'
+          - 'ブランディング'
+          required: true
+          type: select
+          variable: campaign_goal
+      height: 175
+      id: '50800000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '商品情報の長さ・ターゲットの空チェック・インジェクション検査を行う'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(product_info: str, target_audience: str) -> dict:
+              errors = []
+
+              # 商品情報の長さチェック（20〜10000文字）
+              info_len = len(product_info.strip()) if product_info else 0
+              if info_len < 20:
+                  errors.append("商品・サービス情報が短すぎます（最低20文字必要、現在: {}文字）".format(info_len))
+              if info_len > 10000:
+                  errors.append("商品・サービス情報が長すぎます（上限10,000文字、現在: {}文字）".format(info_len))
+
+              # ターゲット顧客層の空チェック
+              if not target_audience or not target_audience.strip():
+                  errors.append("ターゲット顧客層が空です。ターゲットを入力してください。")
+
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+instructions',
+                  r'(?i)system\s*:\s*you\s+are',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'(?i)<\s*script\b',
+                  r'(?i)\{\{.*\}\}'
+              ]
+              combined_text = (product_info or '') + ' ' + (target_audience or '')
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined_text):
+                      errors.append("入力テキストに不正なパターンが検出されました。正しい商品情報を入力してください。")
+                      break
+
+              if errors:
+                  return {
+                      'is_valid': 'false',
+                      'error_message': '\n'.join(errors)
+                  }
+
+              return {
+                  'is_valid': 'true',
+                  'error_message': ''
+              }
+        variables:
+        - value_selector:
+          - '50800000000001'
+          - product_info
+          variable: product_info
+        - value_selector:
+          - '50800000000001'
+          - target_audience
+          variable: target_audience
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '50800000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '50800000000002'
+            - is_valid
+            comparison_operator: is
+            value: "true"
+        desc: '入力検証結果で分岐する'
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+      height: 125
+      id: '50800000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'Twitter(X)・Instagram・Facebookの投稿文を生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.7
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはマーケティングコピーライターとしてSNS投稿を作成してください。
+
+            ## 出力フォーマット
+            ### Twitter(X)
+            - 140字以内の投稿文 x 3案
+            - 各案にハッシュタグ提案を含める
+
+            ### Instagram
+            - キャプション x 2案（絵文字を効果的に使用）
+            - おすすめハッシュタグセット
+
+            ### Facebook
+            - 投稿文 x 1案（やや長文OK、共感を誘う内容）
+
+            ## ルール
+            - ブランドトーンを厳守する
+            - ターゲット層に響く表現を使用する
+            - キャンペーン目的に沿った訴求を行う
+            - 各プラットフォームの特性を活かした最適化を行う
+        - role: user
+          text: "商品情報: {{#50800000000001.product_info#}}\nターゲット: {{#50800000000001.target_audience#}}\nトーン: {{#50800000000001.brand_tone#}}\n目的: {{#50800000000001.campaign_goal#}}"
+        selected: false
+        title: SNS投稿生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000004'
+      position:
+        x: 980
+        y: 82
+      positionAbsolute:
+        x: 980
+        y: 82
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'ヘッドライン・サブヘッド・CTA・ベネフィットを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはLPコピーライターとしてランディングページ用コピーを作成してください。
+
+            ## 出力フォーマット
+            ### ヘッドライン
+            - ヘッドライン x 3案（注目を引く短いフレーズ）
+
+            ### サブヘッド
+            - サブヘッド x 3案（ヘッドラインを補足する説明文）
+
+            ### CTA文言
+            - CTA（Call to Action）x 3案（行動を促すボタンテキスト）
+
+            ### ベネフィット
+            - ユーザーが得られる価値・メリットの箇条書き x 5項目
+
+            ## ルール
+            - ブランドトーンを厳守する
+            - ターゲット層の課題・ニーズに直結する表現を使う
+            - キャンペーン目的に沿ったコンバージョン導線を意識する
+            - 具体的な数値や事実を可能な限り盛り込む
+        - role: user
+          text: "商品情報: {{#50800000000001.product_info#}}\nターゲット: {{#50800000000001.target_audience#}}\nトーン: {{#50800000000001.brand_tone#}}\n目的: {{#50800000000001.campaign_goal#}}"
+        selected: false
+        title: LP文言生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000005'
+      position:
+        x: 980
+        y: 232
+      positionAbsolute:
+        x: 980
+        y: 232
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '件名・プリヘッダー・本文テンプレートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはメールマーケターとしてメルマガを作成してください。
+
+            ## 出力フォーマット
+            ### 件名
+            - 件名 x 3案（開封率を高める魅力的なタイトル）
+
+            ### プリヘッダー
+            - プリヘッダー x 3案（件名を補完する短い説明文）
+
+            ### 本文テンプレート
+            - 本文テンプレート x 1案
+              - 構成: 挨拶 → 価値提案 → CTA → 署名
+              - 適切な段落分け・改行を含める
+
+            ## ルール
+            - ブランドトーンを厳守する
+            - ターゲット層に合わせたパーソナライズ要素を含める
+            - キャンペーン目的に沿った明確なCTAを設置する
+            - スパムフィルターに引っかかりやすい表現を避ける
+        - role: user
+          text: "商品情報: {{#50800000000001.product_info#}}\nターゲット: {{#50800000000001.target_audience#}}\nトーン: {{#50800000000001.brand_tone#}}\n目的: {{#50800000000001.campaign_goal#}}"
+        selected: false
+        title: メルマガ生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000006'
+      position:
+        x: 980
+        y: 382
+      positionAbsolute:
+        x: 980
+        y: 382
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 'リスティング広告・ディスプレイ広告のコピーを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 2048
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは広告コピーライターとしてWeb広告文を作成してください。
+
+            ## 出力フォーマット
+            ### リスティング広告
+            - 見出し（30字以内）x 5案
+            - 説明文（90字以内）x 3案
+
+            ### ディスプレイ広告
+            - キャッチコピー x 3案（視覚的インパクトのある短いフレーズ）
+
+            ## ルール
+            - ブランドトーンを厳守する
+            - 文字数制限を厳密に守る
+            - ターゲット層の検索意図・関心に合わせた訴求を行う
+            - キャンペーン目的に沿ったクリック率向上を意識する
+            - 広告審査に抵触しない表現を使用する
+        - role: user
+          text: "商品情報: {{#50800000000001.product_info#}}\nターゲット: {{#50800000000001.target_audience#}}\nトーン: {{#50800000000001.brand_tone#}}\n目的: {{#50800000000001.campaign_goal#}}"
+        selected: false
+        title: 広告文生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50800000000007'
+      position:
+        x: 980
+        y: 532
+      positionAbsolute:
+        x: 980
+        y: 532
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+        desc: 'SNS・LP・メルマガ・広告文の4つのLLM出力を統合する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '50800000000004'
+          - text
+        - - '50800000000005'
+          - text
+        - - '50800000000006'
+          - text
+        - - '50800000000007'
+          - text
+      height: 89
+      id: '50800000000008'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '商品情報・ターゲット・トーン・目的のヘッダーとLLM出力を統合フォーマットに整形する'
+        selected: false
+        title: 統合出力
+        type: template-transform
+        template: |
+          # マーケティングコピー一括生成結果
+
+          **商品・サービス**: {{ product_info_short }}
+          **ターゲット**: {{ target_audience }}
+          **トーン**: {{ brand_tone }}
+          **キャンペーン目的**: {{ campaign_goal }}
+
+          ---
+
+          {{ combined_copy }}
+
+          ---
+          *AIが生成したコピーです。ブランドガイドラインとの整合性を確認してからご使用ください。*
+        variables:
+        - value_selector:
+          - '50800000000008'
+          - output
+          variable: combined_copy
+        - value_selector:
+          - '50800000000001'
+          - product_info
+          variable: product_info_short
+        - value_selector:
+          - '50800000000001'
+          - target_audience
+          variable: target_audience
+        - value_selector:
+          - '50800000000001'
+          - brand_tone
+          variable: brand_tone
+        - value_selector:
+          - '50800000000001'
+          - campaign_goal
+          variable: campaign_goal
+      height: 97
+      id: '50800000000009'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '入力検証エラー時のエラーメッセージを整形する'
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |
+          ## エラー: 入力検証に失敗しました
+
+          以下の問題が検出されました：
+
+          {{ error_message }}
+
+          ---
+          入力内容を修正して再実行してください。
+        variables:
+        - value_selector:
+          - '50800000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '50800000000010'
+      position:
+        x: 980
+        y: 682
+      positionAbsolute:
+        x: 980
+        y: 682
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'マーケティングコピーまたはエラーメッセージを出力する'
+        outputs:
+        - value_selector:
+          - '50800000000009'
+          - output
+          variable: marketing_copy
+        - value_selector:
+          - '50800000000010'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50800000000011'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

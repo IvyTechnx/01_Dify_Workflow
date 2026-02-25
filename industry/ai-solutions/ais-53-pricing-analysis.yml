@@ -1,0 +1,430 @@
+kind: app
+version: 0.1.5
+app:
+  description: 市場・競合の価格情報を入力すると、価格戦略の分析と提案を自動生成するワークフロー。
+  icon: 💹
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-53: プライシング分析レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-55300000000001-55300000000002
+      source: '55300000000001'
+      sourceHandle: source
+      target: '55300000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-55300000000002-55300000000003
+      source: '55300000000002'
+      sourceHandle: source
+      target: '55300000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-55300000000003-55300000000004
+      source: '55300000000003'
+      sourceHandle: 'true'
+      target: '55300000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-55300000000003-55300000000006
+      source: '55300000000003'
+      sourceHandle: 'false'
+      target: '55300000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-55300000000004-55300000000005
+      source: '55300000000004'
+      sourceHandle: source
+      target: '55300000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55300000000005-55300000000007
+      source: '55300000000005'
+      sourceHandle: source
+      target: '55300000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55300000000006-55300000000007
+      source: '55300000000006'
+      sourceHandle: source
+      target: '55300000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: market_price_data
+          variable: market_price_data
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: own_product_info
+          variable: own_product_info
+          required: true
+          type: paragraph
+          max_length: 10000
+          options: []
+        - label: pricing_goal
+          variable: pricing_goal
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 利益率最大化
+          - シェア拡大
+          - 新規参入価格設定
+          - 値上げ検討
+          - セール価格設定
+      height: 149
+      id: '55300000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(market_price_data: str, own_product_info: str) -> dict:
+              issues = []
+              if len(market_price_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = market_price_data + ' ' + own_product_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '55300000000001'
+          - market_price_data
+          variable: market_price_data
+        - value_selector:
+          - '55300000000001'
+          - own_product_info
+          variable: own_product_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '55300000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '55300000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '55300000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 市場・競合の価格情報を入力すると、価格戦略の分析と提案を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは小売・ECのプライシング戦略コンサルタントです。市場・競合の価格データと自社商品情報に基づいて、最適な価格戦略を提案してください。
+
+            ## あなたの役割
+            価格弾力性・競合ポジショニング・消費者心理を考慮した戦略的プライシングを提案する専門家です。
+
+            ## 出力フォーマット
+            ### エグゼクティブサマリー（3行以内）
+
+            ### 市場価格マッピング
+            | 商品/競合 | 価格帯 | ポジション | 特徴 |
+            |---|---|---|---|
+
+            ### 価格競争力分析
+            自社商品の市場内での位置づけ
+
+            ### 推奨価格戦略
+            | 戦略案 | 推奨価格 | 予想粗利率 | メリット | リスク |
+            |---|---|---|---|---|
+            | 案1: | | | | |
+            | 案2: | | | | |
+            | 案3: | | | | |
+
+            ### 心理的価格設定の提案
+            端数価格・アンカリング等の具体的テクニック
+
+            ### 価格変更のタイミングと実施ステップ
+            ### リスクと対策
+
+            ## ルール
+            1. データに基づく客観的な分析を行う
+            2. 独占禁止法・不当廉売に抵触する提案は行わない
+            3. 複数の価格シナリオを提示する
+            4. 消費者心理（端数効果、アンカリング等）を考慮する
+            5. 短期・中長期の両視点で提案する
+            6. 価格変更時の顧客コミュニケーション案も含める
+            7. 推測と事実を明確に区別する
+        - role: user
+          text: |-
+            market_price_data:
+            {{#55300000000001.market_price_data#}}
+
+            own_product_info:
+            {{#55300000000001.own_product_info#}}
+
+            pricing_goal: {{#55300000000001.pricing_goal#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '55300000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # プライシング分析レポート
+
+          **pricing_goal**: {{ pricing_goal }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIによる価格分析の参考レポートです。最終的な価格決定は市場動向・原価・経営方針を総合的に判断してください。*
+        variables:
+        - value_selector:
+          - '55300000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '55300000000001'
+          - pricing_goal
+          variable: pricing_goal
+      height: 97
+      id: '55300000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          プライシング分析レポートの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '55300000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '55300000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '55300000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '55300000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '55300000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

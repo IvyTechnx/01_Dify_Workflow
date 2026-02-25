@@ -1,0 +1,447 @@
+kind: app
+version: 0.1.5
+app:
+  description: 機能仕様や要件定義を入力すると、テストケース一覧とテスト仕様書を自動生成するワークフロー。
+  icon: ✅
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-81: テストケース自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-58100000000001-58100000000002
+      source: '58100000000001'
+      sourceHandle: source
+      target: '58100000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-58100000000002-58100000000003
+      source: '58100000000002'
+      sourceHandle: source
+      target: '58100000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-58100000000003-58100000000004
+      source: '58100000000003'
+      sourceHandle: 'true'
+      target: '58100000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-58100000000003-58100000000006
+      source: '58100000000003'
+      sourceHandle: 'false'
+      target: '58100000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-58100000000004-58100000000005
+      source: '58100000000004'
+      sourceHandle: source
+      target: '58100000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58100000000005-58100000000007
+      source: '58100000000005'
+      sourceHandle: source
+      target: '58100000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58100000000006-58100000000007
+      source: '58100000000006'
+      sourceHandle: source
+      target: '58100000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: requirements
+          variable: requirements
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: test_level
+          variable: test_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 単体テスト
+          - 結合テスト
+          - システムテスト
+          - 受入テスト
+          - 回帰テスト
+        - label: feature_name
+          variable: feature_name
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: priority_focus
+          variable: priority_focus
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 正常系中心
+          - 異常系中心
+          - 境界値中心
+          - セキュリティ中心
+          - 網羅的
+      height: 149
+      id: '58100000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(requirements: str) -> dict:
+              issues = []
+              if len(requirements.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = requirements
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '58100000000001'
+          - requirements
+          variable: requirements
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '58100000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '58100000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '58100000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 機能仕様や要件定義を入力すると、テストケース一覧とテスト仕様書を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはQAエンジニア・テスト設計の専門家です。ISO/IEC/IEEE 29119に準拠したテスト設計技法を用いて、網羅性の高いテストケースを作成してください。
+
+            ## あなたの役割
+            JSTQBシラバスに基づくテスト技法を適用し、品質リスクに基づいた効率的なテスト設計を行います。
+
+            ## 出力フォーマット
+            ### テスト概要
+            - テスト対象機能 / テストレベル / テスト環境要件
+
+            ### テスト設計方針
+            - 適用したテスト技法（同値分割・境界値分析・デシジョンテーブル・状態遷移等）
+            - カバレッジ基準
+
+            ### テストケース一覧
+            | TC-ID | カテゴリ | テスト観点 | 前提条件 | 手順 | 期待結果 | 優先度 |
+            |---|---|---|---|---|---|---|
+
+            ### 境界値・エッジケース
+            特に注意すべき境界値とエッジケースの詳細
+
+            ### 非機能テスト観点
+            - パフォーマンス / セキュリティ / ユーザビリティ / 互換性
+
+            ### テストデータ
+            テスト実行に必要なテストデータの定義
+
+            ## ルール
+            - テストレベルと優先フォーカスに応じたテストケースを設計すること
+            - 正常系・異常系・境界値を網羅的にカバーすること
+            - 各テストケースは独立して実行可能なように設計すること
+            - 期待結果は検証可能な具体的な値・状態で記述すること
+            - テストケースIDは一意で追跡可能な形式にすること
+            - リスクベースドテストの観点で優先度を付与すること
+            - 回帰テストで重点的に確認すべき項目を明示すること
+            - ネガティブテスト（不正入力・権限違反等）を必ず含めること
+        - role: user
+          text: |-
+            requirements:
+            {{#58100000000001.requirements#}}
+
+            test_level: {{#58100000000001.test_level#}}
+
+            feature_name: {{#58100000000001.feature_name#}}
+
+            priority_focus: {{#58100000000001.priority_focus#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '58100000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # テストケース仕様書
+
+          **test_level**: {{ test_level }}
+          **feature_name**: {{ feature_name }}
+          **priority_focus**: {{ priority_focus }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したテストケースのドラフトです。QAリーダーのレビュー・承認を経てから正式なテスト計画に組み込んでください。*
+        variables:
+        - value_selector:
+          - '58100000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '58100000000001'
+          - test_level
+          variable: test_level
+        - value_selector:
+          - '58100000000001'
+          - feature_name
+          variable: feature_name
+        - value_selector:
+          - '58100000000001'
+          - priority_focus
+          variable: priority_focus
+      height: 97
+      id: '58100000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          テストケース自動生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '58100000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '58100000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '58100000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '58100000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '58100000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

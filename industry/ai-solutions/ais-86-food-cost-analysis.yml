@@ -1,0 +1,452 @@
+kind: app
+version: 0.1.5
+app:
+  description: メニューの食材情報と仕入れ価格を入力すると、原価率・利益率の分析と改善提案を自動生成するワークフロー。
+  icon: 💰
+  icon_background: '#FFF3E0'
+  mode: workflow
+  name: 'AIS-86: 原価計算・利益分析'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-58600000000001-58600000000002
+      source: '58600000000001'
+      sourceHandle: source
+      target: '58600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-58600000000002-58600000000003
+      source: '58600000000002'
+      sourceHandle: source
+      target: '58600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-58600000000003-58600000000004
+      source: '58600000000003'
+      sourceHandle: 'true'
+      target: '58600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-58600000000003-58600000000006
+      source: '58600000000003'
+      sourceHandle: 'false'
+      target: '58600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-58600000000004-58600000000005
+      source: '58600000000004'
+      sourceHandle: source
+      target: '58600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58600000000005-58600000000007
+      source: '58600000000005'
+      sourceHandle: source
+      target: '58600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-58600000000006-58600000000007
+      source: '58600000000006'
+      sourceHandle: source
+      target: '58600000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: recipe_cost_data
+          variable: recipe_cost_data
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: menu_name
+          variable: menu_name
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: business_type
+          variable: business_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - レストラン
+          - 居酒屋
+          - カフェ
+          - ファストフード
+          - テイクアウト専門
+          - ケータリング
+          - ベーカリー
+        - label: target_cost_rate
+          variable: target_cost_rate
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 25%以下
+          - 25〜30%
+          - 30〜35%
+          - 35〜40%
+          - 現状把握のみ
+      height: 149
+      id: '58600000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(recipe_cost_data: str) -> dict:
+              issues = []
+              if len(recipe_cost_data.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = recipe_cost_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '58600000000001'
+          - recipe_cost_data
+          variable: recipe_cost_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '58600000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '58600000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '58600000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: メニューの食材情報と仕入れ価格を入力すると、原価率・利益率の分析と改善提案を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは飲食店経営コンサルタント・管理会計の専門家です。FLコスト（Food & Labor Cost）管理の観点から、メニューの原価分析と利益改善提案を行ってください。
+
+            ## あなたの役割
+            飲食店の収益性を最大化するため、食材原価の最適化と適正価格設定のアドバイスを提供します。
+
+            ## 出力フォーマット
+            ### 1. 原価計算シート
+            | 食材名 | 使用量 | 単価 | 原価 | 歩留まり率 | 実質原価 |
+            |---|---|---|---|---|---|
+            | **合計** | | | **XXX円** | | |
+
+            ### 2. 収益分析
+            - 食材原価率 / 想定売価 / 粗利益額 / 粗利益率
+            - 損益分岐点販売数
+
+            ### 3. ABC分析
+            食材を原価インパクト別にA/B/Cランク分類
+
+            ### 4. 原価改善提案
+            | # | 改善策 | 現状原価 | 改善後原価 | 削減額 | 品質影響 |
+            |---|---|---|---|---|---|
+
+            ### 5. メニューエンジニアリング
+            - 売上貢献度と利益貢献度のマトリクス分析
+            - スター / 金のなる木 / パズル / 犬の分類
+
+            ### 6. 価格設定提案
+            - 推奨価格帯と根拠
+
+            ## ルール
+            - 歩留まり率を考慮した実質原価で計算すること
+            - 業態別の適正原価率ベンチマークと比較すること
+            - 季節変動による仕入れ価格の変動リスクを指摘すること
+            - 品質を落とさない原価削減策を優先的に提案すること
+            - フードロス削減の観点も含めること
+            - 仕込み人件費（Labor Cost）との関連にも言及すること
+            - 消費税の軽減税率（テイクアウト8%・イートイン10%）を考慮すること
+            - 具体的な数値根拠に基づいた提案を行うこと
+        - role: user
+          text: |-
+            recipe_cost_data:
+            {{#58600000000001.recipe_cost_data#}}
+
+            menu_name: {{#58600000000001.menu_name#}}
+
+            business_type: {{#58600000000001.business_type#}}
+
+            target_cost_rate: {{#58600000000001.target_cost_rate#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '58600000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 原価計算・利益分析レポート
+
+          **menu_name**: {{ menu_name }}
+          **business_type**: {{ business_type }}
+          **target_cost_rate**: {{ target_cost_rate }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した原価分析のドラフトです。実際の仕入れ価格・歩留まりは現場の実績データに基づいて経理担当者が最終確認してください。*
+        variables:
+        - value_selector:
+          - '58600000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '58600000000001'
+          - menu_name
+          variable: menu_name
+        - value_selector:
+          - '58600000000001'
+          - business_type
+          variable: business_type
+        - value_selector:
+          - '58600000000001'
+          - target_cost_rate
+          variable: target_cost_rate
+      height: 97
+      id: '58600000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          原価計算・利益分析の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '58600000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '58600000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '58600000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '58600000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '58600000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

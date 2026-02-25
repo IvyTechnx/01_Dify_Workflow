@@ -1,0 +1,654 @@
+version: '0.1.5'
+kind: app
+app:
+  description: 'ロボリサ(MRI)に対抗するWebリサーチ自動化ワークフロー。調査テーマを入力するとAIが検索クエリを生成し、Web APIで情報収集後、構造化されたリサーチレポートを自動生成する。'
+  icon: "\U0001F50D"
+  icon_background: '#E8EAF6'
+  mode: workflow
+  name: 'AIS-07: WebリサーチAIレポート自動生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    # Start → Code(入力検証)
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-50700000000001-50700000000002
+      source: '50700000000001'
+      sourceHandle: source
+      target: '50700000000002'
+      targetHandle: target
+      type: custom
+    # Code(入力検証) → IF-ELSE
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-50700000000002-50700000000003
+      source: '50700000000002'
+      sourceHandle: source
+      target: '50700000000003'
+      targetHandle: target
+      type: custom
+    # IF-ELSE true → LLM(検索クエリ生成)
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-50700000000003-50700000000004
+      source: '50700000000003'
+      sourceHandle: 'true'
+      target: '50700000000004'
+      targetHandle: target
+      type: custom
+    # IF-ELSE false → TT(エラー応答)
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-50700000000003-50700000000010
+      source: '50700000000003'
+      sourceHandle: 'false'
+      target: '50700000000010'
+      targetHandle: target
+      type: custom
+    # LLM(検索クエリ生成) → Code(クエリパース)
+    - data:
+        sourceType: llm
+        targetType: code
+        isInIteration: false
+      id: e-50700000000004-50700000000005
+      source: '50700000000004'
+      sourceHandle: source
+      target: '50700000000005'
+      targetHandle: target
+      type: custom
+    # Code(クエリパース) → Iteration
+    - data:
+        sourceType: code
+        targetType: iteration
+        isInIteration: false
+      id: e-50700000000005-50700000000006
+      source: '50700000000005'
+      sourceHandle: source
+      target: '50700000000006'
+      targetHandle: target
+      type: custom
+    # Inner: HTTP(Web検索) → Code(検索結果パース) ※イテレーション内
+    - data:
+        sourceType: http-request
+        targetType: code
+        isInIteration: true
+      id: e-50700000000007-50700000000008
+      source: '50700000000007'
+      sourceHandle: source
+      target: '50700000000008'
+      targetHandle: target
+      type: custom
+    # Iteration → LLM(レポート生成)
+    - data:
+        sourceType: iteration
+        targetType: llm
+        isInIteration: false
+      id: e-50700000000006-50700000000009
+      source: '50700000000006'
+      sourceHandle: source
+      target: '50700000000009'
+      targetHandle: target
+      type: custom
+    # LLM(レポート生成) → End
+    - data:
+        sourceType: llm
+        targetType: end
+        isInIteration: false
+      id: e-50700000000009-50700000000011
+      source: '50700000000009'
+      sourceHandle: source
+      target: '50700000000011'
+      targetHandle: target
+      type: custom
+    # TT(エラー応答) → End
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-50700000000010-50700000000011
+      source: '50700000000010'
+      sourceHandle: source
+      target: '50700000000011'
+      targetHandle: target
+      type: custom
+    nodes:
+    # ── Node 1: Start ──
+    - data:
+        desc: '調査テーマ・調査深度・出力言語を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: research_topic
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: research_topic
+        - label: research_depth
+          max_length: 48
+          options:
+          - '概要調査'
+          - '標準調査'
+          - '詳細調査'
+          required: true
+          type: select
+          variable: research_depth
+        - label: output_language
+          max_length: 48
+          options:
+          - '日本語'
+          - '英語'
+          required: true
+          type: select
+          variable: output_language
+      height: 149
+      id: '50700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 2: Code - 入力検証 ──
+    - data:
+        desc: '調査テーマの文字数チェック（10-5000文字）とインジェクションパターン検出を行う'
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(research_topic: str) -> dict:
+              topic = research_topic.strip()
+
+              # 文字数チェック（10〜5000文字）
+              if len(topic) < 10:
+                  return {
+                      'is_valid': 'false',
+                      'error_reason': '調査テーマが短すぎます。10文字以上で入力してください。',
+                      'sanitized_topic': ''
+                  }
+              if len(topic) > 5000:
+                  return {
+                      'is_valid': 'false',
+                      'error_reason': '調査テーマが長すぎます。5000文字以内で入力してください。',
+                      'sanitized_topic': ''
+                  }
+
+              # インジェクションパターン検出
+              injection_patterns = [
+                  r'<script',
+                  r'javascript:',
+                  r'on\w+=',
+                  r'\{\{.*\}\}',
+                  r'\{%.*%\}',
+                  r'__import__',
+                  r'eval\s*\(',
+                  r'exec\s*\(',
+                  r'system\s*\(',
+                  r'DROP\s+TABLE',
+                  r'DELETE\s+FROM',
+                  r'INSERT\s+INTO',
+                  r'UNION\s+SELECT',
+              ]
+              for pattern in injection_patterns:
+                  if re.search(pattern, topic, re.IGNORECASE):
+                      return {
+                          'is_valid': 'false',
+                          'error_reason': '不正な入力パターンが検出されました。通常の調査テーマを入力してください。',
+                          'sanitized_topic': ''
+                      }
+
+              return {
+                  'is_valid': 'true',
+                  'error_reason': '',
+                  'sanitized_topic': topic
+              }
+        variables:
+        - value_selector:
+          - '50700000000001'
+          - research_topic
+          variable: research_topic
+        outputs:
+          is_valid:
+            type: string
+          error_reason:
+            type: string
+          sanitized_topic:
+            type: string
+      height: 97
+      id: '50700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 3: IF-ELSE ──
+    - data:
+        conditions:
+        - id: condition_valid
+          variable_selector:
+          - '50700000000002'
+          - is_valid
+          comparison_operator: is
+          value: "true"
+        desc: 'バリデーション結果で分岐する'
+        logical_operator: and
+        selected: false
+        title: バリデーション判定
+        type: if-else
+      height: 125
+      id: '50700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 4: LLM - 検索クエリ生成 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '調査テーマに基づいて多角的な検索クエリを3-5個生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 1024
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            調査テーマに対して、効果的なWeb検索クエリを3-5個生成してください。各クエリは異なる角度から情報を収集できるようにしてください。JSON配列で出力: ["クエリ1", "クエリ2", ...]
+
+            ## ルール
+            - 調査深度に応じてクエリの専門性を調整する
+            - 概要調査: 一般的・入門的なクエリ（3個）
+            - 標準調査: 一般＋専門的なクエリ（4個）
+            - 詳細調査: 専門的・学術的なクエリを含む（5個）
+            - 各クエリは異なる観点（定義、事例、比較、最新動向、課題等）をカバーする
+            - 出力言語が指定されている場合、その言語でクエリを生成する
+            - JSON配列以外の文字列を出力しないこと（説明文やマークダウン装飾は不要）
+        - role: user
+          text: |
+            調査テーマ: {{#50700000000002.sanitized_topic#}}
+            調査深度: {{#50700000000001.research_depth#}}
+            出力言語: {{#50700000000001.output_language#}}
+        selected: false
+        title: 検索クエリ生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 5: Code - クエリパース ──
+    - data:
+        desc: 'LLM出力からJSON配列を抽出しクエリ一覧を生成する'
+        selected: false
+        title: クエリパース
+        type: code
+        code_language: python3
+        code: |
+          import json
+          import re
+
+          def main(llm_output: str) -> dict:
+              try:
+                  match = re.search(r'\[.*?\]', llm_output, re.DOTALL)
+                  if match:
+                      queries = json.loads(match.group())
+                      queries = [q for q in queries if isinstance(q, str)][:5]
+                  else:
+                      queries = [llm_output.strip()]
+              except Exception:
+                  queries = [llm_output.strip()]
+              return {'queries': queries, 'query_count': str(len(queries))}
+        variables:
+        - value_selector:
+          - '50700000000004'
+          - text
+          variable: llm_output
+        outputs:
+          queries:
+            type: array[string]
+          query_count:
+            type: string
+      height: 97
+      id: '50700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 6: Iteration ──
+    - data:
+        type: iteration
+        title: Web検索イテレーション
+        desc: '各クエリでWeb検索APIを呼び出し結果をパースする'
+        iterator_selector:
+        - '50700000000005'
+        - queries
+        output_selector:
+        - '50700000000008'
+        - search_result
+        parallel_mode: true
+        error_handle_mode: continue-on-error
+        start_node_id: '50700000000007'
+      id: '50700000000006'
+      type: custom
+      position:
+        x: 1580
+        y: 182
+      positionAbsolute:
+        x: 1580
+        y: 182
+      height: 250
+      width: 560
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+    # ── Node 7: Inner HTTP - Web検索 ──
+    - data:
+        desc: '検索クエリでWeb検索APIを呼び出す'
+        selected: false
+        title: Web検索API
+        type: http-request
+        method: get
+        # TODO: 実際の検索APIエンドポイントに置換すること
+        # api.search.example.com はプレースホルダ — このままではHTTPリクエストが失敗します
+        # authorization も実際の認証方式（api-key / bearer 等）に設定してください
+        url: 'https://api.search.example.com/v1/search?q={{#50700000000006.item#}}'
+        authorization:
+          type: api-key
+          config:
+            type: bearer
+            api_key: ''
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 10000
+          read: 60000
+          write: 20000
+        retry:
+          max_retries: 3
+        mask_authorization_header: true
+      id: '50700000000007'
+      type: custom
+      position:
+        x: 1640
+        y: 240
+      positionAbsolute:
+        x: 1640
+        y: 240
+      height: 97
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '50700000000006'
+    # ── Node 8: Inner Code - 検索結果パース ──
+    - data:
+        desc: '検索APIのレスポンスをパースし構造化テキストに変換する'
+        selected: false
+        title: 検索結果パース
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(response_body: str) -> dict:
+              try:
+                  data = json.loads(response_body)
+                  results = data.get('results', [])
+                  parsed = []
+                  for r in results[:5]:
+                      title = r.get('title', '')
+                      snippet = r.get('snippet', '')
+                      url = r.get('url', '')
+                      parsed.append(f"### {title}\n{snippet}\n出典: {url}")
+                  return {'search_result': "\n\n".join(parsed) if parsed else "検索結果なし"}
+              except Exception:
+                  return {'search_result': response_body[:2000] if response_body else "検索結果なし"}
+        variables:
+        - value_selector:
+          - '50700000000007'
+          - body
+          variable: response_body
+        outputs:
+          search_result:
+            type: string
+      height: 97
+      id: '50700000000008'
+      type: custom
+      position:
+        x: 1920
+        y: 240
+      positionAbsolute:
+        x: 1920
+        y: 240
+      width: 243
+      sourcePosition: right
+      targetPosition: left
+      selected: false
+      parentId: '50700000000006'
+    # ── Node 9: LLM - レポート生成 ──
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '収集した検索結果を基に構造化リサーチレポートを生成する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたはリサーチアナリストです。収集した検索結果に基づいて、構造化されたリサーチレポートを作成してください。
+
+            ## レポート構成
+            1. エグゼクティブサマリー（200文字以内）
+            2. 調査の背景と目的
+            3. 主要な調査結果（3-5項目）
+            4. 分析・考察
+            5. 結論と推奨事項
+            6. 出典一覧
+
+            ## ルール
+            - ファクトベースで記述し、推測と事実を明確に区別する
+            - 出典URLを必ず記載する
+            - 情報が不十分な場合は「追加調査が必要」と明記する
+            - 指定された出力言語で記述する
+            - 調査深度に応じてレポートの詳細度を調整する
+              - 概要調査: 各項目を簡潔にまとめる（合計1000-2000文字）
+              - 標準調査: 各項目を適度に掘り下げる（合計2000-4000文字）
+              - 詳細調査: 各項目を詳細に分析する（合計4000-8000文字）
+        - role: user
+          text: |
+            調査テーマ: {{#50700000000002.sanitized_topic#}}
+            調査深度: {{#50700000000001.research_depth#}}
+            出力言語: {{#50700000000001.output_language#}}
+
+            以下が各検索クエリの結果です。これらに基づいてリサーチレポートを作成してください:
+
+            {{#50700000000006.output#}}
+        selected: false
+        title: レポート生成
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '50700000000009'
+      position:
+        x: 2240
+        y: 182
+      positionAbsolute:
+        x: 2240
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 10: TT - エラー応答 ──
+    - data:
+        desc: 'バリデーションエラー時のメッセージを生成する'
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |
+          ## 入力エラー
+
+          Webリサーチレポートの生成を開始できませんでした。
+
+          **エラー理由**: {{ error_reason }}
+
+          ### 入力ガイド
+          - 調査テーマは10〜5000文字で入力してください
+          - HTMLタグやスクリプト等の特殊文字列は使用できません
+          - 具体的な調査テーマや質問を日本語または英語で入力してください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '50700000000002'
+          - error_reason
+          variable: error_reason
+      height: 97
+      id: '50700000000010'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    # ── Node 11: End ──
+    - data:
+        desc: 'リサーチレポートまたはエラーメッセージを出力する'
+        outputs:
+        - value_selector:
+          - '50700000000009'
+          - text
+          variable: research_report
+        - value_selector:
+          - '50700000000010'
+          - output
+          variable: error_message
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '50700000000011'
+      position:
+        x: 2540
+        y: 282
+      positionAbsolute:
+        x: 2540
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

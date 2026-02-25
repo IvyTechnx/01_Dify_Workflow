@@ -1,0 +1,430 @@
+kind: app
+version: 0.1.5
+app:
+  description: エリア取引事例・物件情報を入力すると、参考査定レポートを自動生成するワークフロー。
+  icon: 📊
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'AIS-60: 物件査定レポートAI生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-56000000000001-56000000000002
+      source: '56000000000001'
+      sourceHandle: source
+      target: '56000000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-56000000000002-56000000000003
+      source: '56000000000002'
+      sourceHandle: source
+      target: '56000000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-56000000000003-56000000000004
+      source: '56000000000003'
+      sourceHandle: 'true'
+      target: '56000000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-56000000000003-56000000000006
+      source: '56000000000003'
+      sourceHandle: 'false'
+      target: '56000000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-56000000000004-56000000000005
+      source: '56000000000004'
+      sourceHandle: source
+      target: '56000000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-56000000000005-56000000000007
+      source: '56000000000005'
+      sourceHandle: source
+      target: '56000000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-56000000000006-56000000000007
+      source: '56000000000006'
+      sourceHandle: source
+      target: '56000000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: property_detail
+          variable: property_detail
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: area_comparables
+          variable: area_comparables
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: appraisal_purpose
+          variable: appraisal_purpose
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 売却査定
+          - 賃料査定
+          - 相続評価参考
+          - 担保評価参考
+      height: 149
+      id: '56000000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(property_detail: str, area_comparables: str) -> dict:
+              issues = []
+              if len(property_detail.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = property_detail + ' ' + area_comparables
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '56000000000001'
+          - property_detail
+          variable: property_detail
+        - value_selector:
+          - '56000000000001'
+          - area_comparables
+          variable: area_comparables
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '56000000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '56000000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '56000000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: エリア取引事例・物件情報を入力すると、参考査定レポートを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは不動産鑑定のアシスタントAIです。物件情報と周辺取引事例に基づいて、参考査定レポートを作成してください。
+
+            ## あなたの役割
+            不動産鑑定評価基準に準拠した分析手法を用いて、参考となる査定レポートを作成します。正式な不動産鑑定評価書ではありません。
+
+            ## 出力フォーマット
+            ### 査定サマリー
+            | 項目 | 内容 |
+            |---|---|
+            | 査定対象 | |
+            | 査定手法 | |
+            | 参考査定額 | ○○万円〜○○万円 |
+
+            ### 取引事例比較法による分析
+            | 事例 | 所在 | 面積 | 価格 | 坪単価 | 補正後坪単価 |
+            |---|---|---|---|---|---|
+
+            ### 価格査定の根拠
+            - 補正項目と補正率の詳細
+            - 個別要因（立地・築年数・設備等）の評価
+
+            ### 市場動向分析
+            エリアの不動産市場の動向
+
+            ### 査定額の幅の説明
+            上限・下限の根拠
+
+            ### 留意事項
+
+            ## ルール
+            1. 不動産鑑定評価基準の手法（取引事例比較法・収益還元法・原価法）を参考にする
+            2. 正式な不動産鑑定評価ではない旨を必ず明記する
+            3. 査定額は幅を持たせて表示する（ピンポイント値は不可）
+            4. 補正項目（時点・地域・個別要因）を明示する
+            5. データに基づかない推測は行わない
+            6. 市場動向は客観的データに基づく
+            7. 投資助言に該当する表現は避ける
+        - role: user
+          text: |-
+            property_detail:
+            {{#56000000000001.property_detail#}}
+
+            area_comparables:
+            {{#56000000000001.area_comparables#}}
+
+            appraisal_purpose: {{#56000000000001.appraisal_purpose#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '56000000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 物件査定参考レポート
+
+          **appraisal_purpose**: {{ appraisal_purpose }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した参考査定であり、正式な不動産鑑定評価ではありません。正式な査定は不動産鑑定士にご依頼ください。*
+        variables:
+        - value_selector:
+          - '56000000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '56000000000001'
+          - appraisal_purpose
+          variable: appraisal_purpose
+      height: 97
+      id: '56000000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          物件査定レポートAI生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '56000000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '56000000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '56000000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '56000000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '56000000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

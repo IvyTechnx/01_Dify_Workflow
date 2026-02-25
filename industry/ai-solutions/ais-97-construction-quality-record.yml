@@ -1,0 +1,452 @@
+kind: app
+version: 0.1.5
+app:
+  description: 建設工事の品質検査データを入力すると、品質管理記録を自動生成するワークフロー。
+  icon: ✅
+  icon_background: '#EFEBE9'
+  mode: workflow
+  name: 'AIS-97: 品質管理記録'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-59700000000001-59700000000002
+      source: '59700000000001'
+      sourceHandle: source
+      target: '59700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-59700000000002-59700000000003
+      source: '59700000000002'
+      sourceHandle: source
+      target: '59700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-59700000000003-59700000000004
+      source: '59700000000003'
+      sourceHandle: 'true'
+      target: '59700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-59700000000003-59700000000006
+      source: '59700000000003'
+      sourceHandle: 'false'
+      target: '59700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-59700000000004-59700000000005
+      source: '59700000000004'
+      sourceHandle: source
+      target: '59700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59700000000005-59700000000007
+      source: '59700000000005'
+      sourceHandle: source
+      target: '59700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59700000000006-59700000000007
+      source: '59700000000006'
+      sourceHandle: source
+      target: '59700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: inspection_data
+          variable: inspection_data
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: work_category
+          variable: work_category
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - コンクリート工事
+          - 鉄骨工事
+          - 鉄筋工事
+          - 防水工事
+          - 仕上工事
+          - 地業・基礎工事
+          - 設備工事
+        - label: inspection_stage
+          variable: inspection_stage
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 材料搬入検査
+          - 施工中検査
+          - 工程内検査
+          - 完了検査
+          - 自主検査
+        - label: quality_standard
+          variable: quality_standard
+          required: false
+          type: text-input
+          max_length: 512
+          options: []
+      height: 149
+      id: '59700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(inspection_data: str) -> dict:
+              issues = []
+              if len(inspection_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = inspection_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '59700000000001'
+          - inspection_data
+          variable: inspection_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '59700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '59700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '59700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 建設工事の品質検査データを入力すると、品質管理記録を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは建設業の品質管理の専門家です。JASS（建築工事標準仕様書）・土木工事共通仕様書・各種JIS規格に基づいた品質管理記録を作成してください。
+
+            ## あなたの役割
+            品質管理担当者として、施工品質の確保と記録の正確性を担保する品質管理記録を作成する専門家です。
+
+            ## 出力フォーマット
+            ### 1. 品質管理記録概要
+            - 工種 / 検査段階 / 検査日 / 検査担当者
+            - 適用基準・規格
+
+            ### 2. 検査結果
+            | # | 管理項目 | 規格値・許容値 | 実測値 | 判定 | 備考 |
+            |---|---|---|---|---|---|
+
+            ### 3. 総合判定
+            **合格 / 条件付き合格 / 不合格** および判定理由
+
+            ### 4. 不適合事項
+            不合格項目がある場合:
+            - 不適合内容 / 原因分析 / 是正処置 / 再検査予定
+
+            ### 5. 品質傾向分析
+            - 管理値の推移と傾向
+            - 工程能力の評価
+
+            ### 6. 改善事項・申し送り
+            ### 7. 添付資料リスト
+            - 試験成績書 / 検査写真 / 計量証明書等
+
+            ## ルール
+            - JASS・土木工事共通仕様書の管理基準値を正確に参照すること
+            - JIS試験方法に基づいた検査結果の記録形式とすること
+            - データに基づく客観的な判定を行うこと
+            - 不適合品の処置はISO 9001の枠組みに沿うこと
+            - トレーサビリティを確保できる記録形式にすること
+            - 統計的品質管理手法（管理図・ヒストグラム等）を適用すること
+            - 是正処置の記録は5Why分析に基づくこと
+            - 入力データが不足する場合は[要確認]と明記すること
+        - role: user
+          text: |-
+            inspection_data:
+            {{#59700000000001.inspection_data#}}
+
+            work_category: {{#59700000000001.work_category#}}
+
+            inspection_stage: {{#59700000000001.inspection_stage#}}
+
+            quality_standard: {{#59700000000001.quality_standard#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '59700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 品質管理記録
+
+          **work_category**: {{ work_category }}
+          **inspection_stage**: {{ inspection_stage }}
+          **quality_standard**: {{ quality_standard }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した品質管理記録のドラフトです。品質管理責任者・監理技術者の確認を経てから正式記録としてください。*
+        variables:
+        - value_selector:
+          - '59700000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '59700000000001'
+          - work_category
+          variable: work_category
+        - value_selector:
+          - '59700000000001'
+          - inspection_stage
+          variable: inspection_stage
+        - value_selector:
+          - '59700000000001'
+          - quality_standard
+          variable: quality_standard
+      height: 97
+      id: '59700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          品質管理記録の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '59700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '59700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '59700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '59700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '59700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

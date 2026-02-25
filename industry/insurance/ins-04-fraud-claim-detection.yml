@@ -1,0 +1,625 @@
+kind: app
+version: '0.1.5'
+app:
+  description: 請求IDを指定してAPIから保険金請求データを取得し、LLMで不正パターンを分析、要エスカレーション判定でSIU通知APIに連携する不正請求検知ワークフロー。
+  icon: "\U0001F50D"
+  icon_background: '#FFEBEE'
+  mode: workflow
+  name: 'INS-04: 不正請求検知分析・エスカレーション'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: "爆弾\n殺害\n違法薬物\nハッキング手法"
+        inputs_config:
+          enabled: true
+          preset_response: "その内容にはお答えできません。別の質問をお願いします。"
+        outputs_config:
+          enabled: true
+          preset_response: "適切な回答を生成できませんでした。質問を変えてください。"
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: e-40400000000001-40400000000002
+      source: '40400000000001'
+      sourceHandle: source
+      target: '40400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: e-40400000000002-40400000000003
+      source: '40400000000002'
+      sourceHandle: source
+      target: '40400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: e-40400000000003-40400000000004
+      source: '40400000000003'
+      sourceHandle: source
+      target: '40400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: llm
+      id: e-40400000000004-40400000000005
+      source: '40400000000004'
+      sourceHandle: source
+      target: '40400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+      id: e-40400000000005-40400000000012
+      source: '40400000000005'
+      sourceHandle: source
+      target: '40400000000012'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: e-40400000000012-40400000000006
+      source: '40400000000012'
+      sourceHandle: source
+      target: '40400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: e-40400000000006-40400000000007
+      source: '40400000000006'
+      sourceHandle: 'true'
+      target: '40400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: e-40400000000007-40400000000008
+      source: '40400000000007'
+      sourceHandle: source
+      target: '40400000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: variable-aggregator
+      id: e-40400000000008-40400000000010
+      source: '40400000000008'
+      sourceHandle: source
+      target: '40400000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+      id: e-40400000000006-40400000000009
+      source: '40400000000006'
+      sourceHandle: 'false'
+      target: '40400000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: variable-aggregator
+      id: e-40400000000009-40400000000010
+      source: '40400000000009'
+      sourceHandle: source
+      target: '40400000000010'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: end
+      id: e-40400000000010-40400000000011
+      source: '40400000000010'
+      sourceHandle: source
+      target: '40400000000011'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: '請求IDとアラート種別を受け取る'
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: claim_id
+          max_length: 48
+          options: []
+          required: true
+          type: text-input
+          variable: claim_id
+        - label: alert_type
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: alert_type
+      height: 115
+      id: '40400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '請求IDをURLエンコードする'
+        selected: false
+        title: URLエンコード
+        type: code
+        code_language: python3
+        code: |
+          import urllib.parse
+
+          def main(claim_id: str) -> dict:
+              return {
+                  'claim_id_enc': urllib.parse.quote(claim_id, safe='')
+              }
+        variables:
+        - value_selector:
+          - '40400000000001'
+          - claim_id
+          variable: claim_id
+        outputs:
+          claim_id_enc:
+            type: string
+      height: 97
+      id: '40400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'APIから保険金請求データを取得する'
+        selected: false
+        title: 請求データ取得
+        type: http-request
+        method: get
+        url: 'https://api.example.com/insurance-claims/{{#40400000000002.claim_id_enc#}}'
+        authorization:
+          type: no-auth
+          config: null
+        headers: ''
+        params: ''
+        body:
+          type: none
+          data: ''
+        timeout:
+          connect: 5000
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '40400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'APIレスポンスを解析し請求データサマリを生成する'
+        selected: false
+        title: データ整形
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(api_response: str) -> dict:
+              try:
+                  data = json.loads(api_response) if isinstance(api_response, str) else api_response
+                  claim_id = data.get('claim_id', 'N/A')
+                  policyholder = data.get('policyholder', 'N/A')
+                  claim_type = data.get('claim_type', 'N/A')
+                  raw_amount = data.get('claim_amount', 0)
+                  try:
+                      cleaned = str(raw_amount).replace(',', '')
+                      amount = float(cleaned)
+                  except (TypeError, ValueError):
+                      amount = 0
+                  accident_date = data.get('accident_date', 'N/A')
+                  hospital = data.get('hospital', 'N/A')
+                  diagnosis = data.get('diagnosis', 'N/A')
+                  previous_claims = data.get('previous_claims_count', 0)
+                  summary = (
+                      f"請求ID: {claim_id}\n"
+                      f"契約者: {policyholder}\n"
+                      f"請求種別: {claim_type}\n"
+                      f"請求金額: {amount:,.0f}円\n"
+                      f"事故日: {accident_date}\n"
+                      f"医療機関: {hospital}\n"
+                      f"診断名: {diagnosis}\n"
+                      f"過去請求回数: {previous_claims}回"
+                  )
+                  return {'summary': summary, 'amount': amount}
+              except Exception:
+                  return {'summary': 'データ取得エラー', 'amount': 0}
+        variables:
+        - value_selector:
+          - '40400000000003'
+          - body
+          variable: api_response
+        outputs:
+          summary:
+            type: string
+          amount:
+            type: number
+      height: 97
+      id: '40400000000004'
+      position:
+        x: 980
+        y: 282
+      positionAbsolute:
+        x: 980
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: '請求データを分析し不正パターンを評価する'
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |
+            あなたは保険会社の不正請求検知専門アナリスト（SIUスペシャリスト）です。保険金請求データを分析し、不正の可能性を評価してください。
+
+            ## 評価対象パターン
+            - モラルリスク（契約直後の請求、保険金額増額直後の事故）
+            - 過剰請求（治療期間の不自然な長さ、高額治療）
+            - 書類偽造（診断書の不整合、複数医療機関の利用パターン）
+            - 多重請求（複数保険会社への同一事故請求）
+            - 偽装事故（事故状況の不自然さ）
+
+            ## 評価フォーマット
+            ■ 請求概要: （請求の要約）
+            ■ リスク評価: HIGH / MEDIUM / LOW
+            ■ 不正指標:
+              - 異常パターンの有無と具体的指摘
+              - 過去の不正パターンとの類似性
+            ■ 推奨アクション: （具体的な次のステップ）
+
+            安全側に判定し、疑わしい場合はHIGHとしてください。
+        - role: user
+          text: |
+            アラート種別: {{#40400000000001.alert_type#}}
+
+            請求データ:
+            {{#40400000000004.summary#}}
+        selected: false
+        title: 不正分析
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '40400000000005'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'LLM分析結果からリスクレベルを構造化抽出する'
+        selected: false
+        title: リスク判定抽出
+        type: code
+        code_language: python3
+        code: |
+          import re
+
+          def main(llm_text: str) -> dict:
+              risk_level = "UNKNOWN"
+              match = re.search(r'リスク評価[:：]\s*(HIGH|MEDIUM|LOW)', llm_text)
+              if match:
+                  risk_level = match.group(1)
+              return {'risk_level': risk_level}
+        variables:
+        - value_selector:
+          - '40400000000005'
+          - text
+          variable: llm_text
+        outputs:
+          risk_level:
+            type: string
+      height: 97
+      id: '40400000000012'
+      position:
+        x: 1430
+        y: 282
+      positionAbsolute:
+        x: 1430
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        cases:
+        - case_id: 'true'
+          logical_operator: or
+          conditions:
+          - id: condition_1
+            variable_selector:
+            - '40400000000012'
+            - risk_level
+            comparison_operator: is
+            value: "HIGH"
+          - id: condition_2
+            variable_selector:
+            - '40400000000004'
+            - amount
+            comparison_operator: '>'
+            value: '10000000'
+        desc: 'リスクレベルと請求金額でエスカレーション要否を判定する'
+        selected: false
+        title: エスカレーション判定
+        type: if-else
+      height: 125
+      id: '40400000000006'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'SIUエスカレーション通知用のJSONペイロードを構築する'
+        selected: false
+        title: JSON構築
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+          def main(claim_id: str, alert_type: str, risk_level: str, analysis: str) -> dict:
+              payload = json.dumps({
+                  "claim_id": claim_id,
+                  "alert_type": alert_type,
+                  "risk_level": risk_level,
+                  "analysis": analysis,
+                  "action": "siu_investigation"
+              }, ensure_ascii=False)
+              return {'payload': payload}
+        variables:
+        - value_selector:
+          - '40400000000001'
+          - claim_id
+          variable: claim_id
+        - value_selector:
+          - '40400000000001'
+          - alert_type
+          variable: alert_type
+        - value_selector:
+          - '40400000000012'
+          - risk_level
+          variable: risk_level
+        - value_selector:
+          - '40400000000005'
+          - text
+          variable: analysis
+        outputs:
+          payload:
+            type: string
+      height: 97
+      id: '40400000000007'
+      position:
+        x: 1880
+        y: 132
+      positionAbsolute:
+        x: 1880
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 'SIU不正請求エスカレーション通知を送信する'
+        selected: false
+        title: SIUエスカレーション通知
+        type: http-request
+        method: post
+        url: 'https://api.example.com/fraud/siu-escalate'
+        authorization:
+          type: no-auth
+          config: null
+        headers: 'Content-Type: application/json'
+        params: ''
+        body:
+          data: '{{#40400000000007.payload#}}'
+          type: raw-text
+        timeout:
+          connect: 5000
+          read: 10000
+          write: 10000
+        mask_authorization_header: false
+      height: 97
+      id: '40400000000008'
+      position:
+        x: 2180
+        y: 132
+      positionAbsolute:
+        x: 2180
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '通常処理の分析結果レポートを生成する'
+        selected: false
+        title: 通常処理
+        type: template-transform
+        template: |
+          ## 不正請求アラート分析結果
+
+          請求ID: {{ claim_id }}
+          アラート種別: {{ alert_type }}
+
+          ### 分析結果
+          {{ analysis }}
+
+          ### 判定
+          現時点でSIUエスカレーションは不要です。
+          定期モニタリングの対象として記録されました。
+        variables:
+        - value_selector:
+          - '40400000000001'
+          - claim_id
+          variable: claim_id
+        - value_selector:
+          - '40400000000001'
+          - alert_type
+          variable: alert_type
+        - value_selector:
+          - '40400000000005'
+          - text
+          variable: analysis
+      height: 97
+      id: '40400000000009'
+      position:
+        x: 1880
+        y: 432
+      positionAbsolute:
+        x: 1880
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        advanced_settings:
+          group_enabled: false
+          groups: []
+        desc: '両分岐の出力を集約する'
+        output_type: string
+        selected: false
+        title: 結果集約
+        type: variable-aggregator
+        variables:
+        - - '40400000000008'
+          - body
+        - - '40400000000009'
+          - output
+      height: 89
+      id: '40400000000010'
+      position:
+        x: 2480
+        y: 282
+      positionAbsolute:
+        x: 2480
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: '分析結果を出力する'
+        outputs:
+        - value_selector:
+          - '40400000000010'
+          - output
+          variable: analysis_result
+        selected: false
+        title: 終了
+        type: end
+      height: 89
+      id: '40400000000011'
+      position:
+        x: 2780
+        y: 282
+      positionAbsolute:
+        x: 2780
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

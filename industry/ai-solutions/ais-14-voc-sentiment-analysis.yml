@@ -1,0 +1,540 @@
+kind: app
+version: 0.1.5
+app:
+  description: 顧客の声データ（アンケート/レビュー/SNS等）を入力すると、感情分析・トピック分類・改善アクション提案を含む構造化レポートを自動生成するワークフロー。
+  icon: 💬
+  icon_background: '#E8F5E9'
+  mode: workflow
+  name: 'AIS-14: VOC分析・感情分析レポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-51400000000001-51400000000002
+      source: '51400000000001'
+      sourceHandle: source
+      target: '51400000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-51400000000002-51400000000003
+      source: '51400000000002'
+      sourceHandle: source
+      target: '51400000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51400000000003-51400000000004
+      source: '51400000000003'
+      sourceHandle: 'true'
+      target: '51400000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-51400000000003-51400000000005
+      source: '51400000000003'
+      sourceHandle: 'true'
+      target: '51400000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-51400000000003-51400000000008
+      source: '51400000000003'
+      sourceHandle: 'false'
+      target: '51400000000008'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+        isInIteration: false
+      id: e-51400000000004-51400000000006
+      source: '51400000000004'
+      sourceHandle: source
+      target: '51400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: variable-aggregator
+        isInIteration: false
+      id: e-51400000000005-51400000000006
+      source: '51400000000005'
+      sourceHandle: source
+      target: '51400000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: template-transform
+        isInIteration: false
+      id: e-51400000000006-51400000000007
+      source: '51400000000006'
+      sourceHandle: source
+      target: '51400000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51400000000007-51400000000009
+      source: '51400000000007'
+      sourceHandle: source
+      target: '51400000000009'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-51400000000008-51400000000009
+      source: '51400000000008'
+      sourceHandle: source
+      target: '51400000000009'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 顧客の声データと分析観点を受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: voc_data
+          max_length: 999999
+          options: []
+          required: true
+          type: paragraph
+          variable: voc_data
+        - label: data_source
+          max_length: 48
+          options:
+          - アンケート回答
+          - カスタマーレビュー
+          - SNS投稿
+          - 問い合わせログ
+          - インタビュー記録
+          required: true
+          type: select
+          variable: data_source
+        - label: analysis_goal
+          max_length: 48
+          options:
+          - 総合分析
+          - 改善ポイント抽出
+          - ポジティブ要因特定
+          - 解約理由分析
+          - 競合比較分析
+          required: true
+          type: select
+          variable: analysis_goal
+      height: 149
+      id: '51400000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: VOCデータの文字数チェックとインジェクション検出
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(voc_data: str) -> dict:
+              issues = []
+              if len(voc_data.strip()) < 50:
+                  issues.append("VOCデータが短すぎます（50文字以上必要）")
+              if len(voc_data) > 500000:
+                  issues.append("VOCデータが長すぎます（500,000文字以下にしてください）")
+              # プロンプトインジェクション検査
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = voc_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '51400000000001'
+          - voc_data
+          variable: voc_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '51400000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: condition_valid
+            variable_selector:
+            - '51400000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '51400000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 各VOCエントリの感情とトピックを分類する
+        selected: false
+        title: 感情分類・トピック抽出
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはVOC分析の専門家です。顧客の声データを分析し、以下を抽出してください。
+
+            ## 出力フォーマット
+            ### 感情分布
+            | 感情 | 件数 | 割合 |
+            |---|---|---|
+            | ポジティブ | X | X% |
+            | ニュートラル | X | X% |
+            | ネガティブ | X | X% |
+
+            ### トピック別分類
+            | トピック | 件数 | 代表的な声 | 感情傾向 |
+
+            ### キーワード頻出ランキング
+            上位10キーワードとその文脈
+
+            ## ルール
+            - データに存在しない情報を追加しない
+            - 定量的な集計を心がける
+            - 個人を特定できる情報は匿名化する
+        - role: user
+          text: |-
+            データソース: {{#51400000000001.data_source#}}
+            分析目的: {{#51400000000001.analysis_goal#}}
+
+            VOCデータ:
+            {{#51400000000001.voc_data#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51400000000004'
+      position:
+        x: 980
+        y: 132
+      positionAbsolute:
+        x: 980
+        y: 132
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 分析結果から具体的なアクション提案を生成する
+        selected: false
+        title: 洞察・提案生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 4096
+            presence_penalty: 0
+            temperature: 0.3
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはCX（カスタマーエクスペリエンス）コンサルタントです。VOC分析結果に基づいて、実行可能な改善提案を作成してください。
+
+            ## 出力フォーマット
+            ### インサイト（3-5個）
+            各インサイトについて: 発見事項 → 根拠となる声 → ビジネスインパクト
+
+            ### 改善アクション（優先度順）
+            | # | アクション | 期待効果 | 難易度 | 優先度 |
+
+            ### 要注意シグナル
+            早急に対応が必要な問題点
+
+            ## ルール
+            - 具体的で実行可能な提案にする
+            - 定量的な根拠を可能な限り含める
+            - 推測と事実を明確に区別する
+        - role: user
+          text: |-
+            分析目的: {{#51400000000001.analysis_goal#}}
+
+            VOC分析結果:
+            {{#51400000000004.text#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '51400000000005'
+      position:
+        x: 980
+        y: 382
+      positionAbsolute:
+        x: 980
+        y: 382
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 分析結果と提案を統合する
+        selected: false
+        title: 結果統合
+        type: variable-aggregator
+        advanced_settings:
+          group_enabled: false
+        output_type: string
+        variables:
+        - - '51400000000004'
+          - text
+        - - '51400000000005'
+          - text
+      height: 89
+      id: '51400000000006'
+      position:
+        x: 1280
+        y: 282
+      positionAbsolute:
+        x: 1280
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: VOC分析レポートとしてフォーマットする
+        selected: false
+        title: レポート整形
+        type: template-transform
+        template: |-
+          # VOC分析レポート
+
+          **データソース**: {{ data_source }}
+          **分析目的**: {{ analysis_goal }}
+
+          ---
+
+          {{ combined_analysis }}
+
+          ---
+          *AIによる自動分析です。重要な意思決定には生データの確認をお勧めします。*
+        variables:
+        - value_selector:
+          - '51400000000006'
+          - output
+          variable: combined_analysis
+        - value_selector:
+          - '51400000000001'
+          - data_source
+          variable: data_source
+        - value_selector:
+          - '51400000000001'
+          - analysis_goal
+          variable: analysis_goal
+      height: 97
+      id: '51400000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のエラーメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          VOC分析を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          ### 入力ガイド
+          - VOCデータは50文字以上で入力してください
+          - 500,000文字以下にしてください
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '51400000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '51400000000008'
+      position:
+        x: 980
+        y: 532
+      positionAbsolute:
+        x: 980
+        y: 532
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '51400000000007'
+          - output
+          variable: voc_report
+        - value_selector:
+          - '51400000000008'
+          - output
+          variable: error_message
+      height: 89
+      id: '51400000000009'
+      position:
+        x: 1880
+        y: 282
+      positionAbsolute:
+        x: 1880
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

@@ -1,0 +1,451 @@
+kind: app
+version: 0.1.5
+app:
+  description: 建設工事における設計変更の内容を入力すると、設計変更報告書を自動生成するワークフロー。
+  icon: 📝
+  icon_background: '#EFEBE9'
+  mode: workflow
+  name: 'AIS-96: 設計変更報告書'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-59600000000001-59600000000002
+      source: '59600000000001'
+      sourceHandle: source
+      target: '59600000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-59600000000002-59600000000003
+      source: '59600000000002'
+      sourceHandle: source
+      target: '59600000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-59600000000003-59600000000004
+      source: '59600000000003'
+      sourceHandle: 'true'
+      target: '59600000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-59600000000003-59600000000006
+      source: '59600000000003'
+      sourceHandle: 'false'
+      target: '59600000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-59600000000004-59600000000005
+      source: '59600000000004'
+      sourceHandle: source
+      target: '59600000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59600000000005-59600000000007
+      source: '59600000000005'
+      sourceHandle: source
+      target: '59600000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-59600000000006-59600000000007
+      source: '59600000000006'
+      sourceHandle: source
+      target: '59600000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: change_details
+          variable: change_details
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: change_reason
+          variable: change_reason
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 発注者指示
+          - 設計図書の不一致
+          - 現場条件の相違
+          - 第三者との協議結果
+          - 施工方法の変更
+          - 天災等の不可抗力
+        - label: contract_type
+          variable: contract_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 公共工事
+          - 民間工事
+        - label: urgency
+          variable: urgency
+          required: false
+          type: select
+          max_length: 48
+          options:
+          - 通常
+          - 緊急（工程に影響あり）
+      height: 149
+      id: '59600000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(change_details: str) -> dict:
+              issues = []
+              if len(change_details.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = change_details
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '59600000000001'
+          - change_details
+          variable: change_details
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '59600000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '59600000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '59600000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 建設工事における設計変更の内容を入力すると、設計変更報告書を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは建設業の契約管理・設計変更の専門家です。公共工事標準請負契約約款および国土交通省の設計変更ガイドラインに準拠した設計変更報告書を作成してください。
+
+            ## あなたの役割
+            受注者側の現場代理人・監理技術者として、発注者への正式な設計変更協議資料を作成する専門家です。
+
+            ## 出力フォーマット
+            ### 1. 設計変更概要
+            - 変更番号（仮番号） / 変更日付 / 変更理由区分
+            - 変更の概要（3行以内）
+
+            ### 2. 変更理由の詳細
+            - 変更に至った経緯
+            - 根拠となる条項（契約約款条文番号）
+
+            ### 3. 変更内容
+            | # | 変更項目 | 変更前 | 変更後 | 変更理由 |
+            |---|---|---|---|---|
+
+            ### 4. 影響分析
+            - 工程への影響 / 工期変更の要否
+            - 品質への影響
+            - 安全への影響
+
+            ### 5. 概算金額変更
+            | 項目 | 変更前金額 | 変更後金額 | 増減額 |
+            |---|---|---|---|
+
+            ### 6. 対応方針・スケジュール
+            ### 7. 添付資料一覧
+
+            ## ルール
+            - 公共工事標準請負契約約款の関連条文を正確に引用すること
+            - 設計変更の根拠を客観的かつ明確に記述すること
+            - 金額変更は変更前後の対比表形式で示すこと
+            - 工期への影響がある場合は工程表（テキスト）で説明すること
+            - 変更に伴うリスクと対策を明記すること
+            - 写真・図面等の添付資料リストを含めること
+            - 入力情報が不足する箇所は[要確認]と明示すること
+            - 簡潔かつ正確な技術文書としての文体を使用すること
+        - role: user
+          text: |-
+            change_details:
+            {{#59600000000001.change_details#}}
+
+            change_reason: {{#59600000000001.change_reason#}}
+
+            contract_type: {{#59600000000001.contract_type#}}
+
+            urgency: {{#59600000000001.urgency#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '59600000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 設計変更報告書
+
+          **change_reason**: {{ change_reason }}
+          **contract_type**: {{ contract_type }}
+          **urgency**: {{ urgency }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した設計変更報告書のドラフトです。監理技術者・現場代理人の確認を経てから正式提出してください。*
+        variables:
+        - value_selector:
+          - '59600000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '59600000000001'
+          - change_reason
+          variable: change_reason
+        - value_selector:
+          - '59600000000001'
+          - contract_type
+          variable: contract_type
+        - value_selector:
+          - '59600000000001'
+          - urgency
+          variable: urgency
+      height: 97
+      id: '59600000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          設計変更報告書の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '59600000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '59600000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '59600000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '59600000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '59600000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

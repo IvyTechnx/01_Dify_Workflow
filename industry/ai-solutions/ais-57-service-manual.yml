@@ -1,0 +1,434 @@
+kind: app
+version: 0.1.5
+app:
+  description: 商品・サービス情報を入力すると、接客トークスクリプト・対応マニュアルを自動生成するワークフロー。
+  icon: 🙋
+  icon_background: '#FCE4EC'
+  mode: workflow
+  name: 'AIS-57: 接客マニュアルAI生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-55700000000001-55700000000002
+      source: '55700000000001'
+      sourceHandle: source
+      target: '55700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-55700000000002-55700000000003
+      source: '55700000000002'
+      sourceHandle: source
+      target: '55700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-55700000000003-55700000000004
+      source: '55700000000003'
+      sourceHandle: 'true'
+      target: '55700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-55700000000003-55700000000006
+      source: '55700000000003'
+      sourceHandle: 'false'
+      target: '55700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-55700000000004-55700000000005
+      source: '55700000000004'
+      sourceHandle: source
+      target: '55700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55700000000005-55700000000007
+      source: '55700000000005'
+      sourceHandle: source
+      target: '55700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-55700000000006-55700000000007
+      source: '55700000000006'
+      sourceHandle: source
+      target: '55700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: product_service_info
+          variable: product_service_info
+          required: true
+          type: paragraph
+          max_length: 20000
+          options: []
+        - label: store_type
+          variable: store_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 実店舗（アパレル）
+          - 実店舗（家電）
+          - 実店舗（食品）
+          - ECカスタマーサポート
+          - コールセンター
+          - チャットサポート
+        - label: scenario
+          variable: scenario
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 来店・入店時対応
+          - 商品提案・接客
+          - クレーム対応
+          - クロスセル・アップセル
+          - 常連客対応
+          - 総合マニュアル
+      height: 149
+      id: '55700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(product_service_info: str) -> dict:
+              issues = []
+              if len(product_service_info.strip()) < 20:
+                  issues.append("入力が短すぎます（20文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = product_service_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '55700000000001'
+          - product_service_info
+          variable: product_service_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '55700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '55700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '55700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 商品・サービス情報を入力すると、接客トークスクリプト・対応マニュアルを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.5
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは小売・サービス業の接客コンサルタントです。商品・サービス情報に基づいて、スタッフが即座に活用できる接客マニュアルとトークスクリプトを作成してください。
+
+            ## あなたの役割
+            顧客満足度と客単価の向上を両立する接客品質標準化の専門家として、実践的なマニュアルを作成します。
+
+            ## 出力フォーマット
+            ### 接客フロー
+            ステップ別の対応フロー図（テキスト形式）
+
+            ### トークスクリプト
+            各シーンのスクリプトを以下の形式で記載:
+            **シーン: [場面名]**
+            - スタッフ: 「（セリフ例）」
+            - 顧客の反応パターン → 対応分岐
+              - パターンA（興味あり）→ 次のステップ
+              - パターンB（迷い中）→ フォロートーク
+              - パターンC（断り）→ クロージング
+
+            ### NGワード・NG対応一覧
+            | NGワード/行動 | 理由 | 代替表現 |
+            |---|---|---|
+
+            ### クレーム対応フロー
+            ### ロールプレイ用シナリオ（3パターン）
+
+            ## ルール
+            1. 消費者契約法に基づく不当勧誘にあたる表現は含めない
+            2. 店舗形態に応じた適切な接客レベルを設定する
+            3. 新人スタッフでも理解・実行できる平易な表現を使う
+            4. 顧客心理を考慮した提案順序にする
+            5. 押し売りにならない適切な提案を心がける
+            6. クレーム対応では傾聴・共感・解決のステップを徹底する
+            7. 具体的なセリフ例を豊富に含める
+        - role: user
+          text: |-
+            product_service_info:
+            {{#55700000000001.product_service_info#}}
+
+            store_type: {{#55700000000001.store_type#}}
+
+            scenario: {{#55700000000001.scenario#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '55700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 接客マニュアル生成結果
+
+          **store_type**: {{ store_type }}
+          **scenario**: {{ scenario }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した接客マニュアルです。店舗のブランドガイドライン・社内規程と照合してからご使用ください。*
+        variables:
+        - value_selector:
+          - '55700000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '55700000000001'
+          - store_type
+          variable: store_type
+        - value_selector:
+          - '55700000000001'
+          - scenario
+          variable: scenario
+      height: 97
+      id: '55700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          接客マニュアルAI生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '55700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '55700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '55700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '55700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '55700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

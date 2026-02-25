@@ -1,0 +1,459 @@
+kind: app
+version: 0.1.5
+app:
+  description: 取引データを入力すると、疑わしい取引の分析レポートを自動生成するワークフロー。
+  icon: 🔎
+  icon_background: '#FFF9C4'
+  mode: workflow
+  name: 'AIS-37: AML/KYCチェックレポート'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-53700000000001-53700000000002
+      source: '53700000000001'
+      sourceHandle: source
+      target: '53700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-53700000000002-53700000000003
+      source: '53700000000002'
+      sourceHandle: source
+      target: '53700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-53700000000003-53700000000004
+      source: '53700000000003'
+      sourceHandle: 'true'
+      target: '53700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-53700000000003-53700000000006
+      source: '53700000000003'
+      sourceHandle: 'false'
+      target: '53700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-53700000000004-53700000000005
+      source: '53700000000004'
+      sourceHandle: source
+      target: '53700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53700000000005-53700000000007
+      source: '53700000000005'
+      sourceHandle: source
+      target: '53700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-53700000000006-53700000000007
+      source: '53700000000006'
+      sourceHandle: source
+      target: '53700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: transaction_data
+          variable: transaction_data
+          required: true
+          type: paragraph
+          max_length: 50000
+          options: []
+        - label: check_type
+          variable: check_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 新規顧客KYC
+          - 継続的顧客管理（CDD）
+          - 疑わしい取引検知（STR）
+          - 制裁リストスクリーニング
+          - PEPsチェック
+        - label: risk_category
+          variable: risk_category
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 高リスク
+          - 中リスク
+          - 低リスク
+          - 未分類
+        - label: customer_type
+          variable: customer_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 個人
+          - 法人（国内）
+          - 法人（外国）
+          - 非営利団体
+      height: 149
+      id: '53700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(transaction_data: str) -> dict:
+              issues = []
+              if len(transaction_data.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = transaction_data
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '53700000000001'
+          - transaction_data
+          variable: transaction_data
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '53700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '53700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '53700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 取引データを入力すると、疑わしい取引の分析レポートを自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.1
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたはAML/CFT（マネー・ローンダリング及びテロ資金供与対策）の専門家です。犯罪収益移転防止法およびFATF勧告に準拠したチェックレポートを作成してください。
+
+            ## 出力フォーマット
+            ### 1. チェック概要
+            - チェック種別 / 対象顧客 / リスクカテゴリ / 実施日
+
+            ### 2. 顧客情報確認（KYC）
+            | 確認項目 | 確認状況 | 確認方法 | 備考 |
+            |---|---|---|---|
+            | 本人確認 | 済/未 | | |
+            | 実質的支配者 | 済/未/非該当 | | |
+            | 取引目的 | 済/未 | | |
+            | 資金源 | 済/未 | | |
+
+            ### 3. 取引分析
+            - 取引パターンの分析
+            - 異常検知結果
+            | 取引日 | 金額 | 相手先 | リスクフラグ | 詳細 |
+
+            ### 4. リスク評価
+            | リスク要因 | 評価 | 根拠 |
+            |---|---|---|
+            | 顧客リスク | 高/中/低 | |
+            | 取引リスク | 高/中/低 | |
+            | 地理的リスク | 高/中/低 | |
+            | 商品リスク | 高/中/低 | |
+
+            ### 5. 疑わしい取引の該当性判断
+            - 疑わしい取引の参考事例との照合
+            - STR届出の要否判断
+
+            ### 6. 推奨アクション
+            - 追加調査項目
+            - EDD（強化された顧客管理）の要否
+            - 取引制限の要否
+
+            ## ルール
+            - 犯罪収益移転防止法の特定事業者の義務に準拠すること
+            - FATF勧告の40の勧告を考慮すること
+            - リスクベースアプローチを採用すること
+            - 疑わしい取引の参考事例（金融庁公表）を参照すること
+            - 個人情報は最小限の記載にとどめること
+            - 判断根拠を明確に記録すること
+            - 制裁リスト（国連・OFAC・EU等）との照合結果を含めること
+        - role: user
+          text: |-
+            transaction_data:
+            {{#53700000000001.transaction_data#}}
+
+            check_type: {{#53700000000001.check_type#}}
+
+            risk_category: {{#53700000000001.risk_category#}}
+
+            customer_type: {{#53700000000001.customer_type#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '53700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # AML/KYCチェックレポート
+
+          **check_type**: {{ check_type }}
+          **risk_category**: {{ risk_category }}
+          **customer_type**: {{ customer_type }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成した分析ドラフトです。最終的なSTR届出判断はコンプライアンス部門の責任者が行ってください。*
+        variables:
+        - value_selector:
+          - '53700000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '53700000000001'
+          - check_type
+          variable: check_type
+        - value_selector:
+          - '53700000000001'
+          - risk_category
+          variable: risk_category
+        - value_selector:
+          - '53700000000001'
+          - customer_type
+          variable: customer_type
+      height: 97
+      id: '53700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          AML/KYCチェックレポートの処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '53700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '53700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '53700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '53700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '53700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1

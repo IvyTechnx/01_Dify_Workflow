@@ -1,0 +1,450 @@
+kind: app
+version: 0.1.5
+app:
+  description: 工程情報を入力すると、標準作業手順書（SOP）を自動生成するワークフロー。
+  icon: 📋
+  icon_background: '#E0F7FA'
+  mode: workflow
+  name: 'AIS-27: 作業手順書（SOP）AI生成'
+  use_icon_as_answer_icon: false
+workflow:
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+        isInIteration: false
+      id: e-52700000000001-52700000000002
+      source: '52700000000001'
+      sourceHandle: source
+      target: '52700000000002'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+        isInIteration: false
+      id: e-52700000000002-52700000000003
+      source: '52700000000002'
+      sourceHandle: source
+      target: '52700000000003'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+      id: e-52700000000003-52700000000004
+      source: '52700000000003'
+      sourceHandle: 'true'
+      target: '52700000000004'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: template-transform
+        isInIteration: false
+      id: e-52700000000003-52700000000006
+      source: '52700000000003'
+      sourceHandle: 'false'
+      target: '52700000000006'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: template-transform
+        isInIteration: false
+      id: e-52700000000004-52700000000005
+      source: '52700000000004'
+      sourceHandle: source
+      target: '52700000000005'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52700000000005-52700000000007
+      source: '52700000000005'
+      sourceHandle: source
+      target: '52700000000007'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template-transform
+        targetType: end
+        isInIteration: false
+      id: e-52700000000006-52700000000007
+      source: '52700000000006'
+      sourceHandle: source
+      target: '52700000000007'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 入力パラメータを受け取る
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - label: process_info
+          variable: process_info
+          required: true
+          type: paragraph
+          max_length: 30000
+          options: []
+        - label: department
+          variable: department
+          required: true
+          type: text-input
+          max_length: 256
+          options: []
+        - label: sop_type
+          variable: sop_type
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 製造工程SOP
+          - 検査工程SOP
+          - 設備操作SOP
+          - 安全作業SOP
+          - 清掃・メンテナンスSOP
+        - label: skill_level
+          variable: skill_level
+          required: true
+          type: select
+          max_length: 48
+          options:
+          - 初心者向け
+          - 中級者向け
+          - 熟練者向け
+      height: 149
+      id: '52700000000001'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力テキストの検証とインジェクション検出を行う
+        selected: false
+        title: 入力検証
+        type: code
+        code_language: python3
+        code: |-
+          import re
+
+          def main(process_info: str) -> dict:
+              issues = []
+              if len(process_info.strip()) < 30:
+                  issues.append("入力が短すぎます（30文字以上必要）")
+              injection_patterns = [
+                  r'(?i)ignore\s+(previous|above|all)\s+(instructions?|prompts?)',
+                  r'(?i)system\s*prompt',
+                  r'(?i)you\s+are\s+now',
+                  r'(?i)forget\s+(everything|all|your)',
+                  r'<script',
+                  r'javascript:',
+                  r'\{\{.*\}\}',
+              ]
+              combined = process_info
+              for pattern in injection_patterns:
+                  if re.search(pattern, combined):
+                      issues.append("不正な入力パターンが検出されました。正しい内容を入力してください。")
+                      break
+
+              is_valid = "true" if len(issues) == 0 else "false"
+              error_message = "" if is_valid == "true" else "\n".join(issues)
+              return {'is_valid': is_valid, 'error_message': error_message}
+        variables:
+        - value_selector:
+          - '52700000000001'
+          - process_info
+          variable: process_info
+        outputs:
+          is_valid:
+            type: string
+          error_message:
+            type: string
+      height: 97
+      id: '52700000000002'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証結果で分岐する
+        selected: false
+        title: 検証結果分岐
+        type: if-else
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - id: cond_valid
+            variable_selector:
+            - '52700000000002'
+            - is_valid
+            comparison_operator: is
+            value: 'true'
+      height: 125
+      id: '52700000000003'
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 工程情報を入力すると、標準作業手順書（SOP）を自動生成するワークフロー。
+        selected: false
+        title: AI生成
+        type: llm
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            frequency_penalty: 0
+            max_tokens: 8192
+            presence_penalty: 0
+            temperature: 0.2
+            top_p: 1
+          mode: chat
+          name: gpt-4o-mini
+          provider: openai
+        prompt_template:
+        - role: system
+          text: |-
+            あなたは製造業の工程管理・標準化の専門家です。ISO 9001の文書管理要件および製造現場のベストプラクティスに基づいて、標準作業手順書（SOP: Standard Operating Procedure）を作成してください。
+
+            ## 出力フォーマット
+            ### 文書管理情報
+            - 文書番号（仮番号） / 版数 / 作成日 / 承認欄
+
+            ### 1. 目的
+            本手順書の目的と適用範囲
+
+            ### 2. 適用範囲
+            対象工程・対象製品・対象者
+
+            ### 3. 用語の定義
+            専門用語の定義一覧
+
+            ### 4. 必要な資材・設備
+            | # | 資材/設備名 | 仕様 | 数量 | 備考 |
+
+            ### 5. 安全上の注意事項
+            - 保護具（PPE）の要件
+            - 危険源と対策
+
+            ### 6. 作業手順
+            | ステップ | 作業内容 | 要点・コツ | 品質チェックポイント | 所要時間目安 |
+            |---|---|---|---|---|
+
+            ### 7. 異常時の対応
+            トラブルシューティングフローチャート
+
+            ### 8. 記録・報告
+            記録すべき項目と報告フロー
+
+            ## ルール
+            - 対象者のスキルレベルに応じた詳細度で記述すること
+            - 写真・図の挿入箇所を【写真：〇〇】の形式で指示すること
+            - 安全に関わる注意事項は⚠️マークで強調すること
+            - 品質チェックポイントを各ステップに明記すること
+            - 曖昧な表現（「適当に」「だいたい」等）は使用しないこと
+            - 数値基準を可能な限り明記すること
+            - GMP（適正製造規範）の考え方を取り入れること
+        - role: user
+          text: |-
+            process_info:
+            {{#52700000000001.process_info#}}
+
+            department: {{#52700000000001.department#}}
+
+            sop_type: {{#52700000000001.sop_type#}}
+
+            skill_level: {{#52700000000001.skill_level#}}
+        variables: []
+        vision:
+          enabled: false
+      height: 97
+      id: '52700000000004'
+      position:
+        x: 980
+        y: 182
+      positionAbsolute:
+        x: 980
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 生成結果にメタ情報を付与して整形する
+        selected: false
+        title: 出力整形
+        type: template-transform
+        template: |-
+          # 標準作業手順書（SOP）
+
+          **department**: {{ department }}
+          **sop_type**: {{ sop_type }}
+          **skill_level**: {{ skill_level }}
+
+          ---
+
+          {{ result }}
+
+          ---
+          *AIが生成したSOPドラフトです。現場責任者の確認・承認を経てからご使用ください。*
+        variables:
+        - value_selector:
+          - '52700000000004'
+          - text
+          variable: result
+        - value_selector:
+          - '52700000000001'
+          - department
+          variable: department
+        - value_selector:
+          - '52700000000001'
+          - sop_type
+          variable: sop_type
+        - value_selector:
+          - '52700000000001'
+          - skill_level
+          variable: skill_level
+      height: 97
+      id: '52700000000005'
+      position:
+        x: 1280
+        y: 182
+      positionAbsolute:
+        x: 1280
+        y: 182
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 入力検証エラー時のメッセージを整形する
+        selected: false
+        title: エラー応答
+        type: template-transform
+        template: |-
+          ## 入力エラー
+
+          作業手順書（SOP）AI生成の処理を開始できませんでした。
+
+          **エラー詳細**: {{ error_message }}
+
+          入力内容を修正して再度お試しください。
+        variables:
+        - value_selector:
+          - '52700000000002'
+          - error_message
+          variable: error_message
+      height: 97
+      id: '52700000000006'
+      position:
+        x: 980
+        y: 432
+      positionAbsolute:
+        x: 980
+        y: 432
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: 結果またはエラーメッセージを出力する
+        selected: false
+        title: 終了
+        type: end
+        outputs:
+        - value_selector:
+          - '52700000000005'
+          - output
+          variable: result
+        - value_selector:
+          - '52700000000006'
+          - output
+          variable: error_message
+      height: 89
+      id: '52700000000007'
+      position:
+        x: 1580
+        y: 282
+      positionAbsolute:
+        x: 1580
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1
