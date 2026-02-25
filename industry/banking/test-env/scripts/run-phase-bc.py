@@ -227,8 +227,7 @@ def run_phase_b():
 
     # ----------------------------------------------------------
     # TC-17: 会話履歴テスト（マルチターン）
-    # 現行DSL: workflow モードのため memory 設定なし
-    # advanced-chat モードに変更する場合は memory を追加すること
+    # BNK-03 は advanced-chat モードで memory.window.size: 10 を持つ
     # ----------------------------------------------------------
     is_advanced_chat = 'advanced-chat' in bnk03_yaml
     if is_advanced_chat:

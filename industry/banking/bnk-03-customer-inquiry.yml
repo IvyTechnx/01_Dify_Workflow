@@ -10,6 +10,10 @@ app:
 workflow:
   environment_variables: []
   conversation_variables: []
+  memory:
+    window:
+      enabled: true
+      size: 10
   features:
     file_upload:
       image:

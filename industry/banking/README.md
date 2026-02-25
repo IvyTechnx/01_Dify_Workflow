@@ -92,7 +92,7 @@
 
 ```
 開始 → 問い合わせ分類(QC)
-           ├─ [口座] → 口座ナレッジ検索(KR) → 口座対応LLM → 口座回答(Answer)
+           ├─ [口座] → 口座KB検索(KR) → 口座対応LLM → 口座回答(Answer)
            ├─ [ローン]                      → ローン対応LLM → ローン回答(Answer)
            ├─ [カード]                      → カード対応LLM → カード回答(Answer)
            └─ [その他]                      → 一般対応LLM   → 一般回答(Answer)
@@ -102,7 +102,7 @@
 |---|---|---|
 | 開始 | start | `sys.query` を使用（Chatflow） |
 | 問い合わせ分類 | question-classifier | 4クラス: 口座/ローン/カード/その他 |
-| 口座ナレッジ検索 | knowledge-retrieval | 口座関連ナレッジベースを検索 |
+| 口座KB検索 | knowledge-retrieval | 口座関連ナレッジベースを検索 |
 | 口座対応LLM | llm | context有効 + memory有効 (temp: 0.3) |
 | ローン対応LLM | llm | memory有効 (temp: 0.3) |
 | カード対応LLM | llm | memory有効 (temp: 0.3) |

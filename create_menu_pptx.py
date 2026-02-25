@@ -7,6 +7,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 import datetime
+import os
 
 # ── カラーパレット ──
 NAVY      = RGBColor(0x1B, 0x2A, 0x4A)
@@ -781,7 +782,7 @@ add_multiline_textbox(slide, Inches(1.5), Inches(6.3), Inches(10), Inches(0.9), 
 # ════════════════════════════════════════════════════
 # 保存
 # ════════════════════════════════════════════════════
-output_path = "/Users/ivytech/Claude/01_Dify_Workflow/Dify_AI_Workflow_FamilyRestaurant_Menu.pptx"
+output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dify_AI_Workflow_FamilyRestaurant_Menu.pptx")
 prs.save(output_path)
 print(f"PowerPoint saved to: {output_path}")
 print(f"Total slides: {len(prs.slides)}")
