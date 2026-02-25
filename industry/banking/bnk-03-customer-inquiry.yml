@@ -22,7 +22,20 @@ workflow:
     retriever_resource:
       enabled: false
     sensitive_word_avoidance:
-      enabled: false
+      enabled: true
+      type: keywords
+      config:
+        keywords: |-
+          爆弾
+          殺害
+          違法薬物
+          ハッキング手法
+        inputs_config:
+          enabled: true
+          preset_response: その内容にはお答えできません。別の質問をお願いします。
+        outputs_config:
+          enabled: true
+          preset_response: 適切な回答を生成できませんでした。質問を変えてください。
     speech_to_text:
       enabled: false
     suggested_questions:
@@ -199,7 +212,7 @@ workflow:
         - sys
         - query
         dataset_ids:
-        - 'c0cc0da0-2558-4006-8177-1a6b713fd228'
+        - 'account-kb-placeholder'
         retrieval_mode: single
         single_retrieval_config:
           model:

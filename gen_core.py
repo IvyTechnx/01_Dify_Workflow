@@ -2,7 +2,7 @@
 """Dify DSL YAML生成コアエンジン"""
 import yaml, os
 
-BASE = "/Users/ivytech/Claude/01_Dify_Workflow/catalog"
+BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catalog")
 
 FEATURES = {
     'file_upload': {'image': {'enabled': False, 'number_limits': 3, 'transfer_methods': ['local_file', 'remote_url']}},
